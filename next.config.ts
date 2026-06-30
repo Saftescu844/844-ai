@@ -7,6 +7,15 @@ const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        'localhost:3000',
+        '*.app.github.dev',
+        'silver-acorn-6447rrj6r6q34xjr-3000.app.github.dev',
+      ],
+    },
+  },
   images: {
     localPatterns: [
       {

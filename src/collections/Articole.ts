@@ -113,6 +113,27 @@ export const Articole: CollectionConfig = {
       relationTo: 'media',
     },
     {
+      name: 'galerie',
+      type: 'array',
+      labels: { singular: 'Imagine', plural: 'Galerie imagini' },
+      admin: { description: 'Imagini pentru corpul articolului. Fiecare cu descriere și credit/sursă.' },
+      fields: [
+        { name: 'imagine', type: 'upload', relationTo: 'media', required: true },
+        { name: 'caption', type: 'text', admin: { description: 'Descriere afișată sub imagine.' } },
+        { name: 'credit', type: 'text', admin: { description: 'Credit/sursă imagine (pentru drepturi de autor).' } },
+      ],
+    },
+    {
+      name: 'videoTitlu',
+      type: 'text',
+      admin: { description: 'Titlu opțional pentru video.' },
+    },
+    {
+      name: 'videoUrl',
+      type: 'text',
+      admin: { description: 'Link YouTube sau Vimeo (ex: https://www.youtube.com/watch?v=...).' },
+    },
+    {
       name: 'surse',
       type: 'relationship',
       relationTo: 'surse',
@@ -128,6 +149,16 @@ export const Articole: CollectionConfig = {
       name: 'sursaLink',
       type: 'text',
       admin: { description: 'Link-ul concret al articolului-sursă original.' },
+    },
+    {
+      name: 'producator',
+      type: 'text',
+      admin: { description: 'Compania/laboratorul care dezvoltă tehnologia (ex: Aidoc).' },
+    },
+    {
+      name: 'linkProducator',
+      type: 'text',
+      admin: { description: 'Link oficial al producătorului (ex: https://www.aidoc.com).' },
     },
     {
       name: 'tags',

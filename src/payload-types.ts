@@ -184,6 +184,31 @@ export interface Articole {
   };
   imaginePrincipala?: (number | null) | Media;
   /**
+   * Imagini pentru corpul articolului. Fiecare cu descriere și credit/sursă.
+   */
+  galerie?:
+    | {
+        imagine: number | Media;
+        /**
+         * Descriere afișată sub imagine.
+         */
+        caption?: string | null;
+        /**
+         * Credit/sursă imagine (pentru drepturi de autor).
+         */
+        credit?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Titlu opțional pentru video.
+   */
+  videoTitlu?: string | null;
+  /**
+   * Link YouTube sau Vimeo (ex: https://www.youtube.com/watch?v=...).
+   */
+  videoUrl?: string | null;
+  /**
    * Sursele citate. Minimum 2 pentru conformitate.
    */
   surse?: (number | Surse)[] | null;
@@ -195,6 +220,14 @@ export interface Articole {
    * Link-ul concret al articolului-sursă original.
    */
   sursaLink?: string | null;
+  /**
+   * Compania/laboratorul care dezvoltă tehnologia (ex: Aidoc).
+   */
+  producator?: string | null;
+  /**
+   * Link oficial al producătorului (ex: https://www.aidoc.com).
+   */
+  linkProducator?: string | null;
   tags?:
     | {
         tag?: string | null;
@@ -726,9 +759,21 @@ export interface ArticoleSelect<T extends boolean = true> {
   excerpt?: T;
   continut?: T;
   imaginePrincipala?: T;
+  galerie?:
+    | T
+    | {
+        imagine?: T;
+        caption?: T;
+        credit?: T;
+        id?: T;
+      };
+  videoTitlu?: T;
+  videoUrl?: T;
   surse?: T;
   sursaNume?: T;
   sursaLink?: T;
+  producator?: T;
+  linkProducator?: T;
   tags?:
     | T
     | {
