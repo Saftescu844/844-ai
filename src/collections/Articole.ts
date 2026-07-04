@@ -62,6 +62,21 @@ export const Articole: CollectionConfig = {
       },
     },
     {
+      name: 'continutHashTradus',
+      type: 'text',
+      admin: { hidden: true },
+    },
+    {
+      name: 'necesitaRetraducere',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        readOnly: true,
+        description: '⚠️ Conținutul a fost modificat după ultima traducere. Retradu manual dacă e nevoie.',
+        condition: (data) => !!data?.necesitaRetraducere,
+      },
+    },
+    {
       name: 'pilon',
       type: 'relationship',
       relationTo: 'categorii',
@@ -233,6 +248,26 @@ export const Articole: CollectionConfig = {
         // setează publishedAt automat la prima publicare
         if (data.status === 'publicat' && !data.publishedAt) {
           data.publishedAt = new Date().toISOString()
+        }
+        return data
+      },
+      ({ data, originalDoc }) => {
+        // detectează dacă textul RO s-a schimbat față de ultima traducere
+        if (!data.continut) return data
+        const textPlat = (node: any): string => {
+          if (!node) return ''
+          if (node.type === 'upload') return ''
+          const text = (node.children || []).map((c: any) => c.text || textPlat(c)).join('')
+          return text
+        }
+        const toateBlocurile = (data.continut?.root?.children || []).map(textPlat).join('|')
+        let suma = 0
+        for (let i = 0; i < toateBlocurile.length; i++) suma = (suma + toateBlocurile.charCodeAt(i) * (i + 1)) % 1000000007
+        const hashNou = toateBlocurile.length + '-' + suma
+
+        const hashDeComparat = typeof data.continutHashTradus !== 'undefined' ? data.continutHashTradus : originalDoc?.continutHashTradus
+        if (hashDeComparat) {
+          data.necesitaRetraducere = hashDeComparat !== hashNou
         }
         return data
       },

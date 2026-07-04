@@ -151,6 +151,11 @@ export interface Articole {
    * Articolul echivalent în cealaltă limbă (pentru butonul RO/EN și hreflang SEO).
    */
   versiuneAlternativa?: (number | null) | Articole;
+  continutHashTradus?: string | null;
+  /**
+   * ⚠️ Conținutul a fost modificat după ultima traducere. Retradu manual dacă e nevoie.
+   */
+  necesitaRetraducere?: boolean | null;
   /**
    * Pilonul de care aparține (cei 5 piloni de conținut).
    */
@@ -753,6 +758,8 @@ export interface ArticoleSelect<T extends boolean = true> {
   slug?: T;
   limba?: T;
   versiuneAlternativa?: T;
+  continutHashTradus?: T;
+  necesitaRetraducere?: T;
   pilon?: T;
   subcategorie?: T;
   tip?: T;
