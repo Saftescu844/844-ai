@@ -4,8 +4,10 @@ on:
   schedule:
     # RSS general - 07:00 România = 05:00 UTC
     - cron: '0 5 * * *'
-    # Medical - 13:00 România = 11:00 UTC
+    # Medical - 11:00 România (vara) = 08:00 UTC ... folosim ora fixă existentă: 13:00 România = 11:00 UTC
     - cron: '0 11 * * *'
+    # Educație - 15:00 România = 13:00 UTC
+    - cron: '0 13 * * *'
     # Afaceri - 19:00 România = 17:00 UTC
     - cron: '0 17 * * *'
   workflow_dispatch: {}
@@ -34,6 +36,8 @@ jobs:
             echo "script=publish-rss.ts" >> "$GITHUB_OUTPUT"
           elif [ "$HOUR" = "11" ]; then
             echo "script=publish-health.ts" >> "$GITHUB_OUTPUT"
+          elif [ "$HOUR" = "13" ]; then
+            echo "script=publish-education.ts" >> "$GITHUB_OUTPUT"
           else
             echo "script=publish-business.ts" >> "$GITHUB_OUTPUT"
           fi
