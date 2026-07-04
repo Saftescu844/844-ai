@@ -1,4 +1,4 @@
-import { getTooluri, getArticolePilon, getArticoleSanatate } from '@/lib/payload'
+import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getRoadmaps, getCursuri } from '@/lib/payload'
 import { notFound } from 'next/navigation'
 
 const PILONI: Record<string, { ro: string; en: string }> = {
@@ -56,6 +56,87 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
           {SUBMENIURI.map((s) => {
             const activ = (sub || '') === s.slug
             const href = s.slug ? `/${lang}/pilon/sanatate?sub=${s.slug}` : `/${lang}/pilon/sanatate`
+            return (
+              <a key={s.slug || 'toate'} href={href} style={{ padding: '6px 14px', borderRadius: 20, textDecoration: 'none', fontSize: 13, fontWeight: 500, border: '1px solid ' + (activ ? 'transparent' : '#d4d4d4'), background: activ ? '#185FA5' : 'transparent', color: activ ? '#fff' : '#444' }}>
+                {lang === 'ro' ? s.ro : s.en}
+              </a>
+            )
+          })}
+        </nav>
+        {articole.length === 0 ? (
+          <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu sunt articole în această secțiune.' : 'No articles in this section yet.'}</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 18 }}>
+            {articole.map((a: any) => <CardArticol key={a.id} a={a} lang={lang} />)}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // EDUCAȚIE: submeniuri pe subcategorii
+  if (pilon === 'educatie') {
+    const { sub } = await props.searchParams
+    const { docs: articole } = await getArticoleEducatie(lang, sub)
+    const { docs: roadmaps } = await getRoadmaps(lang)
+    const { docs: cursuri } = await getCursuri(lang)
+    const SUBMENIURI = [
+      { slug: '', ro: 'Toate', en: 'All' },
+      { slug: 'invatare-ai', ro: 'Învățare AI', en: 'Learning AI' },
+      { slug: 'institutii', ro: 'AI în școli și universități', en: 'AI in Schools & Universities' },
+      { slug: 'instrumente-edu', ro: 'Instrumente educaționale AI', en: 'AI Education Tools' },
+      { slug: 'cercetare', ro: 'Cercetare și inovație', en: 'Research & Innovation' },
+      { slug: 'cariere', ro: 'Cariere în AI', en: 'AI Careers' },
+    ]
+    const NIVEL: Record<string, { ro: string; en: string }> = {
+      incepator: { ro: 'Începător', en: 'Beginner' },
+      intermediar: { ro: 'Intermediar', en: 'Intermediate' },
+      avansat: { ro: 'Avansat', en: 'Advanced' },
+    }
+    return (
+      <div style={{ padding: '0.5rem 0' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 20 }}>{lang === 'ro' ? info.ro : info.en}</h1>
+
+        {(roadmaps.length > 0 || cursuri.length > 0) && (
+          <div style={{ display: 'grid', gridTemplateColumns: roadmaps.length > 0 && cursuri.length > 0 ? '1fr 1fr' : '1fr', gap: 24, marginBottom: 32 }}>
+            {roadmaps.length > 0 && (
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{lang === 'ro' ? 'Roadmap-uri de învățare' : 'Learning Roadmaps'}</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
+                  {roadmaps.map((r: any) => (
+                    <a key={r.id} href={`/${lang}/roadmap/${r.slug}`} style={{ textDecoration: 'none', color: 'inherit', border: '1px solid #e5e5e5', borderRadius: 10, padding: 14, display: 'block' }}>
+                      {r.nivel && NIVEL[r.nivel] && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: '#185FA5' }}>{lang === 'ro' ? NIVEL[r.nivel].ro : NIVEL[r.nivel].en}</span>}
+                      <h3 style={{ fontSize: 16, fontWeight: 600, margin: '6px 0' }}>{r.titlu}</h3>
+                      {r.descriere && <p style={{ fontSize: 13, color: '#666', margin: 0 }}>{r.descriere.length > 80 ? r.descriere.slice(0, 80) + '…' : r.descriere}</p>}
+                      <p style={{ fontSize: 12, color: '#aaa', marginTop: 8 }}>{Array.isArray(r.pasi) ? r.pasi.length : 0} {lang === 'ro' ? 'pași' : 'steps'}</p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {cursuri.length > 0 && (
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{lang === 'ro' ? 'Cursuri' : 'Courses'}</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
+                  {cursuri.map((cu: any) => (
+                    <a key={cu.id} href={`/${lang}/curs/${cu.slug}`} style={{ textDecoration: 'none', color: 'inherit', border: '1px solid #e5e5e5', borderRadius: 10, padding: 14, display: 'block' }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: cu.gratuit ? '#0F6E56' : '#B8860B' }}>{cu.gratuit ? (lang === 'ro' ? 'Gratuit' : 'Free') : (lang === 'ro' ? 'Abonament' : 'Subscription')}</span>
+                      <h3 style={{ fontSize: 16, fontWeight: 600, margin: '6px 0' }}>{cu.titlu}</h3>
+                      <p style={{ fontSize: 12, color: '#aaa' }}>{Array.isArray(cu.lectii) ? cu.lectii.length : 0} {lang === 'ro' ? 'lecții' : 'lessons'}</p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{lang === 'ro' ? 'Articole' : 'Articles'}</h2>
+        <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
+          {SUBMENIURI.map((s) => {
+            const activ = (sub || '') === s.slug
+            const href = s.slug ? `/${lang}/pilon/educatie?sub=${s.slug}` : `/${lang}/pilon/educatie`
             return (
               <a key={s.slug || 'toate'} href={href} style={{ padding: '6px 14px', borderRadius: 20, textDecoration: 'none', fontSize: 13, fontWeight: 500, border: '1px solid ' + (activ ? 'transparent' : '#d4d4d4'), background: activ ? '#185FA5' : 'transparent', color: activ ? '#fff' : '#444' }}>
                 {lang === 'ro' ? s.ro : s.en}

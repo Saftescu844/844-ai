@@ -98,6 +98,19 @@ export const Articole: CollectionConfig = {
       admin: { description: 'Subcategorie — relevant mai ales pentru pilonul Sănătate.' },
     },
     {
+      name: 'subcategorieEducatie',
+      type: 'select',
+      options: [
+        { label: 'Învățare AI', value: 'invatare-ai' },
+        { label: 'AI în școli și universități', value: 'institutii' },
+        { label: 'Instrumente educaționale AI', value: 'instrumente-edu' },
+        { label: 'Cercetare și inovație', value: 'cercetare' },
+        { label: 'Cariere în AI', value: 'cariere' },
+      ],
+      index: true,
+      admin: { description: 'Subcategorie — relevant mai ales pentru pilonul Educație.' },
+    },
+    {
       name: 'tip',
       type: 'select',
       required: true,
