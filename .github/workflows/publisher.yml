@@ -2,7 +2,11 @@ name: Auto-Publisher 844-ai.ro
 
 on:
   schedule:
+    # RSS general - 07:00 România = 05:00 UTC
     - cron: '0 5 * * *'
+    # Medical - 13:00 România = 11:00 UTC
+    - cron: '0 11 * * *'
+    # Afaceri - 19:00 România = 17:00 UTC
     - cron: '0 17 * * *'
   workflow_dispatch: {}
 
@@ -28,8 +32,10 @@ jobs:
           HOUR=$(date -u +%H)
           if [ "$HOUR" = "05" ]; then
             echo "script=publish-rss.ts" >> "$GITHUB_OUTPUT"
-          else
+          elif [ "$HOUR" = "11" ]; then
             echo "script=publish-health.ts" >> "$GITHUB_OUTPUT"
+          else
+            echo "script=publish-business.ts" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Rulează publisher-ul
