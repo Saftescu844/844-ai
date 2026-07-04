@@ -104,7 +104,7 @@ async function main() {
   let publicate = 0
   for (const stire of deProiectat) {
     console.log('  → [' + stire.scor + '/10] "' + stire.titlu.substring(0, 50) + '..." (' + stire.sursa + ')')
-    const existent = await payload.find({ collection: 'articole', where: { titlu: { like: stire.titlu.substring(0, 30) } }, limit: 1 })
+    const existent = stire.link ? await payload.find({ collection: 'articole', where: { sursaLink: { equals: stire.link } }, limit: 1 }) : { docs: [] as any[] }
     if (existent.docs.length > 0) { console.log('    deja publicat, sar peste'); continue }
 
     const prompt =
