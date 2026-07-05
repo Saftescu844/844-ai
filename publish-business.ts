@@ -98,11 +98,12 @@ async function main() {
   for (const s of stiri.slice(0, 5)) console.log('      [' + s.scor + '/10] ' + s.titlu.substring(0, 55))
   console.log('')
 
-  const deProiectat = stiri.slice(0, MAX_ARTICOLE)
+  const deProiectat = stiri.slice(0, Math.max(MAX_ARTICOLE * 5, 10)) // candidați mai mulți; ne oprim la MAX_ARTICOLE publicate efectiv
   console.log('[3] Generez ' + deProiectat.length + ' articole...\n')
 
   let publicate = 0
   for (const stire of deProiectat) {
+    if (publicate >= MAX_ARTICOLE) break // oprire când am publicat efectiv suficiente, nu doar încercat
     console.log('  → [' + stire.scor + '/10] "' + stire.titlu.substring(0, 50) + '..." (' + stire.sursa + ')')
     const existent = stire.link ? await payload.find({ collection: 'articole', where: { sursaLink: { equals: stire.link } }, limit: 1 }) : { docs: [] as any[] }
     if (existent.docs.length > 0) { console.log('    deja publicat, sar peste'); continue }

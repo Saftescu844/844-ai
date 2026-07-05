@@ -28,19 +28,17 @@ jobs:
       - name: Instalează dependențe
         run: npm ci
 
-      - name: Determină care publisher rulează (pe baza orei)
+      - name: Determină care publisher rulează (pe baza cron-ului declanșator, nu a orei curente)
         id: decide
         run: |
-          HOUR=$(date -u +%H)
-          if [ "$HOUR" = "05" ]; then
-            echo "script=publish-rss.ts" >> "$GITHUB_OUTPUT"
-          elif [ "$HOUR" = "11" ]; then
-            echo "script=publish-health.ts" >> "$GITHUB_OUTPUT"
-          elif [ "$HOUR" = "13" ]; then
-            echo "script=publish-education.ts" >> "$GITHUB_OUTPUT"
-          else
-            echo "script=publish-business.ts" >> "$GITHUB_OUTPUT"
-          fi
+          echo "Cron declanșator: ${{ github.event.schedule }}"
+          case "${{ github.event.schedule }}" in
+            "0 5 * * *") echo "script=publish-rss.ts" >> "$GITHUB_OUTPUT" ;;
+            "0 11 * * *") echo "script=publish-health.ts" >> "$GITHUB_OUTPUT" ;;
+            "0 13 * * *") echo "script=publish-education.ts" >> "$GITHUB_OUTPUT" ;;
+            "0 17 * * *") echo "script=publish-business.ts" >> "$GITHUB_OUTPUT" ;;
+            *) echo "script=publish-rss.ts" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - name: Rulează publisher-ul
         env:

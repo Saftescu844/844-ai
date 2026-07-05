@@ -115,12 +115,13 @@ async function main() {
   for (const s of stiri.slice(0, 5)) console.log('      [' + s.scor + '/10, pilon ' + s.pilon + '] ' + s.titlu.substring(0, 55))
   console.log('')
 
-  const deProiectat = stiri.slice(0, MAX_ARTICOLE)
+  const deProiectat = stiri.slice(0, Math.max(MAX_ARTICOLE * 5, 10)) // candidați mai mulți; ne oprim la MAX_ARTICOLE publicate efectiv
   console.log('[3] Generez ' + deProiectat.length + ' articole (cele mai relevante)...\n')
 
   // ── 3. Generează + publică ──
   let publicate = 0
   for (const stire of deProiectat) {
+    if (publicate >= MAX_ARTICOLE) break // oprire când am publicat efectiv suficiente, nu doar încercat
     const pilonSlug = PILON_SLUG[stire.pilon] || 'stiri'
     const categorieId = catIdDupaSlug[pilonSlug] || catIdDupaSlug['stiri']
     console.log('  → [' + stire.scor + '/10, ' + pilonSlug + '] "' + stire.titlu.substring(0, 50) + '..." (' + stire.sursa + ')')
