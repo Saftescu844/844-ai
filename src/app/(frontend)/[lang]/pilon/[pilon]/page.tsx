@@ -97,24 +97,8 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
       <div style={{ padding: '0.5rem 0' }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 20 }}>{lang === 'ro' ? info.ro : info.en}</h1>
 
-        {(roadmaps.length > 0 || cursuri.length > 0) && (
+        {sub === 'invatare-ai' && (roadmaps.length > 0 || cursuri.length > 0) && (
           <div style={{ display: 'grid', gridTemplateColumns: roadmaps.length > 0 && cursuri.length > 0 ? '1fr 1fr' : '1fr', gap: 24, marginBottom: 32 }}>
-            {roadmaps.length > 0 && (
-              <div>
-                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{lang === 'ro' ? 'Roadmap-uri de învățare' : 'Learning Roadmaps'}</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
-                  {roadmaps.map((r: any) => (
-                    <a key={r.id} href={`/${lang}/roadmap/${r.slug}`} style={{ textDecoration: 'none', color: 'inherit', border: '1px solid #e5e5e5', borderRadius: 10, padding: 14, display: 'block' }}>
-                      {r.nivel && NIVEL[r.nivel] && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: '#185FA5' }}>{lang === 'ro' ? NIVEL[r.nivel].ro : NIVEL[r.nivel].en}</span>}
-                      <h3 style={{ fontSize: 16, fontWeight: 600, margin: '6px 0' }}>{r.titlu}</h3>
-                      {r.descriere && <p style={{ fontSize: 13, color: '#666', margin: 0 }}>{r.descriere.length > 80 ? r.descriere.slice(0, 80) + '…' : r.descriere}</p>}
-                      <p style={{ fontSize: 12, color: '#aaa', marginTop: 8 }}>{Array.isArray(r.pasi) ? r.pasi.length : 0} {lang === 'ro' ? 'pași' : 'steps'}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {cursuri.length > 0 && (
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{lang === 'ro' ? 'Cursuri' : 'Courses'}</h2>
@@ -132,6 +116,8 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
           </div>
         )}
 
+        {sub !== 'invatare-ai' && (
+          <>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{lang === 'ro' ? 'Articole' : 'Articles'}</h2>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
           {SUBMENIURI.map((s) => {
@@ -144,6 +130,8 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
             )
           })}
         </nav>
+          </>
+        )}
         {articole.length === 0 ? (
           <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu sunt articole în această secțiune.' : 'No articles in this section yet.'}</p>
         ) : (
