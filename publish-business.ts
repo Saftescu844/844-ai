@@ -99,7 +99,7 @@ async function main() {
   console.log('')
 
   const deProiectat = stiri.slice(0, Math.max(MAX_ARTICOLE * 5, 10)) // candidați mai mulți; ne oprim la MAX_ARTICOLE publicate efectiv
-  console.log('[3] Generez ' + deProiectat.length + ' articole...\n')
+  console.log('[3] Încerc până la ' + deProiectat.length + ' candidați, țintă ' + MAX_ARTICOLE + ' articole...\n')
 
   let publicate = 0
   for (const stire of deProiectat) {
