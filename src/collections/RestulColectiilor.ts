@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { lexicalEditor, UploadFeature } from '@payloadcms/richtext-lexical'
 
 // ============================================================
 //  CATEGORII — cei 5 piloni de conținut
@@ -235,7 +236,29 @@ export const Cursuri: CollectionConfig = {
       localized: true,
       fields: [
         { name: 'titlu', type: 'text', required: true },
-        { name: 'continut', type: 'richText' },
+        {
+          name: 'continut',
+          type: 'richText',
+          editor: lexicalEditor({
+            features: ({ defaultFeatures }) => [
+              ...defaultFeatures,
+              UploadFeature({
+                collections: {
+                  media: {
+                    fields: [
+                      { name: 'caption', type: 'text', label: 'Descriere (caption)' },
+                      { name: 'align', type: 'select', defaultValue: 'center', options: [
+                        { label: 'Stânga', value: 'left' },
+                        { label: 'Centru', value: 'center' },
+                        { label: 'Dreapta', value: 'right' },
+                      ] },
+                    ],
+                  },
+                },
+              }),
+            ],
+          }),
+        },
         { name: 'videoURL', type: 'text' },
         { name: 'durataMinute', type: 'number' },
       ],

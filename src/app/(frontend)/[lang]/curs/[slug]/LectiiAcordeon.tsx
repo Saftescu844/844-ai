@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { RichText } from '@payloadcms/richtext-lexical/react'
+import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
 
 export default function LectiiAcordeon({ lectii, lang }: { lectii: any[]; lang: string }) {
   const [deschis, setDeschis] = useState<number | null>(null)
@@ -34,7 +35,7 @@ export default function LectiiAcordeon({ lectii, lang }: { lectii: any[]; lang: 
                 )}
                 {lectie.continut && (
                   <div style={{ fontSize: 15, lineHeight: 1.6, color: '#333' }}>
-                    <RichText data={lectie.continut as any} />
+                    <RichText data={lectie.continut as any} converters={jsxConvertersCuImagini} />
                   </div>
                 )}
               </div>

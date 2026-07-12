@@ -1,5 +1,6 @@
 import { getArticol } from '@/lib/payload'
 import { RichText } from '@payloadcms/richtext-lexical/react'
+import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
 import { notFound } from 'next/navigation'
 
 function videoEmbed(url: string): string | null {
@@ -57,7 +58,7 @@ export default async function PaginaArticol(props: { params: Promise<{ lang: str
         </div>
       )}
       <div style={{ fontSize: 17, lineHeight: 1.7, color: '#222' }}>
-        <RichText data={articol.continut as any} />
+        <RichText data={articol.continut as any} converters={jsxConvertersCuImagini} />
       </div>
 
       {Array.isArray(articol.galerie) && articol.galerie.length > 0 && (
