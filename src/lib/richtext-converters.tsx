@@ -42,7 +42,7 @@ function VideoBlockRender({ node }: { node: SerializedBlockNode }) {
     <div style={{ margin: '24px 0' }}>
       {fields.titlu && <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{fields.titlu}</h3>}
       <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 10 }}>
-        <iframe src={embed} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }} allowFullScreen title={fields.titlu || 'Video'} />
+        <iframe src={embed} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title={fields.titlu || 'Video'} />
       </div>
     </div>
   )
