@@ -1,4 +1,6 @@
 import type { CollectionConfig } from 'payload'
+import { lexicalEditor, UploadFeature, BlocksFeature } from '@payloadcms/richtext-lexical'
+import { VideoBlock, CalloutBlock, TableBlock } from '@/lib/richtext-blocks'
 
 // ============================================================
 //  ARTICOLE — colecția centrală, susține toți cei 5 piloni
@@ -134,6 +136,28 @@ export const Articole: CollectionConfig = {
       name: 'continut',
       type: 'richText',
       required: true,
+      editor: lexicalEditor({
+        features: ({ defaultFeatures }) => [
+          ...defaultFeatures,
+          UploadFeature({
+            collections: {
+              media: {
+                fields: [
+                  { name: 'caption', type: 'text', label: 'Descriere (caption)' },
+                  { name: 'align', type: 'select', defaultValue: 'center', options: [
+                    { label: 'Stânga', value: 'left' },
+                    { label: 'Centru', value: 'center' },
+                    { label: 'Dreapta', value: 'right' },
+                  ] },
+                ],
+              },
+            },
+          }),
+          BlocksFeature({
+            blocks: [VideoBlock, CalloutBlock, TableBlock],
+          }),
+        ],
+      }),
     },
     {
       name: 'imaginePrincipala',
