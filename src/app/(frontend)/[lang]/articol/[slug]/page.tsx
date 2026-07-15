@@ -2,6 +2,7 @@ import { getArticol } from '@/lib/payload'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
 import { notFound } from 'next/navigation'
+import NewsletterForm from '@/components/NewsletterForm'
 
 function videoEmbed(url: string): string | null {
   if (!url) return null
@@ -116,6 +117,10 @@ export default async function PaginaArticol(props: { params: Promise<{ lang: str
           <p style={{ margin: '10px 0 0', fontSize: 12, color: '#888', fontStyle: 'italic' }}>{txtNota}</p>
         </div>
       )}
+
+      <div style={{ marginTop: 32 }}>
+        <NewsletterForm lang={lang} />
+      </div>
     </article>
   )
 }

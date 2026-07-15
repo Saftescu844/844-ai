@@ -50,7 +50,7 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
       : 'Journalistic and informational content. Not medical advice. For health concerns, consult a physician.'
     return (
       <div style={{ padding: '0.5rem 0' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{lang === 'ro' ? info.ro : info.en}</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 0, marginBottom: 8 }}>{lang === 'ro' ? info.ro : info.en}</h1>
         <p style={{ fontSize: 12, color: '#7A5A1E', background: '#FCF3E8', border: '1px solid #E8C99B', borderRadius: 8, padding: '10px 14px', marginBottom: 20, lineHeight: 1.5 }}>⚕️ {disclaimerTxt}</p>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
           {SUBMENIURI.map((s) => {
@@ -95,7 +95,7 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
     }
     return (
       <div style={{ padding: '0.5rem 0' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 20 }}>{lang === 'ro' ? info.ro : info.en}</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 0, marginBottom: 20 }}>{lang === 'ro' ? info.ro : info.en}</h1>
 
         {sub === 'invatare-ai' && (roadmaps.length > 0 || cursuri.length > 0) && (
           <div style={{ display: 'grid', gridTemplateColumns: roadmaps.length > 0 && cursuri.length > 0 ? '1fr 1fr' : '1fr', gap: 24, marginBottom: 32 }}>
@@ -152,7 +152,7 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
 
     return (
       <div style={{ padding: '0.5rem 0' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{titluPilon}</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 0, marginBottom: 8 }}>{titluPilon}</h1>
         <p style={{ fontSize: 12, color: '#888', background: '#f6f6f4', borderRadius: 8, padding: '10px 14px', marginBottom: 24, lineHeight: 1.5 }}>{afiliereTxt}</p>
 
         {/* CATALOG DE UNELTE */}
@@ -201,7 +201,7 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
   const gol = lang === 'ro' ? 'Încă nu sunt articole în această secțiune.' : 'No articles in this section yet.'
   return (
     <div style={{ padding: '0.5rem 0' }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 24 }}>{titluPilon}</h1>
+      <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 0, marginBottom: 24 }}>{titluPilon}</h1>
       {articole.length === 0 ? (
         <p style={{ color: '#888' }}>{gol}</p>
       ) : (
