@@ -1,5 +1,4 @@
 import React from 'react'
-import NewsletterForm from '@/components/NewsletterForm'
 
 const PILONI = [
   { slug: 'stiri', ro: 'Știri AI', en: 'AI News' },
@@ -38,9 +37,6 @@ export default async function LangLayout(props: {
       </header>
       <main style={{ paddingTop: 10 }}>{props.children}</main>
       <footer style={{ borderTop: '1px solid #e5e5e5', padding: '2rem 0 1.5rem', marginTop: 40, fontSize: 13, color: '#666' }}>
-        <div style={{ marginBottom: 24, maxWidth: 480 }}>
-          <NewsletterForm lang={lang} />
-        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, marginBottom: 20 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}><span style={{ color: '#C41E3A' }}>844-ai</span>.ro</div>
