@@ -125,7 +125,7 @@ async function main() {
         data: {
           titlu: art.titlu, slug: slug(art.titlu), limba: 'ro', pilon: categorieId, tip: 'stire-auto',
           subcategorieEducatie: stire.subcategorie,
-          excerpt: art.excerpt || '', continut: htmlToLexical(art.continut),
+          excerpt: (art.excerpt || '').substring(0, 298), continut: htmlToLexical(art.continut),
           sursaNume: stire.sursa, sursaLink: stire.link,
           tags: (art.tags || []).map((t: string) => ({ tag: t })),
           status: 'published', publishedAt: new Date().toISOString(),
@@ -143,7 +143,7 @@ async function main() {
             data: {
               titlu: tradus.titlu, slug: slugEn(tradus.titlu), limba: 'en', pilon: categorieId, tip: 'stire-auto',
               subcategorieEducatie: stire.subcategorie,
-              excerpt: tradus.excerpt, continut: tradus.continut,
+              excerpt: (tradus.excerpt || '').substring(0, 298), continut: tradus.continut,
               sursaNume: stire.sursa, sursaLink: stire.link,
               tags: (art.tags || []).map((t: string) => ({ tag: t })),
               status: 'published', publishedAt: new Date().toISOString(),
