@@ -183,7 +183,7 @@ async function main() {
               generatAutomat: true, numarConfirmari: 1,
               ...(stire.subcategorie ? { subcategorie: stire.subcategorie } : {}),
               versiuneAlternativa: creat.id,
-              metaTitle: tradus.metaTitle, metaDescription: tradus.metaDescription,
+              metaTitle: (tradus.metaTitle || '').substring(0, 58), metaDescription: (tradus.metaDescription || '').substring(0, 158),
             } as any,
           })
           // legăm reciproc RO → EN
