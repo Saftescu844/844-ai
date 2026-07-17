@@ -17,12 +17,18 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-17
 
+      - name: Verifică versiunea pg_dump instalată
+        run: |
+          which pg_dump
+          pg_dump --version
+          ls -la /usr/lib/postgresql/*/bin/pg_dump 2>/dev/null || echo "niciun binar versionat găsit"
+
       - name: Creează backup
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
-          pg_dump "$DATABASE_URL" -F c -f "backup_${TIMESTAMP}.dump"
+          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" -F c -f "backup_${TIMESTAMP}.dump"
           ls -lh backup_${TIMESTAMP}.dump
 
       - name: Încarcă backup ca artifact
