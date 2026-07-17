@@ -9,6 +9,7 @@ import { Articole } from './collections/Articole'
 import { Surse } from './collections/Surse'
 import { Useri } from './collections/Useri'
 import sharp from 'sharp'
+import { s3Storage } from '@payloadcms/storage-s3'
 import {
   Categorii,
   Comentarii,
@@ -24,6 +25,28 @@ const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 export default buildConfig({
+  plugins: [
+    s3Storage({
+      collections: {
+        media: {
+          disablePayloadAccessControl: true,
+          generateFileURL: ({ filename }) => {
+            return `https://hyapqvnubhwkwmwudeit.supabase.co/storage/v1/object/public/media/${filename}`
+          },
+        },
+      },
+      bucket: process.env.S3_BUCKET || '',
+      config: {
+        credentials: {
+          accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+        },
+        region: process.env.S3_REGION || 'eu-central-1',
+        endpoint: process.env.S3_ENDPOINT || '',
+        forcePathStyle: true,
+      },
+    }),
+  ],
   // === Autentificare: colecția Useri ===
   admin: {
     user: 'useri',

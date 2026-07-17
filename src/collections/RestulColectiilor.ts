@@ -320,7 +320,6 @@ export const Media: CollectionConfig = {
   admin: { group: 'Sistem' },
   access: { read: () => true },
   upload: {
-    staticDir: 'media',
     imageSizes: [
       { name: 'thumbnail', width: 400, height: 300, position: 'centre' },
       { name: 'card', width: 768, height: 512, position: 'centre' },
