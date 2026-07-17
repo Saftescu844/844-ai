@@ -1,0 +1,29 @@
+name: Database Backup 844-ai.ro
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Instalează postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Creează backup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
+          pg_dump "$DATABASE_URL" -F c -f "backup_${TIMESTAMP}.dump"
+          ls -lh backup_${TIMESTAMP}.dump
+
+      - name: Încarcă backup ca artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: "*.dump"
+          retention-days: 90
