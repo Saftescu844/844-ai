@@ -49,3 +49,4 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 test.env
+.env.backup-inainte-de-schimbare
