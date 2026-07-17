@@ -10,8 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Instalează postgresql-client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Instalează postgresql-client 17
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
 
       - name: Creează backup
         env:
