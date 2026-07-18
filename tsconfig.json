@@ -40,6 +40,17 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "bootstrap-prod.ts",
+    "check-*.ts",
+    "recreate-*.ts",
+    "test-*.ts",
+    "verify-*.ts",
+    "publish-*.ts",
+    "tradu-*.ts",
+    "cleanup-*.ts",
+    "extinde-*.ts",
+    "update-*.ts",
+    "tests"
   ]
 }

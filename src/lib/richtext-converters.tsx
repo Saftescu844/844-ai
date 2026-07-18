@@ -104,10 +104,10 @@ function TableBlockRender({ node }: { node: SerializedBlockNode }) {
 
 export const jsxConvertersCuImagini: JSXConvertersFunction<DefaultNodeTypes> = ({ defaultConverters }) => ({
   ...defaultConverters,
-  upload: ({ node }) => <ImagineCuAliniere node={node} />,
+  upload: ({ node }: any) => <ImagineCuAliniere node={node} />,
   blocks: {
-    video: ({ node }) => <VideoBlockRender node={node} />,
-    callout: ({ node }) => <CalloutBlockRender node={node} />,
-    tableBlock: ({ node }) => <TableBlockRender node={node} />,
+    video: ({ node }: any) => <VideoBlockRender node={node} />,
+    callout: ({ node }: any) => <CalloutBlockRender node={node} />,
+    tableBlock: ({ node }: any) => <TableBlockRender node={node} />,
   },
 })
