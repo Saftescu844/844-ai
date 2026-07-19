@@ -87,11 +87,11 @@ export async function traduceArticol(articolRo: {
       'CONTINUT:\n' + continutNumerotat
 
     const resp = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       max_tokens: 3000,
       messages: [{ role: 'user', content: prompt }],
     })
-    const raw = (resp.content[0] as any).text
+    const raw = (resp.content.find((b: any) => b.type === 'text') as any)?.text || ''
 
     const extrage = (a: string, b: string) => {
       const re = new RegExp('###' + a + '###([\\s\\S]*?)###' + b + '###')

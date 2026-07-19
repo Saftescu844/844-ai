@@ -91,8 +91,8 @@ async function main() {
     '- SCOR de impact 1-10 (10=breakthrough major, aprobare FDA importantă; 1=anunț minor, marketing)\n\n' +
     'Răspunde DOAR cu linii în formatul: NUMAR|SUBCATEGORIE|SCOR (ex: 1|diagnostic|8)\nFără alt text.\n\nȘTIRI:\n' + lista
 
-  const respTriere = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 800, messages: [{ role: 'user', content: promptTriere }] })
-  const rawTriere = (respTriere.content[0] as any).text
+  const respTriere = await client.messages.create({ model: 'claude-sonnet-5', max_tokens: 4096, messages: [{ role: 'user', content: promptTriere }] })
+  const rawTriere = (respTriere.content.find((b: any) => b.type === 'text') as any)?.text || ''
   for (const linie of rawTriere.split('\n')) {
     const m = linie.match(/(\d+)\s*\|\s*([a-z-]+)\s*\|\s*(\d+)/)
     if (m) {
@@ -126,8 +126,8 @@ async function main() {
       'Răspunde EXACT cu marcajele:\n###TITLU###\n(titlu)\n###EXCERPT###\n(rezumat)\n###CONTINUT###\n(HTML)\n###TAGS###\n(3 taguri, virgulă)\n###END###'
 
     try {
-      const resp = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
-      const raw = (resp.content[0] as any).text
+      const resp = await client.messages.create({ model: 'claude-sonnet-5', max_tokens: 4096, messages: [{ role: 'user', content: prompt }] })
+      const raw = (resp.content.find((b: any) => b.type === 'text') as any)?.text || ''
       const extrage = (a: string, b: string) => { const re = new RegExp('###' + a + '###([\\s\\S]*?)###' + b + '###'); const mm = raw.match(re); return mm ? mm[1].trim() : '' }
       const art = { titlu: extrage('TITLU', 'EXCERPT'), excerpt: extrage('EXCERPT', 'CONTINUT'), continut: extrage('CONTINUT', 'TAGS'), tags: extrage('TAGS', 'END').split(',').map((t: string) => t.trim()).filter(Boolean) }
       if (!art.titlu || !art.continut) { console.log('    Răspuns incomplet, sar peste'); continue }

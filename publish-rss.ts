@@ -99,8 +99,8 @@ async function main() {
     'Răspunde DOAR cu linii în formatul: NUMAR|PILON|SCOR|SUBCATEGORIE (ex: 1|4|7| sau 3|2|8|diagnostic)\n' +
     'Fără alt text.\n\nȘTIRI:\n' + lista
 
-  const respTriere = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 800, messages: [{ role: 'user', content: promptTriere }] })
-  const rawTriere = (respTriere.content[0] as any).text
+  const respTriere = await client.messages.create({ model: 'claude-sonnet-5', max_tokens: 4096, messages: [{ role: 'user', content: promptTriere }] })
+  const rawTriere = (respTriere.content.find((b: any) => b.type === 'text') as any)?.text || ''
   for (const linie of rawTriere.split('\n')) {
     const m = linie.match(/(\d+)\s*\|\s*(\d)\s*\|\s*(\d+)\s*\|?\s*([a-z-]*)/)
     if (m) {
@@ -139,8 +139,8 @@ async function main() {
       '###TITLU###\n(titlul aici)\n###EXCERPT###\n(rezumat scurt)\n###CONTINUT###\n(articolul HTML)\n###TAGS###\n(3 taguri separate prin virgulă)\n###END###'
 
     try {
-      const resp = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
-      const raw = (resp.content[0] as any).text
+      const resp = await client.messages.create({ model: 'claude-sonnet-5', max_tokens: 4096, messages: [{ role: 'user', content: prompt }] })
+      const raw = (resp.content.find((b: any) => b.type === 'text') as any)?.text || ''
       const extrage = (a: string, b: string) => {
         const re = new RegExp('###' + a + '###([\\s\\S]*?)###' + b + '###')
         const mm = raw.match(re); return mm ? mm[1].trim() : ''

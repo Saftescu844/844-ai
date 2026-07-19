@@ -136,7 +136,7 @@ async function main() {
     '{"titlu":"...","excerpt":"...","continut":"articol HTML","tags":["tag1","tag2"]}'
 
   const resp = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     max_tokens: 2000,
     messages: [{ role: 'user', content: prompt }],
   })
