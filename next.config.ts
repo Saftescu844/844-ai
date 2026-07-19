@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
         'localhost:3000',
         '*.app.github.dev',
         'silver-acorn-6447rrj6r6q34xjr-3000.app.github.dev',
+        '*.up.railway.app',
+        '844-ai.ro',
       ],
     },
   },
