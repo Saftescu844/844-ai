@@ -74,7 +74,8 @@ export const Articole: CollectionConfig = {
       defaultValue: false,
       admin: {
         readOnly: true,
-        description: '⚠️ Conținutul a fost modificat după ultima traducere. Retradu manual dacă e nevoie.',
+        description:
+          '⚠️ Conținutul a fost modificat după ultima traducere. Retradu manual dacă e nevoie.',
         condition: (data) => !!data?.necesitaRetraducere,
       },
     },
@@ -144,11 +145,16 @@ export const Articole: CollectionConfig = {
               media: {
                 fields: [
                   { name: 'caption', type: 'text', label: 'Descriere (caption)' },
-                  { name: 'align', type: 'select', defaultValue: 'center', options: [
-                    { label: 'Stânga', value: 'left' },
-                    { label: 'Centru', value: 'center' },
-                    { label: 'Dreapta', value: 'right' },
-                  ] },
+                  {
+                    name: 'align',
+                    type: 'select',
+                    defaultValue: 'center',
+                    options: [
+                      { label: 'Stânga', value: 'left' },
+                      { label: 'Centru', value: 'center' },
+                      { label: 'Dreapta', value: 'right' },
+                    ],
+                  },
                 ],
               },
             },
@@ -168,11 +174,17 @@ export const Articole: CollectionConfig = {
       name: 'galerie',
       type: 'array',
       labels: { singular: 'Imagine', plural: 'Galerie imagini' },
-      admin: { description: 'Imagini pentru corpul articolului. Fiecare cu descriere și credit/sursă.' },
+      admin: {
+        description: 'Imagini pentru corpul articolului. Fiecare cu descriere și credit/sursă.',
+      },
       fields: [
         { name: 'imagine', type: 'upload', relationTo: 'media', required: true },
         { name: 'caption', type: 'text', admin: { description: 'Descriere afișată sub imagine.' } },
-        { name: 'credit', type: 'text', admin: { description: 'Credit/sursă imagine (pentru drepturi de autor).' } },
+        {
+          name: 'credit',
+          type: 'text',
+          admin: { description: 'Credit/sursă imagine (pentru drepturi de autor).' },
+        },
       ],
     },
     {
@@ -280,6 +292,36 @@ export const Articole: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeValidate: [
+      ({ data, originalDoc }) => {
+        // slugificare automată: rulează DOAR dacă slug-ul lipsește sau e invalid.
+        // Slug-urile valide existente (articole live) NU sunt atinse niciodată.
+        if (!data) return data
+        const formatValid = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+        const slugActual = data.slug ?? originalDoc?.slug
+        if (slugActual && formatValid.test(slugActual)) return data
+
+        const sursa = data.titlu || originalDoc?.titlu || ''
+        if (!sursa) return data
+
+        const slugificat = sursa
+          .toLowerCase()
+          .replace(/[ăâ]/g, 'a')
+          .replace(/î/g, 'i')
+          .replace(/[șş]/g, 's')
+          .replace(/[țţ]/g, 't')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '') // orice alte diacritice (é, ü etc.)
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 70)
+          .replace(/-+$/g, '')
+
+        const sufix = Math.random().toString(36).slice(2, 10)
+        data.slug = slugificat ? `${slugificat}-${sufix}` : sufix
+        return data
+      },
+    ],
     beforeChange: [
       ({ data }) => {
         // setează publishedAt automat la prima publicare
@@ -299,10 +341,14 @@ export const Articole: CollectionConfig = {
         }
         const toateBlocurile = (data.continut?.root?.children || []).map(textPlat).join('|')
         let suma = 0
-        for (let i = 0; i < toateBlocurile.length; i++) suma = (suma + toateBlocurile.charCodeAt(i) * (i + 1)) % 1000000007
+        for (let i = 0; i < toateBlocurile.length; i++)
+          suma = (suma + toateBlocurile.charCodeAt(i) * (i + 1)) % 1000000007
         const hashNou = toateBlocurile.length + '-' + suma
 
-        const hashDeComparat = typeof data.continutHashTradus !== 'undefined' ? data.continutHashTradus : originalDoc?.continutHashTradus
+        const hashDeComparat =
+          typeof data.continutHashTradus !== 'undefined'
+            ? data.continutHashTradus
+            : originalDoc?.continutHashTradus
         if (hashDeComparat) {
           data.necesitaRetraducere = hashDeComparat !== hashNou
         }
