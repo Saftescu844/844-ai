@@ -20,7 +20,7 @@ export const Articole: CollectionConfig = {
     // public poate citi doar articolele publicate
     read: ({ req: { user } }) => {
       if (user) return true
-      return { status: { equals: 'publicat' } }
+      return { status: { equals: 'published' } }
     },
   },
   versions: { drafts: true }, // draft & publish nativ
@@ -325,7 +325,7 @@ export const Articole: CollectionConfig = {
     beforeChange: [
       ({ data }) => {
         // setează publishedAt automat la prima publicare
-        if (data.status === 'publicat' && !data.publishedAt) {
+        if (data.status === 'published' && !data.publishedAt) {
           data.publishedAt = new Date().toISOString()
         }
         return data
