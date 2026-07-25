@@ -247,11 +247,16 @@ export const Cursuri: CollectionConfig = {
                   media: {
                     fields: [
                       { name: 'caption', type: 'text', label: 'Descriere (caption)' },
-                      { name: 'align', type: 'select', defaultValue: 'center', options: [
-                        { label: 'Stânga', value: 'left' },
-                        { label: 'Centru', value: 'center' },
-                        { label: 'Dreapta', value: 'right' },
-                      ] },
+                      {
+                        name: 'align',
+                        type: 'select',
+                        defaultValue: 'center',
+                        options: [
+                          { label: 'Stânga', value: 'left' },
+                          { label: 'Centru', value: 'center' },
+                          { label: 'Dreapta', value: 'right' },
+                        ],
+                      },
                     ],
                   },
                 },
@@ -400,11 +405,12 @@ export const Newsletter: CollectionConfig = {
       async ({ doc, operation, req }: any) => {
         if (operation !== 'create') return doc
         if (doc.confirmat) return doc
+        console.log('[newsletter] hook declansat pentru', doc.email)
         try {
           const { trimiteConfirmare } = await import('@/lib/newsletter-email')
           await trimiteConfirmare(doc.email, doc.limba || 'ro')
         } catch (e) {
-          req.payload.logger.error('[newsletter] eroare trimitere confirmare: ' + String(e))
+          console.error('[newsletter] EROARE:', String(e))
         }
         return doc
       },
