@@ -28,7 +28,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
-          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" -F c -f "backup_${TIMESTAMP}.dump"
+          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --schema=public -F c -f "backup_${TIMESTAMP}.dump"
           ls -lh backup_${TIMESTAMP}.dump
 
       - name: Încarcă backup ca artifact
