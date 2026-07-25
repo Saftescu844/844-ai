@@ -395,4 +395,19 @@ export const Newsletter: CollectionConfig = {
     },
     { name: 'userAsociat', type: 'relationship', relationTo: 'useri' },
   ],
+  hooks: {
+    afterChange: [
+      async ({ doc, operation, req }: any) => {
+        if (operation !== 'create') return doc
+        if (doc.confirmat) return doc
+        try {
+          const { trimiteConfirmare } = await import('@/lib/newsletter-email')
+          await trimiteConfirmare(doc.email, doc.limba || 'ro')
+        } catch (e) {
+          req.payload.logger.error('[newsletter] eroare trimitere confirmare: ' + String(e))
+        }
+        return doc
+      },
+    ],
+  },
 }
