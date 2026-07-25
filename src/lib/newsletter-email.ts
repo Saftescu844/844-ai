@@ -77,6 +77,7 @@ export async function trimiteConfirmare(email: string, lang: string): Promise<vo
 
   const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
+    signal: AbortSignal.timeout(15000),
     headers: {
       'api-key': BREVO_KEY,
       'Content-Type': 'application/json',

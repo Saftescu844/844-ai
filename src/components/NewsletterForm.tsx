@@ -42,15 +42,15 @@ export default function NewsletterForm({ lang }: { lang: string }) {
     if (!consimtamant) return
     setStare('trimit')
     try {
-      const resp = await fetch('/api/newsletter', {
+      const resp = await fetch('/api-newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, limba: lang, segment: ['general'] }),
+        body: JSON.stringify({ email, limba: lang }),
       })
-      if (resp.status === 201 || resp.ok) {
+      if (resp.status === 201) {
         setStare('succes')
         setEmail('')
-      } else if (resp.status === 400) {
+      } else if (resp.status === 409) {
         setStare('exista')
       } else {
         setStare('eroare')

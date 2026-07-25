@@ -400,20 +400,4 @@ export const Newsletter: CollectionConfig = {
     },
     { name: 'userAsociat', type: 'relationship', relationTo: 'useri' },
   ],
-  hooks: {
-    afterChange: [
-      async ({ doc, operation, req }: any) => {
-        if (operation !== 'create') return doc
-        if (doc.confirmat) return doc
-        console.log('[newsletter] hook declansat pentru', doc.email)
-        try {
-          const { trimiteConfirmare } = await import('@/lib/newsletter-email')
-          await trimiteConfirmare(doc.email, doc.limba || 'ro')
-        } catch (e) {
-          console.error('[newsletter] EROARE:', String(e))
-        }
-        return doc
-      },
-    ],
-  },
 }
