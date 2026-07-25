@@ -140,11 +140,11 @@ async function main() {
           excerpt: (art.excerpt || '').substring(0, 298), continut: htmlToLexical(art.continut),
           sursaNume: stire.sursa, sursaLink: stire.link,
           tags: (art.tags || []).map((t: string) => ({ tag: t })),
-          status: 'published', publishedAt: new Date().toISOString(),
+          status: 'draft',
           generatAutomat: true, numarConfirmari: 1,
         } as any,
       })
-      console.log('    ✓ PUBLICAT în Sănătate/' + stire.subcategorie + ' (ID ' + creat.id + ')')
+      console.log('    ✓ CIORNĂ în Sănătate/' + stire.subcategorie + ' (ID ' + creat.id + ')')
       publicate++
 
       // traducere EN
@@ -159,7 +159,7 @@ async function main() {
               excerpt: (tradus.excerpt || '').substring(0, 298), continut: tradus.continut,
               sursaNume: stire.sursa, sursaLink: stire.link,
               tags: (art.tags || []).map((t: string) => ({ tag: t })),
-              status: 'published', publishedAt: new Date().toISOString(),
+              status: 'draft',
               generatAutomat: true, numarConfirmari: 1,
               versiuneAlternativa: creat.id,
               metaTitle: (tradus.metaTitle || '').substring(0, 58), metaDescription: (tradus.metaDescription || '').substring(0, 158),
