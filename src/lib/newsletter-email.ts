@@ -1,7 +1,8 @@
 import crypto from 'crypto'
 
 const SECRET = process.env.PAYLOAD_SECRET || ''
-const BREVO_KEY = process.env.MAIL_API_KEY || process.env.BREVO_API_KEY || ''
+const BREVO_KEY =
+  process.env.MAIL_API_KEY || process.env.BREVO_API_KEY || process.env.ANTHROPIC_API_KEY || ''
 const SITE = 'https://844-ai.ro'
 const EXPIRA_ZILE = 7
 
