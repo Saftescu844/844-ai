@@ -100,6 +100,7 @@ export async function trimiteConfirmare(email: string, lang: string): Promise<vo
   })
 
   if (!resp.ok) {
-    console.error('[newsletter] Brevo a returnat', resp.status, await resp.text())
+    const detaliu = await resp.text()
+    throw new Error(`Brevo ${resp.status}: ${detaliu}`)
   }
 }
