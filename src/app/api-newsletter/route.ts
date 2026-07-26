@@ -70,5 +70,6 @@ export async function POST(req: Request) {
     console.error('[newsletter] eroare trimitere email:', detaliuEmail)
   }
 
-  return raspuns({ ok: true, emailTrimis, detaliuEmail }, 201)
+  const cheieLungime = (process.env.BREVO_API_KEY || '').length
+  return raspuns({ ok: true, emailTrimis, detaliuEmail, cheieLungime }, 201)
 }
