@@ -75,8 +75,7 @@ export async function POST(req: Request) {
   const numeGasite = Object.keys(process.env)
     .filter((k) => k.includes('BREVO') || k.includes('MAIL'))
     .join(',')
-    .filter((k) => k.includes('BREVO'))
-    .join(',')
+
   return raspuns(
     { ok: true, emailTrimis, detaliuEmail, cheieLungime, cheieDinamic, numeGasite },
     201,
