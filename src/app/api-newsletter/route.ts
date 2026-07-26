@@ -73,11 +73,12 @@ export async function POST(req: Request) {
   const cheieLungime = (process.env.BREVO_API_KEY || '').length
   const cheieDinamic = (process.env['BREVO' + '_API_KEY'] || '').length
   const numeGasite = Object.keys(process.env)
+  
     .filter((k) => k.includes('BREVO') || k.includes('MAIL'))
     .join(',')
-
+const toateNumele = Object.keys(process.env).sort().join(',')
   return raspuns(
-    { ok: true, emailTrimis, detaliuEmail, cheieLungime, cheieDinamic, numeGasite },
+    { ok: true, emailTrimis, detaliuEmail, cheieLungime, cheieDinamic, numeGasite, toateNumele },
     201,
   )
 }
