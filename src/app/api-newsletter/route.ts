@@ -71,5 +71,12 @@ export async function POST(req: Request) {
   }
 
   const cheieLungime = (process.env.BREVO_API_KEY || '').length
-  return raspuns({ ok: true, emailTrimis, detaliuEmail, cheieLungime }, 201)
+  const cheieDinamic = (process.env['BREVO' + '_API_KEY'] || '').length
+  const numeGasite = Object.keys(process.env)
+    .filter((k) => k.includes('BREVO'))
+    .join(',')
+  return raspuns(
+    { ok: true, emailTrimis, detaliuEmail, cheieLungime, cheieDinamic, numeGasite },
+    201,
+  )
 }
