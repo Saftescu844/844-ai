@@ -1,5 +1,5 @@
 import { payloadClient } from '@/lib/payload'
-import { verificaToken } from '@/lib/newsletter-email'
+import { verificaToken, decodeazaEmail } from '@/lib/newsletter-email'
 
 const s = {
   wrap: { maxWidth: 620, margin: '0 auto', padding: '3rem 0', textAlign: 'center' as const },
@@ -43,7 +43,7 @@ export default async function PaginaConfirmare(props: {
 
   let stare: Stare = 'invalid'
   try {
-    stare = await proceseaza(q.e || '', q.t || '', q.s || '')
+    stare = await proceseaza(decodeazaEmail(q.e || ''), q.t || '', q.s || '')
   } catch {
     stare = 'invalid'
   }

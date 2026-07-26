@@ -16,8 +16,16 @@ function semneaza(email: string, ts: string): string {
 export function construiesteLink(email: string, lang: string): string {
   const ts = Date.now().toString()
   const sig = semneaza(email, ts)
-  const p = new URLSearchParams({ e: email, t: ts, s: sig })
-  return `${SITE}/${lang}/confirmare-newsletter?${p.toString()}`
+  const e = Buffer.from(email, 'utf8').toString('base64url')
+  return `${SITE}/${lang}/confirmare-newsletter?e=${e}&t=${ts}&s=${sig}`
+}
+
+export function decodeazaEmail(e: string): string {
+  try {
+    return Buffer.from(e, 'base64url').toString('utf8')
+  } catch {
+    return ''
+  }
 }
 
 /** Verifică semnătura și expirarea. Returnează true doar dacă ambele sunt valide. */
