@@ -1,9 +1,8 @@
 import crypto from 'crypto'
 
 const SECRET = process.env.PAYLOAD_SECRET || ''
-const BREVO_KEY =
-  process.env.MAIL_API_KEY || process.env.BREVO_API_KEY || process.env.ANTHROPIC_API_KEY || ''
-const SITE = 'https://844-ai.ro'
+const BREVO_KEY = process.env.BREVO_API_KEY || ''
+const SITE = (process.env.SITE_URL || 'https://844-ai.ro').replace(/\/+$/, '')
 const EXPIRA_ZILE = 7
 
 /** Semnătură HMAC pentru email + timestamp. Nu stocăm nimic în baza de date. */
@@ -45,8 +44,7 @@ export function verificaToken(email: string, ts: string, sig: string): boolean {
 
 export async function trimiteConfirmare(email: string, lang: string): Promise<void> {
   if (!BREVO_KEY) {
-    console.warn('[newsletter] BREVO_API_KEY lipsește — email de confirmare nu a fost trimis')
-    return
+    throw new Error('BREVO_API_KEY nu este configurată')
   }
 
   const link = construiesteLink(email, lang)
