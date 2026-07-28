@@ -1,84 +1,136 @@
 import { payloadClient } from '@/lib/payload'
 import { trimiteConfirmare } from '@/lib/newsletter-email'
 
-export async function POST(req: Request) {
-  const raspuns = (date: object, status: number) =>
-    new Response(JSON.stringify(date), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    })
+type LimbaNewsletter = 'ro' | 'en'
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function raspunsJSON(date: object, status: number): Response {
+  return Response.json(date, {
+    status,
+    headers: {
+      'Cache-Control': 'no-store',
+    },
+  })
+}
+
+export async function POST(req: Request) {
   let email = ''
-  let limba = 'ro'
+  let limba: LimbaNewsletter = 'ro'
 
   try {
-    const body = await req.json()
-    email = String(body.email || '')
+    const body: unknown = await req.json()
+
+    if (!body || typeof body !== 'object') {
+      return raspunsJSON({ ok: false, eroare: 'cerere_invalida' }, 400)
+    }
+
+    const date = body as Record<string, unknown>
+
+    email = String(date.email ?? '')
       .trim()
       .toLowerCase()
-    limba = body.limba === 'en' ? 'en' : 'ro'
+
+    limba = date.limba === 'en' ? 'en' : 'ro'
   } catch {
-    return raspuns({ eroare: 'cerere_invalida' }, 400)
+    return raspunsJSON({ ok: false, eroare: 'cerere_invalida' }, 400)
   }
 
-  if (!email || !email.includes('@') || email.length > 200) {
-    return raspuns({ eroare: 'email_invalid' }, 400)
+  if (!EMAIL_REGEX.test(email) || email.length > 254) {
+    return raspunsJSON({ ok: false, eroare: 'email_invalid' }, 400)
   }
 
   let payload
+
   try {
     payload = await payloadClient()
-  } catch (e) {
-    console.error('[newsletter] eroare conectare Payload:', String(e))
-    return raspuns({ eroare: 'eroare_server' }, 500)
+  } catch (eroare) {
+    console.error('[newsletter] eroare conectare Payload:', eroare)
+
+    return raspunsJSON({ ok: false, eroare: 'eroare_server' }, 500)
   }
 
-  // există deja?
   try {
     const existent = await payload.find({
       collection: 'newsletter',
-      where: { email: { equals: email } },
+      where: {
+        email: {
+          equals: email,
+        },
+      },
       limit: 1,
     })
-    if (existent.docs.length > 0) {
-      return raspuns({ eroare: 'deja_abonat' }, 409)
+
+    const abonatExistent = existent.docs[0]
+
+    if (abonatExistent?.confirmat) {
+      return raspunsJSON({ ok: false, eroare: 'deja_abonat' }, 409)
     }
-  } catch (e) {
-    console.error('[newsletter] eroare verificare existenta:', String(e))
-    return raspuns({ eroare: 'eroare_server' }, 500)
-  }
 
-  // creează abonatul
-  try {
-    await payload.create({
-      collection: 'newsletter',
-      data: { email, limba, segment: ['general'], confirmat: false } as any,
-    })
-  } catch (e) {
-    console.error('[newsletter] eroare creare abonat:', String(e))
-    return raspuns({ eroare: 'eroare_creare' }, 500)
-  }
+    if (abonatExistent) {
+      try {
+        await trimiteConfirmare(email, limba)
 
-  // trimite email de confirmare — abonatul e deja salvat, deci un eșec aici nu-l pierde
-  let emailTrimis = true
-  let detaliuEmail = ''
-  try {
-    await trimiteConfirmare(email, limba)
-  } catch (e) {
-    emailTrimis = false
-    detaliuEmail = String(e)
-    console.error('[newsletter] eroare trimitere email:', detaliuEmail)
-  }
+        return raspunsJSON(
+          {
+            ok: true,
+            rezultat: 'confirmare_retrimisa',
+          },
+          200,
+        )
+      } catch (eroare) {
+        console.error('[newsletter] eroare retrimitere confirmare:', eroare)
 
-  const cheieLungime = (process.env.BREVO_API_KEY || '').length
-  const cheieDinamic = (process.env['BREVO' + '_API_KEY'] || '').length
-  const numeGasite = Object.keys(process.env)
-  
-    .filter((k) => k.includes('BREVO') || k.includes('MAIL'))
-    .join(',')
-const toateNumele = Object.keys(process.env).sort().join(',')
-  return raspuns(
-    { ok: true, emailTrimis, detaliuEmail, cheieLungime, cheieDinamic, numeGasite, toateNumele },
-    201,
-  )
+        return raspunsJSON(
+          {
+            ok: false,
+            eroare: 'email_indisponibil',
+          },
+          503,
+        )
+      }
+    }
+
+    try {
+      await payload.create({
+        collection: 'newsletter',
+        data: {
+          email,
+          limba,
+          segment: ['general'],
+          confirmat: false,
+        } as any,
+      })
+    } catch (eroare) {
+      console.error('[newsletter] eroare creare abonat:', eroare)
+
+      return raspunsJSON({ ok: false, eroare: 'eroare_creare' }, 500)
+    }
+
+    try {
+      await trimiteConfirmare(email, limba)
+
+      return raspunsJSON(
+        {
+          ok: true,
+          rezultat: 'confirmare_trimisa',
+        },
+        201,
+      )
+    } catch (eroare) {
+      console.error('[newsletter] eroare trimitere confirmare:', eroare)
+
+      return raspunsJSON(
+        {
+          ok: false,
+          eroare: 'email_indisponibil',
+        },
+        503,
+      )
+    }
+  } catch (eroare) {
+    console.error('[newsletter] eroare procesare abonare:', eroare)
+
+    return raspunsJSON({ ok: false, eroare: 'eroare_server' }, 500)
+  }
 }

@@ -13,7 +13,7 @@ export default function NewsletterForm({ lang }: { lang: string }) {
           desc: 'Primești o dată pe săptămână cele mai importante noutăți AI, direct pe email.',
           placeholder: 'adresa@email.ro',
           buton: 'Abonează-te',
-          succes: '✓ Te-ai abonat cu succes! Mulțumim.',
+          succes: '✓ Ți-am trimis un email. Confirmă abonarea folosind linkul primit.',
           eroare: 'A apărut o eroare. Încearcă din nou.',
           exista: 'Această adresă e deja abonată.',
           consimt1:
@@ -47,7 +47,7 @@ export default function NewsletterForm({ lang }: { lang: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, limba: lang }),
       })
-      if (resp.status === 201) {
+      if (resp.ok) {
         setStare('succes')
         setEmail('')
       } else if (resp.status === 409) {
