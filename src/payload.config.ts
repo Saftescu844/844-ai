@@ -31,7 +31,14 @@ export default buildConfig({
         media: {
           disablePayloadAccessControl: true,
           generateFileURL: ({ filename }) => {
-            return `https://hyapqvnubhwkwmwudeit.supabase.co/storage/v1/object/public/media/${filename}`
+  const mediaPublicBaseUrl = process.env.MEDIA_PUBLIC_BASE_URL?.replace(/\/+$/, '')
+
+  if (!mediaPublicBaseUrl) {
+    throw new Error('MEDIA_PUBLIC_BASE_URL nu este configurată')
+  }
+
+  return `${mediaPublicBaseUrl}/${filename}`
+},
           },
         },
       },
