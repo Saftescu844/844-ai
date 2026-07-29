@@ -27,18 +27,18 @@ const dirname = path.dirname(filename)
 export default buildConfig({
   plugins: [
     s3Storage({
-      collections: {
+            collections: {
         media: {
           disablePayloadAccessControl: true,
           generateFileURL: ({ filename }) => {
-  const mediaPublicBaseUrl = process.env.MEDIA_PUBLIC_BASE_URL?.replace(/\/+$/, '')
+            const mediaPublicBaseUrl =
+              process.env.MEDIA_PUBLIC_BASE_URL?.replace(/\/+$/, '')
 
-  if (!mediaPublicBaseUrl) {
-    throw new Error('MEDIA_PUBLIC_BASE_URL nu este configurată')
-  }
+            if (!mediaPublicBaseUrl) {
+              throw new Error('MEDIA_PUBLIC_BASE_URL nu este configurată')
+            }
 
-  return `${mediaPublicBaseUrl}/${filename}`
-},
+            return `${mediaPublicBaseUrl}/${filename}`
           },
         },
       },
