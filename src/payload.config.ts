@@ -81,7 +81,9 @@ export default buildConfig({
   // === Bază de date: PostgreSQL pe Supabase ===
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL || '' },
-    push: process.env.NODE_ENV !== 'production',
+    // Activare explicită doar pentru baze locale temporare.
+    // Staging și producția folosesc exclusiv migrații controlate.
+    push: process.env.PAYLOAD_DB_PUSH === 'true',
   }),
 
   // === Localizare la nivel de câmp (pentru Tool-uri, Roadmaps, Cursuri) ===
