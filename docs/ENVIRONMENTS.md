@@ -147,3 +147,13 @@ Au fost confirmate:
 - ștergerea corectă a fișierului de test din Payload și storage.
 
 Producția `844-ai.ro` nu a fost afectată în timpul acestor verificări.
+
+---
+
+## 8. Migrațiile bazei de date
+
+Modificările schemei PostgreSQL se fac exclusiv prin fluxul controlat documentat în:
+
+[`docs/DATABASE_MIGRATIONS.md`](./DATABASE_MIGRATIONS.md)
+
+Înainte de orice migrare se verifică mediul conectat, starea migrărilor și faptul că `PAYLOAD_DB_PUSH` este dezactivat.
