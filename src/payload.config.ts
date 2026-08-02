@@ -1,5 +1,6 @@
 import { buildConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
+import { migrations } from './migrations'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -81,6 +82,7 @@ export default buildConfig({
   // === Bază de date: PostgreSQL pe Supabase ===
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL || '' },
+    prodMigrations: migrations,
     // Activare explicită doar pentru baze locale temporare.
     // Staging și producția folosesc exclusiv migrații controlate.
     push: process.env.PAYLOAD_DB_PUSH === 'true',
