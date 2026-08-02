@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
-import { lexicalEditor, UploadFeature, BlocksFeature, FixedToolbarFeature } from '@payloadcms/richtext-lexical'
+import { lexicalEditor, UploadFeature, BlocksFeature, FixedToolbarFeature, TextStateFeature } from '@payloadcms/richtext-lexical'
 import { VideoBlock, CalloutBlock, TableBlock } from '@/lib/richtext-blocks'
+import { richTextTextState } from '@/lib/richtext-text-state'
 
 // ============================================================
 //  ARTICOLE — colecția centrală, susține toți cei 5 piloni
@@ -141,6 +142,7 @@ export const Articole: CollectionConfig = {
         features: ({ defaultFeatures }) => [
           ...defaultFeatures,
           FixedToolbarFeature(),
+            TextStateFeature({ state: richTextTextState }),
           UploadFeature({
             collections: {
               media: {
