@@ -49,6 +49,9 @@ Nu se introduc în acest document parole, chei API, connection string-uri sau al
 - Connected branch: `staging`
 - Auto Deploy: dezactivat
 - Deploymenturile se pornesc manual după verificarea codului și a variabilelor
+- Healthcheck Path: `/ro`
+- Pre-deploy Command: neconfigurată
+- Migrațiile Payload sunt incluse în build prin `prodMigrations`
 
 ### Supabase
 

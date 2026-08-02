@@ -266,7 +266,7 @@ O migrare poate fi promovată numai după:
 9. verificarea variabilelor Railway pentru producție;
 10. aprobarea explicită a aplicării migrării.
 
-În producție se rulează mai întâi `migrate:status`. Migrarea se aplică separat și controlat înainte de pornirea versiunii de cod care depinde de noua schemă, cu excepția situațiilor în care este implementat și verificat un mecanism dedicat de pre-deployment.
+Înainte de deploymentul în producție se verifică `migrate:status`, existența unui backup recent și lista exactă a migrărilor care urmează să fie aplicate. Configurația actuală include migrările în build prin `prodMigrations`, iar Payload execută migrările restante la inițializarea noii versiuni. Nu se configurează o comandă Railway Pre-deploy bazată pe CLI-ul Payload în imaginea Docker standalone actuală.
 
 ---
 
@@ -312,3 +312,30 @@ db001_reversible_probe
 ```
 
 Producția nu a fost accesată și nu a fost modificată în timpul testului.
+
+---
+
+## 13. Integrarea runtime validată în Railway staging
+
+La 2 august 2026 a fost validată integrarea migrărilor Payload în deploymentul Railway staging.
+
+Configurația verificată:
+
+* branch GitHub: `staging`;
+* merge commit: `364e7bc`;
+* adaptor PostgreSQL configurat cu `prodMigrations: migrations`;
+* `PAYLOAD_DB_PUSH` dezactivat implicit;
+* Railway Pre-deploy Command: neconfigurată;
+* Railway Healthcheck Path: `/ro`;
+* deployment pornit manual în proiectul `resilient-harmony`, serviciul `844-ai`.
+
+După deployment au fost confirmate:
+
+* starea `Online` a serviciului;
+* răspunsul corect al rutei `/ro`;
+* funcționarea interfeței Payload la `/admin`;
+* existența exclusivă a baseline-ului `20260730_185012_baseline_current_schema` în `Batch 1`, cu `Ran: Yes`;
+* absența migrărilor restante;
+* neafectarea producției.
+
+Mecanismul `prodMigrations` este inclus în bundle-ul Next.js standalone și nu depinde de existența CLI-ului `pnpm payload` în imaginea finală.
