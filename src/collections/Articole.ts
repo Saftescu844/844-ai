@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload'
-import { lexicalEditor, UploadFeature, BlocksFeature } from '@payloadcms/richtext-lexical'
+import { lexicalEditor, UploadFeature, BlocksFeature, FixedToolbarFeature } from '@payloadcms/richtext-lexical'
 import { VideoBlock, CalloutBlock, TableBlock } from '@/lib/richtext-blocks'
 
 // ============================================================
@@ -140,6 +140,7 @@ export const Articole: CollectionConfig = {
       editor: lexicalEditor({
         features: ({ defaultFeatures }) => [
           ...defaultFeatures,
+          FixedToolbarFeature(),
           UploadFeature({
             collections: {
               media: {
