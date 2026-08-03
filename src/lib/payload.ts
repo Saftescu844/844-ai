@@ -117,12 +117,29 @@ export async function getRoadmap(slug: string, limba: string) {
 export async function getCursuri(limba: string) {
   if (!['ro', 'en'].includes(limba)) return { docs: [] as any[] }
   const payload = await payloadClient()
-  return await payload.find({ collection: 'cursuri', locale: limba as any, limit: 24, depth: 1 })
+  return await payload.find({
+    collection: 'cursuri',
+    where: { gratuit: { equals: true } },
+    locale: limba as any,
+    limit: 24,
+    depth: 1,
+  })
 }
 
 export async function getCurs(slug: string, limba: string) {
   if (!['ro', 'en'].includes(limba)) return null
   const payload = await payloadClient()
-  const r = await payload.find({ collection: 'cursuri', where: { slug: { equals: slug } }, locale: limba as any, limit: 1, depth: 1 })
+  const r = await payload.find({
+    collection: 'cursuri',
+    where: {
+      and: [
+        { slug: { equals: slug } },
+        { gratuit: { equals: true } },
+      ],
+    },
+    locale: limba as any,
+    limit: 1,
+    depth: 1,
+  })
   return r.docs[0] || null
 }
