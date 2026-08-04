@@ -369,7 +369,12 @@ export const Newsletter: CollectionConfig = {
     defaultColumns: ['email', 'limba', 'segment', 'confirmat'],
     group: 'Comunitate',
   },
-  access: { read: ({ req: { user } }) => Boolean(user), create: () => true },
+  access: {
+    read: ({ req: { user } }) => user?.rol === 'admin',
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'email', type: 'email', required: true, unique: true, index: true },
     {
