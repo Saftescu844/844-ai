@@ -18,11 +18,33 @@ export const Useri: CollectionConfig = {
     defaultColumns: ['email', 'nume', 'rol', 'nivelAbonament'],
     group: 'Comunitate',
   },
+  access: {
+    admin: ({ req: { user } }) =>
+      user?.rol === 'admin' || user?.rol === 'editor',
+
+    create: ({ req: { user } }) => user?.rol === 'admin',
+
+    read: ({ req: { user } }) => {
+      if (!user) return false
+      if (user.rol === 'admin') return true
+      return { id: { equals: user.id } }
+    },
+
+    update: ({ req: { user } }) => {
+      if (!user) return false
+      if (user.rol === 'admin') return true
+      return { id: { equals: user.id } }
+    },
+
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+    unlock: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'nume', type: 'text' },
     {
       name: 'rol',
       type: 'select',
+      saveToJWT: true,
       required: true,
       defaultValue: 'cititor',
       options: [
@@ -32,13 +54,15 @@ export const Useri: CollectionConfig = {
         { label: 'Administrator', value: 'admin' },
       ],
       access: {
-        // doar adminii pot schimba rolul
+        // Numai administratorul poate atribui sau modifica roluri.
+        create: ({ req: { user } }) => user?.rol === 'admin',
         update: ({ req: { user } }) => user?.rol === 'admin',
       },
     },
     {
       name: 'nivelAbonament',
       type: 'select',
+      saveToJWT: true,
       defaultValue: 'gratuit',
       options: [
         { label: 'Gratuit', value: 'gratuit' },
@@ -46,6 +70,11 @@ export const Useri: CollectionConfig = {
         { label: 'Acces complet (cursuri)', value: 'complet' },
       ],
       index: true,
+      access: {
+        // Utilizatorii nu își pot acorda singuri niveluri de abonament.
+        create: ({ req: { user } }) => user?.rol === 'admin',
+        update: ({ req: { user } }) => user?.rol === 'admin',
+      },
     },
     // === Câmpuri Stripe (integrare abonamente) ===
     {
@@ -53,9 +82,36 @@ export const Useri: CollectionConfig = {
       label: 'Abonament Stripe',
       admin: { initCollapsed: true },
       fields: [
-        { name: 'stripeCustomerId', type: 'text', admin: { readOnly: true } },
-        { name: 'stripeSubscriptionId', type: 'text', admin: { readOnly: true } },
-        { name: 'abonamentExpira', type: 'date', admin: { readOnly: true } },
+        {
+          name: 'stripeCustomerId',
+          type: 'text',
+          admin: { readOnly: true },
+          access: {
+            read: ({ req: { user } }) => user?.rol === 'admin',
+            create: ({ req: { user } }) => user?.rol === 'admin',
+            update: ({ req: { user } }) => user?.rol === 'admin',
+          },
+        },
+        {
+          name: 'stripeSubscriptionId',
+          type: 'text',
+          admin: { readOnly: true },
+          access: {
+            read: ({ req: { user } }) => user?.rol === 'admin',
+            create: ({ req: { user } }) => user?.rol === 'admin',
+            update: ({ req: { user } }) => user?.rol === 'admin',
+          },
+        },
+        {
+          name: 'abonamentExpira',
+          type: 'date',
+          admin: { readOnly: true },
+          access: {
+            read: ({ req: { user } }) => user?.rol === 'admin',
+            create: ({ req: { user } }) => user?.rol === 'admin',
+            update: ({ req: { user } }) => user?.rol === 'admin',
+          },
+        },
       ],
     },
     {
