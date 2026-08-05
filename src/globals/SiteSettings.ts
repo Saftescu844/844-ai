@@ -401,6 +401,109 @@ export const SiteSettings: GlobalConfig = {
             },
           ],
         },
+        {
+          label: "Încredere",
+          fields: [
+            {
+              name: "trustBar",
+              type: "group",
+              label: "Bară de încredere",
+              fields: [
+                {
+                  name: "enabled",
+                  type: "checkbox",
+                  label: "Afișează bara de încredere",
+                  defaultValue: true,
+                },
+                {
+                  name: "items",
+                  type: "array",
+                  label: "Elemente de încredere",
+                  maxRows: 4,
+                  fields: [
+                    {
+                      name: "label",
+                      type: "text",
+                      label: "Mesaj de încredere",
+                      required: true,
+                      localized: true,
+                      maxLength: 80,
+                      validate: requiredTrimmedText,
+                      hooks: { beforeValidate: [trimText] },
+                    },
+                    {
+                      name: "icon",
+                      type: "select",
+                      label: "Pictogramă",
+                      options: [
+                        { label: "Verificat", value: "verified" },
+                        { label: "Surse", value: "sources" },
+                        { label: "Actualizat", value: "updated" },
+                        { label: "Transparență", value: "transparent" },
+                        { label: "Independent", value: "independent" },
+                        { label: "Revizuire medicală", value: "medicalReview" },
+                      ],
+                    },
+                    {
+                      name: "description",
+                      type: "textarea",
+                      label: "Explicație",
+                      localized: true,
+                      maxLength: 200,
+                      hooks: { beforeValidate: [trimText] },
+                    },
+                    {
+                      name: "enabled",
+                      type: "checkbox",
+                      label: "Activ",
+                      defaultValue: true,
+                    },
+                    {
+                      name: "order",
+                      type: "number",
+                      label: "Ordinea afișării",
+                      required: true,
+                      defaultValue: 0,
+                      min: 0,
+                    },
+                  ],
+                },
+                {
+                  name: "methodologyLabel",
+                  type: "text",
+                  label: "Eticheta metodologiei",
+                  localized: true,
+                  maxLength: 80,
+                  hooks: { beforeValidate: [trimText] },
+                  admin: {
+                    description: "Textul linkului către pagina metodologiei.",
+                  },
+                },
+                {
+                  name: "methodologyHref",
+                  type: "text",
+                  label: "Ruta metodologiei",
+                  localized: true,
+                  hooks: { beforeValidate: [trimText] },
+                  validate: (value: unknown) => {
+                    if (
+                      value === undefined ||
+                      value === null ||
+                      value === ""
+                    ) {
+                      return true
+                    }
+
+                    return validateNavigationHref(value, "internal")
+                  },
+                  admin: {
+                    description: "Rută internă, de exemplu /ro/metodologie.",
+                  },
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
   ],
