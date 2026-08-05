@@ -504,6 +504,107 @@ export const SiteSettings: GlobalConfig = {
             },
           ],
         },
+        {
+          label: "Metodologie",
+          fields: [
+            {
+              name: "methodology",
+              type: "group",
+              label: "Metodologie și principii",
+              fields: [
+                {
+                  name: "enabled",
+                  type: "checkbox",
+                  label: "Afișează secțiunea metodologie",
+                  defaultValue: true,
+                },
+                {
+                  name: "title",
+                  type: "text",
+                  label: "Titlu",
+                  localized: true,
+                  maxLength: 100,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "summary",
+                  type: "textarea",
+                  label: "Rezumat",
+                  localized: true,
+                  maxLength: 400,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "pageLabel",
+                  type: "text",
+                  label: "Eticheta paginii complete",
+                  localized: true,
+                  maxLength: 80,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "pageHref",
+                  type: "text",
+                  label: "Ruta paginii complete",
+                  localized: true,
+                  hooks: { beforeValidate: [trimText] },
+                  validate: (value: unknown) => {
+                    if (value === undefined || value === null || value === "") {
+                      return true
+                    }
+
+                    return validateNavigationHref(value, "internal")
+                  },
+                  admin: {
+                    description: "Rută internă, de exemplu /ro/metodologie.",
+                  },
+                },
+                {
+                  name: "principles",
+                  type: "array",
+                  label: "Principii",
+                  maxRows: 6,
+                  fields: [
+                    {
+                      name: "title",
+                      type: "text",
+                      label: "Titlul principiului",
+                      required: true,
+                      localized: true,
+                      maxLength: 100,
+                      validate: requiredTrimmedText,
+                      hooks: { beforeValidate: [trimText] },
+                    },
+                    {
+                      name: "description",
+                      type: "textarea",
+                      label: "Descrierea principiului",
+                      required: true,
+                      localized: true,
+                      maxLength: 300,
+                      validate: requiredTrimmedText,
+                      hooks: { beforeValidate: [trimText] },
+                    },
+                    {
+                      name: "enabled",
+                      type: "checkbox",
+                      label: "Activ",
+                      defaultValue: true,
+                    },
+                    {
+                      name: "order",
+                      type: "number",
+                      label: "Ordinea afișării",
+                      required: true,
+                      defaultValue: 0,
+                      min: 0,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
   ],
