@@ -605,6 +605,130 @@ export const SiteSettings: GlobalConfig = {
             },
           ],
         },
+        {
+          label: "Newsletter",
+          fields: [
+            {
+              name: "newsletter",
+              type: "group",
+              label: "Newsletter public",
+              fields: [
+                {
+                  name: "enabled",
+                  type: "checkbox",
+                  label: "Afișează formularul newsletter",
+                  defaultValue: true,
+                },
+                {
+                  name: "title",
+                  type: "text",
+                  label: "Titlu",
+                  localized: true,
+                  maxLength: 100,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "description",
+                  type: "textarea",
+                  label: "Descriere",
+                  localized: true,
+                  maxLength: 300,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "emailLabel",
+                  type: "text",
+                  label: "Eticheta câmpului e-mail",
+                  localized: true,
+                  maxLength: 80,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "emailPlaceholder",
+                  type: "text",
+                  label: "Text orientativ pentru e-mail",
+                  localized: true,
+                  maxLength: 120,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "submitLabel",
+                  type: "text",
+                  label: "Textul butonului de înscriere",
+                  localized: true,
+                  maxLength: 80,
+                  hooks: { beforeValidate: [trimText] },
+                },
+
+                {
+                  name: "consentText",
+                  type: "textarea",
+                  label: "Text de consimțământ",
+                  localized: true,
+                  maxLength: 300,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "successMessage",
+                  type: "text",
+                  label: "Mesaj pentru înscriere reușită",
+                  localized: true,
+                  maxLength: 200,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "alreadySubscribedMessage",
+                  type: "text",
+                  label: "Mesaj pentru adresă deja înscrisă",
+                  localized: true,
+                  maxLength: 200,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "invalidEmailMessage",
+                  type: "text",
+                  label: "Mesaj pentru adresă invalidă",
+                  localized: true,
+                  maxLength: 200,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "genericErrorMessage",
+                  type: "text",
+                  label: "Mesaj pentru eroare generală",
+                  localized: true,
+                  maxLength: 200,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "privacyLabel",
+                  type: "text",
+                  label: "Eticheta politicii de confidențialitate",
+                  localized: true,
+                  maxLength: 100,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "privacyHref",
+                  type: "text",
+                  label: "Ruta politicii de confidențialitate",
+                  localized: true,
+                  hooks: { beforeValidate: [trimText] },
+                  validate: (value: unknown) => {
+                    if (value === undefined || value === null || value === "") {
+                      return true
+                    }
+
+                    return validateNavigationHref(value, "internal")
+                  },
+                  admin: {
+                    description: "Rută internă, de exemplu /ro/confidentialitate.",
+                  },
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
   ],
