@@ -993,6 +993,53 @@ export const SiteSettings: GlobalConfig = {
             },
           ],
         },
+        {
+          label: "Linkuri legale",
+          fields: [
+            {
+              name: "legalLinks",
+              type: "array",
+              label: "Linkuri legale obligatorii",
+              required: true,
+              fields: [
+                {
+                  name: "label",
+                  type: "text",
+                  label: "Etichetă",
+                  required: true,
+                  localized: true,
+                  maxLength: 100,
+                  validate: requiredTrimmedText,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "href",
+                  type: "text",
+                  label: "Rută legală",
+                  required: true,
+                  localized: true,
+                  hooks: { beforeValidate: [trimText] },
+                  validate: (value: unknown) =>
+                    validateNavigationHref(value, "internal"),
+                },
+                {
+                  name: "enabled",
+                  type: "checkbox",
+                  label: "Activ",
+                  defaultValue: true,
+                },
+                {
+                  name: "order",
+                  type: "number",
+                  label: "Ordinea afișării",
+                  required: true,
+                  defaultValue: 0,
+                  min: 0,
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
   ],
