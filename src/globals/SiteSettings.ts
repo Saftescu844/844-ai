@@ -856,6 +856,84 @@ export const SiteSettings: GlobalConfig = {
             },
           ],
         },
+        {
+          label: "Contact",
+          fields: [
+            {
+              name: "contact",
+              type: "group",
+              label: "Informații publice de contact",
+              fields: [
+                {
+                  name: "enabled",
+                  type: "checkbox",
+                  label: "Afișează informațiile de contact",
+                  defaultValue: true,
+                },
+                {
+                  name: "contactTitle",
+                  type: "text",
+                  label: "Titlul secțiunii",
+                  localized: true,
+                  maxLength: 100,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "publicEmail",
+                  type: "email",
+                  label: "Adresă publică de e-mail",
+                  required: false,
+                  hooks: { beforeValidate: [trimText] },
+                  admin: {
+                    description: "Adresa afișată public pentru contact.",
+                  },
+                },
+                {
+                  name: "phone",
+                  type: "text",
+                  label: "Telefon public",
+                  required: false,
+                  maxLength: 40,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "address",
+                  type: "textarea",
+                  label: "Adresă",
+                  required: false,
+                  localized: true,
+                  maxLength: 300,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "contactPageLabel",
+                  type: "text",
+                  label: "Eticheta paginii de contact",
+                  localized: true,
+                  maxLength: 100,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "contactPageHref",
+                  type: "text",
+                  label: "Ruta paginii de contact",
+                  localized: true,
+                  hooks: { beforeValidate: [trimText] },
+                  validate: (value: unknown) => {
+                    if (value === undefined || value === null || value === "") {
+                      return true
+                    }
+
+                    return validateNavigationHref(value, "internal")
+                  },
+                  admin: {
+                    description: "Rută internă, de exemplu /ro/contact.",
+                  },
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
   ],
