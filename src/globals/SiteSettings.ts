@@ -1224,6 +1224,83 @@ export const SiteSettings: GlobalConfig = {
             },
           ],
         },
+        {
+          label: "Metadate și SEO",
+          fields: [
+            {
+              name: "metadata",
+              type: "group",
+              label: "Metadate implicite",
+              fields: [
+                {
+                  name: "defaultMetaTitle",
+                  type: "text",
+                  label: "Titlu meta implicit",
+                  localized: true,
+                  maxLength: 120,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "defaultMetaDescription",
+                  type: "textarea",
+                  label: "Descriere meta implicită",
+                  localized: true,
+                  maxLength: 320,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "defaultShareImage",
+                  type: "upload",
+                  label: "Imagine implicită pentru distribuire",
+                  relationTo: "media",
+                  required: false,
+                },
+                {
+                  name: "siteAuthor",
+                  type: "text",
+                  label: "Autor implicit al site-ului",
+                  required: false,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "publisherName",
+                  type: "text",
+                  label: "Numele editorului",
+                  required: false,
+                  hooks: { beforeValidate: [trimText] },
+                },
+                {
+                  name: "twitterCardType",
+                  type: "select",
+                  label: "Tip Twitter Card",
+                  required: true,
+                  defaultValue: "summary_large_image",
+                  options: [
+                    { label: "Rezumat", value: "summary" },
+                    { label: "Rezumat cu imagine mare", value: "summary_large_image" },
+                  ],
+                  admin: {
+                    description: "Formatul implicit utilizat la distribuirea paginilor.",
+                  },
+                },
+                {
+                  name: "robotsDefault",
+                  type: "select",
+                  label: "Indexare implicită",
+                  required: true,
+                  defaultValue: "indexFollow",
+                  options: [
+                    { label: "Indexare permisă", value: "indexFollow" },
+                    { label: "Indexare interzisă", value: "noindexNofollow" },
+                  ],
+                  admin: {
+                    description: "Paginile private și tehnice vor suprascrie această setare în cod.",
+                  },
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
   ],
