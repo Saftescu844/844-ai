@@ -1019,8 +1019,14 @@ export const SiteSettings: GlobalConfig = {
                   required: true,
                   localized: true,
                   hooks: { beforeValidate: [trimText] },
-                  validate: (value: unknown) =>
-                    validateNavigationHref(value, "internal"),
+                  validate: (value: unknown) => {
+                    const linkType =
+                      typeof value === "string" && value.trim().startsWith("/")
+                        ? "internal"
+                        : "external"
+
+                    return validateNavigationHref(value, linkType)
+                  },
                 },
                 {
                   name: "enabled",
