@@ -21,6 +21,7 @@ import {
   Media,
   Newsletter,
 } from './collections/RestulColectiilor'
+import { SiteSettings } from './globals/SiteSettings'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -78,6 +79,7 @@ export default buildConfig({
     Newsletter,
     Media,
   ],
+  globals: [SiteSettings],
 
   // === Bază de date: PostgreSQL pe Supabase ===
   db: postgresAdapter({
