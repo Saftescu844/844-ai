@@ -105,8 +105,12 @@ export interface Config {
     defaultIDType: number;
   };
   fallbackLocale: ('false' | 'none' | 'null') | false | null | ('ro' | 'en') | ('ro' | 'en')[];
-  globals: {};
-  globalsSelect: {};
+  globals: {
+    'site-settings': SiteSetting;
+  };
+  globalsSelect: {
+    'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+  };
   locale: 'ro' | 'en';
   widgets: {
     collections: CollectionsWidget;
@@ -1074,6 +1078,429 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings".
+ */
+export interface SiteSetting {
+  id: number;
+  identity: {
+    /**
+     * Denumirea completă a platformei.
+     */
+    siteName: string;
+    /**
+     * Denumirea compactă utilizată în interfață.
+     */
+    shortName: string;
+    /**
+     * Mesajul scurt care descrie platforma.
+     */
+    tagline?: string | null;
+    logoPrimary?: (number | null) | Media;
+    logoAlternative?: (number | null) | Media;
+    favicon?: (number | null) | Media;
+  };
+  navigation?: {
+    primaryNavigation?:
+      | {
+          label: string;
+          linkType: 'internal' | 'external';
+          href: string;
+          openInNewTab?: boolean | null;
+          showInDesktop?: boolean | null;
+          showInMobile?: boolean | null;
+          enabled?: boolean | null;
+          id?: string | null;
+        }[]
+      | null;
+    headerActions?:
+      | {
+          label: string;
+          actionType: 'link' | 'search' | 'languageSwitcher' | 'login';
+          href?: string | null;
+          style: 'link' | 'secondary' | 'primary';
+          enabled?: boolean | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  languageSettings: {
+    availableLanguages: {
+      code: 'ro' | 'en';
+      label: string;
+      shortLabel: string;
+      enabled?: boolean | null;
+      order: number;
+      id?: string | null;
+    }[];
+    defaultLanguage: 'ro' | 'en';
+    showLanguageSwitcher?: boolean | null;
+  };
+  trustBar?: {
+    enabled?: boolean | null;
+    items?:
+      | {
+          label: string;
+          icon?: ('verified' | 'sources' | 'updated' | 'transparent' | 'independent' | 'medicalReview') | null;
+          description?: string | null;
+          enabled?: boolean | null;
+          order: number;
+          id?: string | null;
+        }[]
+      | null;
+    /**
+     * Textul linkului către pagina metodologiei.
+     */
+    methodologyLabel?: string | null;
+    /**
+     * Rută internă, de exemplu /ro/metodologie.
+     */
+    methodologyHref?: string | null;
+  };
+  methodology?: {
+    enabled?: boolean | null;
+    title?: string | null;
+    summary?: string | null;
+    pageLabel?: string | null;
+    /**
+     * Rută internă, de exemplu /ro/metodologie.
+     */
+    pageHref?: string | null;
+    principles?:
+      | {
+          title: string;
+          description: string;
+          enabled?: boolean | null;
+          order: number;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  newsletter?: {
+    enabled?: boolean | null;
+    title?: string | null;
+    description?: string | null;
+    emailLabel?: string | null;
+    emailPlaceholder?: string | null;
+    submitLabel?: string | null;
+    consentText?: string | null;
+    successMessage?: string | null;
+    alreadySubscribedMessage?: string | null;
+    invalidEmailMessage?: string | null;
+    genericErrorMessage?: string | null;
+    privacyLabel?: string | null;
+    /**
+     * Rută internă, de exemplu /ro/confidentialitate.
+     */
+    privacyHref?: string | null;
+  };
+  footer?: {
+    footerEnabled?: boolean | null;
+    footerIntro?: string | null;
+    footerSections?:
+      | {
+          title: string;
+          enabled?: boolean | null;
+          order: number;
+          links?:
+            | {
+                label: string;
+                linkType: 'internal' | 'external';
+                href: string;
+                openInNewTab?: boolean | null;
+                enabled?: boolean | null;
+                order: number;
+                id?: string | null;
+              }[]
+            | null;
+          id?: string | null;
+        }[]
+      | null;
+    copyrightText?: string | null;
+  };
+  contact?: {
+    enabled?: boolean | null;
+    contactTitle?: string | null;
+    /**
+     * Adresa afișată public pentru contact.
+     */
+    publicEmail?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    contactPageLabel?: string | null;
+    /**
+     * Rută internă, de exemplu /ro/contact.
+     */
+    contactPageHref?: string | null;
+  };
+  socialLinks?:
+    | {
+        platform: 'facebook' | 'linkedin' | 'youtube' | 'instagram' | 'x' | 'tiktok' | 'github';
+        label?: string | null;
+        url: string;
+        enabled?: boolean | null;
+        order: number;
+        id?: string | null;
+      }[]
+    | null;
+  legalLinks: {
+    label: string;
+    href: string;
+    enabled?: boolean | null;
+    order: number;
+    id?: string | null;
+  }[];
+  editorialDefaults?: {
+    readMoreLabel?: string | null;
+    latestArticlesLabel?: string | null;
+    viewAllLabel?: string | null;
+    updatedLabel?: string | null;
+    verifiedLabel?: string | null;
+    readingTimeLabel?: string | null;
+    sourceLabel?: string | null;
+    correctionsLabel?: string | null;
+    sponsoredLabel?: string | null;
+    aiDisclosureLabel?: string | null;
+  };
+  accessibility?: {
+    skipToContentLabel?: string | null;
+    openMenuLabel?: string | null;
+    closeMenuLabel?: string | null;
+    searchLabel?: string | null;
+    languageSwitcherLabel?: string | null;
+    externalLinkLabel?: string | null;
+    previousPageLabel?: string | null;
+    nextPageLabel?: string | null;
+    loadingLabel?: string | null;
+    errorLabel?: string | null;
+  };
+  metadata: {
+    defaultMetaTitle?: string | null;
+    defaultMetaDescription?: string | null;
+    defaultShareImage?: (number | null) | Media;
+    siteAuthor?: string | null;
+    publisherName?: string | null;
+    /**
+     * Formatul implicit utilizat la distribuirea paginilor.
+     */
+    twitterCardType: 'summary' | 'summary_large_image';
+    /**
+     * Paginile private și tehnice vor suprascrie această setare în cod.
+     */
+    robotsDefault: 'indexFollow' | 'noindexNofollow';
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings_select".
+ */
+export interface SiteSettingsSelect<T extends boolean = true> {
+  identity?:
+    | T
+    | {
+        siteName?: T;
+        shortName?: T;
+        tagline?: T;
+        logoPrimary?: T;
+        logoAlternative?: T;
+        favicon?: T;
+      };
+  navigation?:
+    | T
+    | {
+        primaryNavigation?:
+          | T
+          | {
+              label?: T;
+              linkType?: T;
+              href?: T;
+              openInNewTab?: T;
+              showInDesktop?: T;
+              showInMobile?: T;
+              enabled?: T;
+              id?: T;
+            };
+        headerActions?:
+          | T
+          | {
+              label?: T;
+              actionType?: T;
+              href?: T;
+              style?: T;
+              enabled?: T;
+              id?: T;
+            };
+      };
+  languageSettings?:
+    | T
+    | {
+        availableLanguages?:
+          | T
+          | {
+              code?: T;
+              label?: T;
+              shortLabel?: T;
+              enabled?: T;
+              order?: T;
+              id?: T;
+            };
+        defaultLanguage?: T;
+        showLanguageSwitcher?: T;
+      };
+  trustBar?:
+    | T
+    | {
+        enabled?: T;
+        items?:
+          | T
+          | {
+              label?: T;
+              icon?: T;
+              description?: T;
+              enabled?: T;
+              order?: T;
+              id?: T;
+            };
+        methodologyLabel?: T;
+        methodologyHref?: T;
+      };
+  methodology?:
+    | T
+    | {
+        enabled?: T;
+        title?: T;
+        summary?: T;
+        pageLabel?: T;
+        pageHref?: T;
+        principles?:
+          | T
+          | {
+              title?: T;
+              description?: T;
+              enabled?: T;
+              order?: T;
+              id?: T;
+            };
+      };
+  newsletter?:
+    | T
+    | {
+        enabled?: T;
+        title?: T;
+        description?: T;
+        emailLabel?: T;
+        emailPlaceholder?: T;
+        submitLabel?: T;
+        consentText?: T;
+        successMessage?: T;
+        alreadySubscribedMessage?: T;
+        invalidEmailMessage?: T;
+        genericErrorMessage?: T;
+        privacyLabel?: T;
+        privacyHref?: T;
+      };
+  footer?:
+    | T
+    | {
+        footerEnabled?: T;
+        footerIntro?: T;
+        footerSections?:
+          | T
+          | {
+              title?: T;
+              enabled?: T;
+              order?: T;
+              links?:
+                | T
+                | {
+                    label?: T;
+                    linkType?: T;
+                    href?: T;
+                    openInNewTab?: T;
+                    enabled?: T;
+                    order?: T;
+                    id?: T;
+                  };
+              id?: T;
+            };
+        copyrightText?: T;
+      };
+  contact?:
+    | T
+    | {
+        enabled?: T;
+        contactTitle?: T;
+        publicEmail?: T;
+        phone?: T;
+        address?: T;
+        contactPageLabel?: T;
+        contactPageHref?: T;
+      };
+  socialLinks?:
+    | T
+    | {
+        platform?: T;
+        label?: T;
+        url?: T;
+        enabled?: T;
+        order?: T;
+        id?: T;
+      };
+  legalLinks?:
+    | T
+    | {
+        label?: T;
+        href?: T;
+        enabled?: T;
+        order?: T;
+        id?: T;
+      };
+  editorialDefaults?:
+    | T
+    | {
+        readMoreLabel?: T;
+        latestArticlesLabel?: T;
+        viewAllLabel?: T;
+        updatedLabel?: T;
+        verifiedLabel?: T;
+        readingTimeLabel?: T;
+        sourceLabel?: T;
+        correctionsLabel?: T;
+        sponsoredLabel?: T;
+        aiDisclosureLabel?: T;
+      };
+  accessibility?:
+    | T
+    | {
+        skipToContentLabel?: T;
+        openMenuLabel?: T;
+        closeMenuLabel?: T;
+        searchLabel?: T;
+        languageSwitcherLabel?: T;
+        externalLinkLabel?: T;
+        previousPageLabel?: T;
+        nextPageLabel?: T;
+        loadingLabel?: T;
+        errorLabel?: T;
+      };
+  metadata?:
+    | T
+    | {
+        defaultMetaTitle?: T;
+        defaultMetaDescription?: T;
+        defaultShareImage?: T;
+        siteAuthor?: T;
+        publisherName?: T;
+        twitterCardType?: T;
+        robotsDefault?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
