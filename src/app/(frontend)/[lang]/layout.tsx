@@ -1,5 +1,6 @@
 import React, { cache } from 'react'
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { getSiteSettings } from '@/lib/payload'
 
 const getCachedSiteSettings = cache(getSiteSettings)
@@ -11,6 +12,32 @@ const PILONI = [
   { slug: 'tools', ro: 'Tool Directory', en: 'Tools' },
   { slug: 'afaceri', ro: 'Afaceri', en: 'Business' },
 ]
+
+export async function generateMetadata(props: {
+  params: Promise<{ lang: string }>
+}): Promise<Metadata> {
+  const { lang } = await props.params
+  const siteSettings = await getCachedSiteSettings(lang)
+
+  const fallbackTitle =
+    lang === 'en'
+      ? '844-ai.ro — Everything that matters in AI, in one place'
+      : '844-ai.ro — Tot ce contează în AI, într-un singur loc'
+
+  const fallbackDescription =
+    lang === 'en'
+      ? 'Romanian AI platform covering AI news, healthcare, education, AI tools and business. Available in Romanian and English.'
+      : 'Platformă românească de referință pentru inteligența artificială: știri AI, sănătate, educație, tool directory și afaceri. Bilingv RO/EN.'
+
+  const title = siteSettings?.metadata.defaultMetaTitle?.trim() || fallbackTitle
+  const description =
+    siteSettings?.metadata.defaultMetaDescription?.trim() || fallbackDescription
+
+  return {
+    title: { absolute: title },
+    description,
+  }
+}
 
 export default async function LangLayout(props: {
   children: React.ReactNode
