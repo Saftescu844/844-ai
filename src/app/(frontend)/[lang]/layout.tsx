@@ -36,6 +36,27 @@ export default async function LangLayout(props: {
 
   const legalLinks = configuredLegalLinks.length > 0 ? configuredLegalLinks : fallbackLegalLinks
 
+  const fallbackLanguages = [
+    { code: 'ro', shortLabel: 'RO', order: 0 },
+    { code: 'en', shortLabel: 'EN', order: 1 },
+  ]
+
+  const configuredLanguages =
+    siteSettings?.languageSettings.availableLanguages
+      .filter((language) => language.enabled !== false)
+      .sort((a, b) => a.order - b.order)
+      .map((language) => ({
+        code: language.code,
+        shortLabel: language.shortLabel,
+        order: language.order,
+      })) ?? []
+
+  const availableLanguages =
+    configuredLanguages.length > 0 ? configuredLanguages : fallbackLanguages
+
+  const showLanguageSwitcher =
+    siteSettings?.languageSettings.showLanguageSwitcher !== false
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1rem' }}>
       <header style={{ borderBottom: '1px solid #e5e5e5', paddingBottom: 10 }}>
@@ -44,10 +65,26 @@ export default async function LangLayout(props: {
             <div style={{ fontSize: 19, fontWeight: 700 }}><span style={{ color: '#C41E3A' }}>844-ai</span><span style={{ color: '#1a1a1a' }}>.ro</span></div>
             <div style={{ fontSize: 13, fontWeight: 500, color: '#555' }}>{lang === 'ro' ? 'Tot ce contează în AI, într-un singur loc.' : 'Everything that matters in AI, in one place.'}</div>
           </a>
-          <nav style={{ display: 'flex', gap: 4 }}>
-            <a href="/ro" style={{ padding: '3px 9px', borderRadius: 6, textDecoration: 'none', color: lang === 'ro' ? '#185FA5' : '#999', fontWeight: lang === 'ro' ? 600 : 400, fontSize: 14 }}>RO</a>
-            <a href="/en" style={{ padding: '3px 9px', borderRadius: 6, textDecoration: 'none', color: lang === 'en' ? '#185FA5' : '#999', fontWeight: lang === 'en' ? 600 : 400, fontSize: 14 }}>EN</a>
-          </nav>
+          {showLanguageSwitcher && (
+            <nav style={{ display: 'flex', gap: 4 }}>
+              {availableLanguages.map((language) => (
+                <Link
+                  key={language.code}
+                  href={`/${language.code}`}
+                  style={{
+                    padding: '3px 9px',
+                    borderRadius: 6,
+                    textDecoration: 'none',
+                    color: lang === language.code ? '#185FA5' : '#999',
+                    fontWeight: lang === language.code ? 600 : 400,
+                    fontSize: 14,
+                  }}
+                >
+                  {language.shortLabel}
+                </Link>
+              ))}
+            </nav>
+          )}
         </div>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 18, paddingBottom: 4 }}>
           {PILONI.map((p) => (
