@@ -117,8 +117,17 @@ export default async function LangLayout(props: {
       <footer style={{ borderTop: '1px solid #e5e5e5', padding: '2rem 0 1.5rem', marginTop: 40, fontSize: 13, color: '#666' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, marginBottom: 20 }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}><span style={{ color: '#C41E3A' }}>844-ai</span>.ro</div>
-            <div style={{ color: '#999', maxWidth: 260 }}>{lang === 'ro' ? 'Tot ce contează în AI, într-un singur loc.' : 'Everything that matters in AI, in one place.'}</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>
+              {siteName === '844-ai.ro' ? (
+                <>
+                  <span style={{ color: '#C41E3A' }}>844-ai</span>
+                  <span>.ro</span>
+                </>
+              ) : (
+                siteName
+              )}
+            </div>
+            <div style={{ color: '#999', maxWidth: 260 }}>{tagline}</div>
           </div>
           <div>
             <div style={{ fontWeight: 700, marginBottom: 8, color: '#333' }}>{lang === 'ro' ? 'Companie' : 'Company'}</div>
