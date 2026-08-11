@@ -1,6 +1,8 @@
-import React from 'react'
+import React, { cache } from 'react'
 import Link from 'next/link'
 import { getSiteSettings } from '@/lib/payload'
+
+const getCachedSiteSettings = cache(getSiteSettings)
 
 const PILONI = [
   { slug: 'stiri', ro: 'Știri AI', en: 'AI News' },
@@ -15,7 +17,7 @@ export default async function LangLayout(props: {
   params: Promise<{ lang: string }>
 }) {
   const { lang } = await props.params
-  const siteSettings = await getSiteSettings(lang)
+  const siteSettings = await getCachedSiteSettings(lang)
 
   const fallbackLegalLinks =
     lang === 'en'
