@@ -1,4 +1,6 @@
 import React from 'react'
+import Link from 'next/link'
+import { getSiteSettings } from '@/lib/payload'
 
 const PILONI = [
   { slug: 'stiri', ro: 'Știri AI', en: 'AI News' },
@@ -13,6 +15,27 @@ export default async function LangLayout(props: {
   params: Promise<{ lang: string }>
 }) {
   const { lang } = await props.params
+  const siteSettings = await getSiteSettings(lang)
+
+  const fallbackLegalLinks =
+    lang === 'en'
+      ? [
+          { label: 'Privacy Policy', href: '/en/politica-confidentialitate' },
+          { label: 'Cookie Policy', href: '/en/politica-cookie-uri' },
+        ]
+      : [
+          { label: 'Politica de confidențialitate', href: '/ro/politica-confidentialitate' },
+          { label: 'Politica de cookie-uri', href: '/ro/politica-cookie-uri' },
+        ]
+
+  const configuredLegalLinks =
+    siteSettings?.legalLinks
+      ?.filter((link) => link.enabled !== false)
+      .sort((a, b) => a.order - b.order)
+      .map((link) => ({ label: link.label, href: link.href })) ?? []
+
+  const legalLinks = configuredLegalLinks.length > 0 ? configuredLegalLinks : fallbackLegalLinks
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1rem' }}>
       <header style={{ borderBottom: '1px solid #e5e5e5', paddingBottom: 10 }}>
@@ -48,6 +71,30 @@ export default async function LangLayout(props: {
               <a href={`/${lang}/despre`} style={{ color: '#666', textDecoration: 'none' }}>{lang === 'ro' ? 'Despre noi' : 'About us'}</a>
               <a href={`/${lang}/contact`} style={{ color: '#666', textDecoration: 'none' }}>Contact</a>
               <a href={`/${lang}/advertise`} style={{ color: '#666', textDecoration: 'none' }}>Advertise</a>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: '#333' }}>Legal</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {legalLinks.map((link) =>
+                link.href.startsWith('/') ? (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    style={{ color: '#666', textDecoration: 'none' }}
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    style={{ color: '#666', textDecoration: 'none' }}
+                  >
+                    {link.label}
+                  </a>
+                ),
+              )}
             </div>
           </div>
         </div>
