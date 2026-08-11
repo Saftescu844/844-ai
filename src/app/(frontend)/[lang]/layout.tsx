@@ -57,13 +57,31 @@ export default async function LangLayout(props: {
   const showLanguageSwitcher =
     siteSettings?.languageSettings.showLanguageSwitcher !== false
 
+  const fallbackSiteName = '844-ai.ro'
+  const fallbackTagline =
+    lang === 'en'
+      ? 'Everything that matters in AI, in one place.'
+      : 'Tot ce contează în AI, într-un singur loc.'
+
+  const siteName = siteSettings?.identity.siteName?.trim() || fallbackSiteName
+  const tagline = siteSettings?.identity.tagline?.trim() || fallbackTagline
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1rem' }}>
       <header style={{ borderBottom: '1px solid #e5e5e5', paddingBottom: 10 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 14, paddingBottom: 10 }}>
           <a href={`/${lang}`} style={{ textDecoration: 'none', color: '#1a1a1a', lineHeight: 1.2 }}>
-            <div style={{ fontSize: 19, fontWeight: 700 }}><span style={{ color: '#C41E3A' }}>844-ai</span><span style={{ color: '#1a1a1a' }}>.ro</span></div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#555' }}>{lang === 'ro' ? 'Tot ce contează în AI, într-un singur loc.' : 'Everything that matters in AI, in one place.'}</div>
+            <div style={{ fontSize: 19, fontWeight: 700 }}>
+              {siteName === '844-ai.ro' ? (
+                <>
+                  <span style={{ color: '#C41E3A' }}>844-ai</span>
+                  <span style={{ color: '#1a1a1a' }}>.ro</span>
+                </>
+              ) : (
+                siteName
+              )}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#555' }}>{tagline}</div>
           </a>
           {showLanguageSwitcher && (
             <nav style={{ display: 'flex', gap: 4 }}>
