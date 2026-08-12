@@ -1,5 +1,6 @@
 import React, { cache } from 'react'
 import Link from 'next/link'
+import '../styles.css'
 import type { Metadata } from 'next'
 import { getSiteSettings } from '@/lib/payload'
 
@@ -37,8 +38,12 @@ export async function generateMetadata(props: {
   const robotsDefault = siteSettings?.metadata.robotsDefault ?? 'indexFollow'
 
   return {
-    title: { absolute: title },
+    title: {
+      default: title,
+      template: '%s | 844-ai.ro',
+    },
     description,
+    metadataBase: new URL('https://844-ai.ro'),
     openGraph: {
       title,
       description,
@@ -114,7 +119,9 @@ export default async function LangLayout(props: {
   const tagline = siteSettings?.identity.tagline?.trim() || fallbackTagline
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1rem' }}>
+    <html lang={lang}>
+      <body>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1rem' }}>
       <header style={{ borderBottom: '1px solid #e5e5e5', paddingBottom: 10 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 14, paddingBottom: 10 }}>
           <a href={`/${lang}`} style={{ textDecoration: 'none', color: '#1a1a1a', lineHeight: 1.2 }}>
@@ -213,6 +220,8 @@ export default async function LangLayout(props: {
           © 2026 844-ai.ro — {lang === 'ro' ? 'Toate drepturile rezervate' : 'All rights reserved'}
         </div>
       </footer>
-    </div>
+        </div>
+      </body>
+    </html>
   )
 }
