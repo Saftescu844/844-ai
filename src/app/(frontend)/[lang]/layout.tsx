@@ -32,10 +32,28 @@ export async function generateMetadata(props: {
   const title = siteSettings?.metadata.defaultMetaTitle?.trim() || fallbackTitle
   const description =
     siteSettings?.metadata.defaultMetaDescription?.trim() || fallbackDescription
+  const siteName = siteSettings?.identity.siteName?.trim() || '844-ai.ro'
+  const twitterCardType = siteSettings?.metadata.twitterCardType ?? 'summary_large_image'
+  const robotsDefault = siteSettings?.metadata.robotsDefault ?? 'indexFollow'
 
   return {
     title: { absolute: title },
     description,
+    openGraph: {
+      title,
+      description,
+      siteName,
+      type: 'website',
+    },
+    twitter: {
+      card: twitterCardType,
+      title,
+      description,
+    },
+    robots:
+      robotsDefault === 'noindexNofollow'
+        ? { index: false, follow: false }
+        : { index: true, follow: true },
   }
 }
 
