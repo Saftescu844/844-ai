@@ -36,6 +36,19 @@ export async function generateMetadata(props: {
   const siteName = siteSettings?.identity.siteName?.trim() || '844-ai.ro'
   const twitterCardType = siteSettings?.metadata.twitterCardType ?? 'summary_large_image'
   const robotsDefault = siteSettings?.metadata.robotsDefault ?? 'indexFollow'
+  const defaultShareImage = siteSettings?.metadata.defaultShareImage
+  const shareImageMetadata =
+    defaultShareImage &&
+    typeof defaultShareImage === 'object' &&
+    defaultShareImage.url
+      ? {
+          url: defaultShareImage.url,
+          width: defaultShareImage.width ?? undefined,
+          height: defaultShareImage.height ?? undefined,
+          alt: defaultShareImage.alt ?? undefined,
+          type: defaultShareImage.mimeType ?? undefined,
+        }
+      : undefined
 
   return {
     title: {
@@ -49,11 +62,13 @@ export async function generateMetadata(props: {
       description,
       siteName,
       type: 'website',
+      images: shareImageMetadata ? [shareImageMetadata] : undefined,
     },
     twitter: {
       card: twitterCardType,
       title,
       description,
+      images: shareImageMetadata ? [shareImageMetadata] : undefined,
     },
     robots:
       robotsDefault === 'noindexNofollow'
