@@ -7,6 +7,19 @@ export async function payloadClient() {
   return await getPayload({ config })
 }
 
+export async function getSiteSettings(limba: string) {
+  if (limba !== 'ro' && limba !== 'en') return null
+
+  const payload = await payloadClient()
+
+  return await payload.findGlobal({
+    slug: 'site-settings',
+    locale: limba,
+    fallbackLocale: false,
+    depth: 1,
+  })
+}
+
 export async function getArticole(limba: string, optiuni: { limit?: number } = {}) {
   if (!LIMBI_VALIDE.includes(limba)) return { docs: [] as any[] }
   const payload = await payloadClient()
