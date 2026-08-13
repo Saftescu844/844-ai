@@ -22,12 +22,14 @@ import {
   Newsletter,
 } from './collections/RestulColectiilor'
 import { SiteSettings } from './globals/SiteSettings'
+import { searchInfrastructurePlugin } from './search/searchPlugin'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 export default buildConfig({
   plugins: [
+    searchInfrastructurePlugin,
     s3Storage({
             collections: {
         media: {

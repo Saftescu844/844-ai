@@ -78,6 +78,7 @@ export interface Config {
     'callouri-ue': CallouriUe;
     newsletter: Newsletter;
     media: Media;
+    search: Search;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -96,6 +97,7 @@ export interface Config {
     'callouri-ue': CallouriUeSelect<false> | CallouriUeSelect<true>;
     newsletter: NewsletterSelect<false> | NewsletterSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -648,6 +650,31 @@ export interface Newsletter {
   createdAt: string;
 }
 /**
+ * This is a collection of automatically created search results. These results are used by the global site search and will be updated automatically as documents in the CMS are created or updated.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "search".
+ */
+export interface Search {
+  id: number;
+  title?: string | null;
+  priority?: number | null;
+  doc: {
+    relationTo: 'articole';
+    value: number | Articole;
+  };
+  excerpt?: string | null;
+  keywords?: string | null;
+  url?: string | null;
+  language?: ('ro' | 'en') | null;
+  publicationStatus?: ('draft' | 'review' | 'published' | 'blocked') | null;
+  articleType?: ('stire-auto' | 'analiza' | 'frontiera' | 'ghid') | null;
+  publishedAt?: string | null;
+  isPublic?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -714,6 +741,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'search';
+        value: number | Search;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -1038,6 +1069,25 @@ export interface MediaSelect<T extends boolean = true> {
               filename?: T;
             };
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "search_select".
+ */
+export interface SearchSelect<T extends boolean = true> {
+  title?: T;
+  priority?: T;
+  doc?: T;
+  excerpt?: T;
+  keywords?: T;
+  url?: T;
+  language?: T;
+  publicationStatus?: T;
+  articleType?: T;
+  publishedAt?: T;
+  isPublic?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
