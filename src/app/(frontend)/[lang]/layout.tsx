@@ -84,6 +84,43 @@ export default async function LangLayout(props: {
   const { lang } = await props.params
   const siteSettings = await getCachedSiteSettings(lang)
 
+  const fallbackPrimaryNavigation = PILONI.map((p) => ({
+    key: `fallback-${p.slug}`,
+    label: lang === 'ro' ? p.ro : p.en,
+    href: `/${lang}/pilon/${p.slug}`,
+    openInNewTab: false,
+    showInDesktop: true,
+    showInMobile: true,
+  }))
+
+  const configuredPrimaryNavigation =
+    siteSettings?.navigation?.primaryNavigation ?? []
+
+  const hasConfiguredPrimaryNavigation =
+    configuredPrimaryNavigation.length > 0
+
+  const enabledPrimaryNavigation = configuredPrimaryNavigation.filter(
+    (item) =>
+      item.enabled !== false &&
+      (item.showInDesktop !== false || item.showInMobile !== false),
+  )
+
+  const hasInvalidLocalizedPrimaryNavigation = enabledPrimaryNavigation.some(
+    (item) => !item.label?.trim() || !item.href?.trim(),
+  )
+
+  const primaryNavigation =
+    hasConfiguredPrimaryNavigation && !hasInvalidLocalizedPrimaryNavigation
+      ? enabledPrimaryNavigation.map((item) => ({
+          key: item.id ?? `${item.href}-${item.label}`,
+          label: item.label.trim(),
+          href: item.href.trim(),
+          openInNewTab: item.openInNewTab === true,
+          showInDesktop: item.showInDesktop !== false,
+          showInMobile: item.showInMobile !== false,
+        }))
+      : fallbackPrimaryNavigation
+
   const fallbackLegalLinks =
     lang === 'en'
       ? [
@@ -174,12 +211,32 @@ export default async function LangLayout(props: {
           )}
         </div>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 18, paddingBottom: 4 }}>
-          {PILONI.map((p) => (
-            <a key={p.slug} href={`/${lang}/pilon/${p.slug}`} className="menu-pilon"
-               style={{ textDecoration: 'none', color: '#185FA5', fontSize: 14, fontWeight: 500 }}>
-              {lang === 'ro' ? p.ro : p.en}
-            </a>
-          ))}
+          {primaryNavigation.map((item) => {
+            const visibilityClass =
+              item.showInDesktop && item.showInMobile
+                ? 'menu-pilon'
+                : item.showInDesktop
+                  ? 'menu-pilon menu-pilon--desktop-only'
+                  : 'menu-pilon menu-pilon--mobile-only'
+
+            return (
+              <a
+                key={item.key}
+                href={item.href}
+                className={visibilityClass}
+                target={item.openInNewTab ? '_blank' : undefined}
+                rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                style={{
+                  textDecoration: 'none',
+                  color: '#185FA5',
+                  fontSize: 14,
+                  fontWeight: 500,
+                }}
+              >
+                {item.label}
+              </a>
+            )
+          })}
         </nav>
       </header>
       <main style={{ paddingTop: 10 }}>{props.children}</main>
