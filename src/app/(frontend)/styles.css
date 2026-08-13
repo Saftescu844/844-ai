@@ -63,3 +63,17 @@ p {
 .menu-pilon:hover {
   background: #EEF4FB;
 }
+
+.menu-pilon--mobile-only {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .menu-pilon--desktop-only {
+    display: none;
+  }
+
+  .menu-pilon--mobile-only {
+    display: inline-block;
+  }
+}
