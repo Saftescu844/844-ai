@@ -161,6 +161,14 @@ export default async function LangLayout(props: {
   const showLanguageSwitcher =
     siteSettings?.languageSettings.showLanguageSwitcher !== false
 
+  const searchAction =
+    siteSettings?.navigation?.headerActions?.find(
+      (action) =>
+        action.enabled !== false &&
+        action.actionType === 'search' &&
+        Boolean(action.label?.trim()),
+    ) ?? null
+
   const fallbackSiteName = '844-ai.ro'
   const fallbackTagline =
     lang === 'en'
@@ -189,25 +197,68 @@ export default async function LangLayout(props: {
             </div>
             <div style={{ fontSize: 13, fontWeight: 500, color: '#555' }}>{tagline}</div>
           </a>
-          {showLanguageSwitcher && (
-            <nav style={{ display: 'flex', gap: 4 }}>
-              {availableLanguages.map((language) => (
+          {(searchAction || showLanguageSwitcher) && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              {searchAction && (
                 <Link
-                  key={language.code}
-                  href={`/${language.code}`}
+                  href={`/${lang}/search`}
                   style={{
-                    padding: '3px 9px',
+                    padding:
+                      searchAction.style === 'link'
+                        ? '3px 0'
+                        : '5px 10px',
+                    border:
+                      searchAction.style === 'secondary'
+                        ? '1px solid #185FA5'
+                        : '1px solid transparent',
                     borderRadius: 6,
+                    background:
+                      searchAction.style === 'primary'
+                        ? '#185FA5'
+                        : 'transparent',
+                    color:
+                      searchAction.style === 'primary'
+                        ? '#fff'
+                        : '#185FA5',
                     textDecoration: 'none',
-                    color: lang === language.code ? '#185FA5' : '#999',
-                    fontWeight: lang === language.code ? 600 : 400,
                     fontSize: 14,
+                    fontWeight:
+                      searchAction.style === 'primary'
+                        ? 600
+                        : 500,
                   }}
                 >
-                  {language.shortLabel}
+                  {searchAction.label.trim()}
                 </Link>
-              ))}
-            </nav>
+              )}
+
+              {showLanguageSwitcher && (
+                <nav style={{ display: 'flex', gap: 4 }}>
+                  {availableLanguages.map((language) => (
+                    <Link
+                      key={language.code}
+                      href={`/${language.code}`}
+                      style={{
+                        padding: '3px 9px',
+                        borderRadius: 6,
+                        textDecoration: 'none',
+                        color: lang === language.code ? '#185FA5' : '#999',
+                        fontWeight: lang === language.code ? 600 : 400,
+                        fontSize: 14,
+                      }}
+                    >
+                      {language.shortLabel}
+                    </Link>
+                  ))}
+                </nav>
+              )}
+            </div>
           )}
         </div>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 18, paddingBottom: 4 }}>
