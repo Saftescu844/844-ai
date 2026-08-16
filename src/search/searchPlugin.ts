@@ -1,5 +1,7 @@
 import { searchPlugin } from '@payloadcms/plugin-search'
 
+import { normalizeSearchText } from '@/search/normalizeSearchText'
+
 const ARTICLE_STATUSES = new Set([
   'draft',
   'review',
@@ -58,7 +60,7 @@ export const searchInfrastructurePlugin = searchPlugin({
         ? originalDoc.excerpt.trim()
         : ''
 
-    const keywords = Array.isArray(originalDoc.tags)
+    const tagKeywords = Array.isArray(originalDoc.tags)
       ? [
           ...new Set(
             originalDoc.tags
@@ -78,6 +80,10 @@ export const searchInfrastructurePlugin = searchPlugin({
           ),
         ].join(' ')
       : ''
+
+    const keywords = normalizeSearchText(
+      [title, excerpt, tagKeywords].filter(Boolean).join(' '),
+    )
 
     const isPublic =
       originalDoc._status === 'published' &&
