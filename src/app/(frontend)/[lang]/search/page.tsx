@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import {
   SEARCH_QUERY_MAX_LENGTH,
   SEARCH_QUERY_MIN_LENGTH,
+  SEARCH_RESULTS_LIMIT,
   searchArticles,
 } from '@/lib/search'
 
@@ -39,6 +40,30 @@ function getSearchResultHref(
   }
 
   return url
+}
+
+function formatPublishedDate(
+  value: string | null | undefined,
+  lang: string,
+) {
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat(
+    lang === 'ro' ? 'ro-RO' : 'en-GB',
+    {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    },
+  ).format(date)
 }
 
 function articleTypeLabel(
@@ -119,6 +144,10 @@ export default async function SearchPage(
           noResults: 'Nu am găsit rezultate pentru această căutare.',
           oneResult: '1 rezultat',
           manyResults: (count: number) => `${count} rezultate`,
+          resultsFor: (query: string) =>
+            `Rezultate pentru „${query}”`,
+          showingFirst: (count: number) =>
+            `Afișăm primele ${count}.`,
         }
       : {
           title: 'Search',
@@ -132,7 +161,21 @@ export default async function SearchPage(
           noResults: 'No results were found for this search.',
           oneResult: '1 result',
           manyResults: (count: number) => `${count} results`,
+          resultsFor: (query: string) =>
+            `Results for “${query}”`,
+          showingFirst: (count: number) =>
+            `Showing the first ${count}.`,
         }
+
+  const resultCountLabel =
+    result.totalDocs === 1
+      ? text.oneResult
+      : text.manyResults(result.totalDocs)
+
+  const resultCountSummary =
+    result.totalDocs > SEARCH_RESULTS_LIMIT
+      ? `${resultCountLabel}. ${text.showingFirst(result.docs.length)}`
+      : resultCountLabel
 
   const statusMessage =
     result.state === 'empty'
@@ -227,6 +270,9 @@ export default async function SearchPage(
 
       {statusMessage && (
         <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
           style={{
             color: '#666',
             lineHeight: 1.5,
@@ -239,17 +285,35 @@ export default async function SearchPage(
       {result.state === 'ready' &&
         result.totalDocs > 0 && (
           <>
-            <p
+            <div
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
               style={{
-                color: '#666',
-                fontSize: 14,
                 marginBottom: 16,
               }}
             >
-              {result.totalDocs === 1
-                ? text.oneResult
-                : text.manyResults(result.totalDocs)}
-            </p>
+              <p
+                style={{
+                  color: '#444',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  margin: 0,
+                }}
+              >
+                {text.resultsFor(result.query)}
+              </p>
+
+              <p
+                style={{
+                  color: '#666',
+                  fontSize: 13,
+                  margin: '4px 0 0',
+                }}
+              >
+                {resultCountSummary}
+              </p>
+            </div>
 
             <div
               style={{
@@ -261,6 +325,10 @@ export default async function SearchPage(
             >
               {result.docs.map((doc) => {
                 const href = getSearchResultHref(doc.url, lang)
+                const publishedDate = formatPublishedDate(
+                  doc.publishedAt,
+                  lang,
+                )
 
                 if (!href) {
                   return null
@@ -293,6 +361,18 @@ export default async function SearchPage(
                       lang,
                     )}
                   </span>
+
+                  {publishedDate && (
+                    <p
+                      style={{
+                        color: '#777',
+                        fontSize: 11,
+                        margin: '4px 0 0',
+                      }}
+                    >
+                      {publishedDate}
+                    </p>
+                  )}
 
                   <h2
                     style={{
