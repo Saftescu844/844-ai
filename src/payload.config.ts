@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 
 // === Colecții ===
 import { Articole } from './collections/Articole'
+import { Autori } from './collections/Autori'
 import { Surse } from './collections/Surse'
 import { Useri } from './collections/Useri'
 import sharp from 'sharp'
@@ -70,6 +71,7 @@ export default buildConfig({
   // === Toate colecțiile platformei ===
   collections: [
     Articole,
+    Autori,
     Surse,
     Categorii,
     Useri,

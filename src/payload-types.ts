@@ -68,6 +68,7 @@ export interface Config {
   blocks: {};
   collections: {
     articole: Articole;
+    autori: Autori;
     surse: Surse;
     categorii: Categorii;
     useri: Useri;
@@ -87,6 +88,7 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     articole: ArticoleSelect<false> | ArticoleSelect<true>;
+    autori: AutoriSelect<false> | AutoriSelect<true>;
     surse: SurseSelect<false> | SurseSelect<true>;
     categorii: CategoriiSelect<false> | CategoriiSelect<true>;
     useri: UseriSelect<false> | UseriSelect<true>;
@@ -372,6 +374,258 @@ export interface Surse {
   feedRSS?: string | null;
   regiune?: ('global' | 'europa' | 'romania') | null;
   activa?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "autori".
+ */
+export interface Autori {
+  id: number;
+  fullName: string;
+  /**
+   * Identificator stabil pentru ruta publică. După creare nu se regenerează automat din nume.
+   */
+  slug: string;
+  publicTitle?: string | null;
+  primaryAffiliation?: string | null;
+  profileImage?: (number | null) | Media;
+  /**
+   * Recomandată pentru publicare și utilizată în carduri și antetul profilului.
+   */
+  shortBio?: string | null;
+  /**
+   * Editor controlat: paragrafe, H2/H3, formatare de bază, linkuri, liste și citate.
+   */
+  biography?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  platformRoleDescription?: string | null;
+  /**
+   * Numai o localizare generală, precum orașul sau țara. Nu introduceți adrese private.
+   */
+  publicLocation?: string | null;
+  displayOrder?: number | null;
+  /**
+   * Cel puțin un rol va deveni obligatoriu la publicarea profilului.
+   */
+  editorialRoles?:
+    | (
+        | 'author'
+        | 'coauthor'
+        | 'editorialReviewer'
+        | 'medicalReviewer'
+        | 'technicalReviewer'
+        | 'toolEvaluator'
+        | 'courseAuthor'
+        | 'instructor'
+        | 'contentCurator'
+        | 'externalExpert'
+      )[]
+    | null;
+  expertiseAreas?:
+    | {
+        name: string;
+        description?: string | null;
+        /**
+         * Indicator intern. Nu va fi inclus în datele publice.
+         */
+        verified?: boolean | null;
+        order?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  specialties?:
+    | {
+        label: string;
+        description?: string | null;
+        order?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  contributionTypes?:
+    | (
+        | 'articles'
+        | 'flashAI'
+        | 'courses'
+        | 'roadmaps'
+        | 'toolReviews'
+        | 'euCalls'
+        | 'medicalContent'
+        | 'editorialReview'
+      )[]
+    | null;
+  /**
+   * Indicator controlat intern. La publicare necesită o calificare verificată și neexpirată.
+   */
+  isMedicalReviewer?: boolean | null;
+  /**
+   * Descrie limitele domeniului în care persoana poate verifica informații medicale.
+   */
+  medicalReviewScope?: string | null;
+  credentials?:
+    | {
+        credentialType:
+          | 'academicDegree'
+          | 'professionalTitle'
+          | 'medicalLicense'
+          | 'certification'
+          | 'training'
+          | 'membership'
+          | 'other';
+        title: string;
+        institution?: string | null;
+        country?: string | null;
+        yearObtained?: number | null;
+        yearExpires?: number | null;
+        identifier?: string | null;
+        verificationUrl?: string | null;
+        /**
+         * Calificarea poate fi expusă public numai dacă este și verificată.
+         */
+        publiclyVisible?: boolean | null;
+        verified?: boolean | null;
+        verifiedAt?: string | null;
+        order?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  professionalIdentifiers?:
+    | {
+        type?:
+          | ('orcid' | 'researcherId' | 'professionalRegistry' | 'medicalRegistry' | 'institutionalProfile' | 'other')
+          | null;
+        value: string;
+        publiclyVisible?: boolean | null;
+        verificationUrl?: string | null;
+        verified?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  verificationStatus: 'pending' | 'partiallyVerified' | 'verified' | 'expired' | 'rejected';
+  verifiedAt?: string | null;
+  verifiedBy?: (number | null) | Useri;
+  verificationSource?: string | null;
+  nextVerificationDue?: string | null;
+  verificationNotes?: string | null;
+  documentsReviewed?: boolean | null;
+  /**
+   * Se completează numai cu acordul explicit al persoanei.
+   */
+  publicEmail?: string | null;
+  website?: string | null;
+  institutionalProfile?: string | null;
+  orcidUrl?: string | null;
+  socialLinks?:
+    | {
+        platform:
+          | 'linkedin'
+          | 'github'
+          | 'youtube'
+          | 'x'
+          | 'facebook'
+          | 'instagram'
+          | 'researchGate'
+          | 'googleScholar'
+          | 'other';
+        label?: string | null;
+        url: string;
+        enabled?: boolean | null;
+        order?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  conflictOfInterestStatement?: string | null;
+  affiliationsAndSponsorships?:
+    | {
+        organization: string;
+        relationshipType:
+          | 'employment'
+          | 'consulting'
+          | 'researchFunding'
+          | 'sponsorship'
+          | 'partnership'
+          | 'advisoryRole'
+          | 'ownership'
+          | 'speakerFee'
+          | 'other';
+        description?: string | null;
+        startDate?: string | null;
+        endDate?: string | null;
+        currentlyActive?: boolean | null;
+        /**
+         * Se păstrează activ numai pentru relațiile relevante pentru transparența editorială.
+         */
+        publiclyVisible?: boolean | null;
+        verified?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  aiUseDisclosure?: string | null;
+  /**
+   * Va fi obligatoriu logic înainte de trecerea profilului în starea publicată.
+   */
+  publicationConsent?: boolean | null;
+  consentConfirmedAt?: string | null;
+  consentConfirmedBy?: (number | null) | Useri;
+  consentScope?: string | null;
+  profileImageConsent?: boolean | null;
+  publicContactConsent?: boolean | null;
+  consentWithdrawnAt?: string | null;
+  consentNotes?: string | null;
+  /**
+   * Numai administratorul poate modifica starea profilului în prima implementare.
+   */
+  status: 'draft' | 'pendingVerification' | 'verified' | 'published' | 'inactive' | 'archived';
+  /**
+   * Este completată automat la prima trecere în starea Publicat.
+   */
+  publishedAt?: string | null;
+  lastReviewedAt?: string | null;
+  nextReviewDue?: string | null;
+  inactiveAt?: string | null;
+  archivedAt?: string | null;
+  /**
+   * Câmp intern pentru trasabilitatea verificării editoriale.
+   */
+  reviewedBy?: (number | null) | Useri;
+  /**
+   * Obligatoriu logic atunci când profilul este în starea Arhivat.
+   */
+  archivalReason?: string | null;
+  /**
+   * Relație internă opțională. Asocierea nu acordă drepturi de acces și nu creează automat un profil public.
+   */
+  linkedUser?: (number | null) | Useri;
+  /**
+   * Opțional. Frontendul va utiliza fallbackul aprobat când lipsește.
+   */
+  metaTitle?: string | null;
+  /**
+   * Opțional. Frontendul va utiliza biografia scurtă ca fallback.
+   */
+  metaDescription?: string | null;
+  /**
+   * Opțional. Fallback: fotografia autorului, apoi imaginea globală din SiteSettings.
+   */
+  socialImage?: (number | null) | Media;
+  /**
+   * Frontendul va forța noindex pentru orice profil care nu este în starea Published.
+   */
+  robots: 'indexFollow' | 'noindexFollow' | 'noindexNofollow';
   updatedAt: string;
   createdAt: string;
 }
@@ -703,6 +957,10 @@ export interface PayloadLockedDocument {
         value: number | Articole;
       } | null)
     | ({
+        relationTo: 'autori';
+        value: number | Autori;
+      } | null)
+    | ({
         relationTo: 'surse';
         value: number | Surse;
       } | null)
@@ -840,6 +1098,129 @@ export interface ArticoleSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "autori_select".
+ */
+export interface AutoriSelect<T extends boolean = true> {
+  fullName?: T;
+  slug?: T;
+  publicTitle?: T;
+  primaryAffiliation?: T;
+  profileImage?: T;
+  shortBio?: T;
+  biography?: T;
+  platformRoleDescription?: T;
+  publicLocation?: T;
+  displayOrder?: T;
+  editorialRoles?: T;
+  expertiseAreas?:
+    | T
+    | {
+        name?: T;
+        description?: T;
+        verified?: T;
+        order?: T;
+        id?: T;
+      };
+  specialties?:
+    | T
+    | {
+        label?: T;
+        description?: T;
+        order?: T;
+        id?: T;
+      };
+  contributionTypes?: T;
+  isMedicalReviewer?: T;
+  medicalReviewScope?: T;
+  credentials?:
+    | T
+    | {
+        credentialType?: T;
+        title?: T;
+        institution?: T;
+        country?: T;
+        yearObtained?: T;
+        yearExpires?: T;
+        identifier?: T;
+        verificationUrl?: T;
+        publiclyVisible?: T;
+        verified?: T;
+        verifiedAt?: T;
+        order?: T;
+        id?: T;
+      };
+  professionalIdentifiers?:
+    | T
+    | {
+        type?: T;
+        value?: T;
+        publiclyVisible?: T;
+        verificationUrl?: T;
+        verified?: T;
+        id?: T;
+      };
+  verificationStatus?: T;
+  verifiedAt?: T;
+  verifiedBy?: T;
+  verificationSource?: T;
+  nextVerificationDue?: T;
+  verificationNotes?: T;
+  documentsReviewed?: T;
+  publicEmail?: T;
+  website?: T;
+  institutionalProfile?: T;
+  orcidUrl?: T;
+  socialLinks?:
+    | T
+    | {
+        platform?: T;
+        label?: T;
+        url?: T;
+        enabled?: T;
+        order?: T;
+        id?: T;
+      };
+  conflictOfInterestStatement?: T;
+  affiliationsAndSponsorships?:
+    | T
+    | {
+        organization?: T;
+        relationshipType?: T;
+        description?: T;
+        startDate?: T;
+        endDate?: T;
+        currentlyActive?: T;
+        publiclyVisible?: T;
+        verified?: T;
+        id?: T;
+      };
+  aiUseDisclosure?: T;
+  publicationConsent?: T;
+  consentConfirmedAt?: T;
+  consentConfirmedBy?: T;
+  consentScope?: T;
+  profileImageConsent?: T;
+  publicContactConsent?: T;
+  consentWithdrawnAt?: T;
+  consentNotes?: T;
+  status?: T;
+  publishedAt?: T;
+  lastReviewedAt?: T;
+  nextReviewDue?: T;
+  inactiveAt?: T;
+  archivedAt?: T;
+  reviewedBy?: T;
+  archivalReason?: T;
+  linkedUser?: T;
+  metaTitle?: T;
+  metaDescription?: T;
+  socialImage?: T;
+  robots?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
