@@ -754,6 +754,7 @@ Fiecare element va conține:
 - `yearExpires`: câmp `number`, opțional;
 - `identifier`: câmp `text`, opțional și intern;
 - `verificationUrl`: câmp `text`, opțional și intern;
+- `publiclyVisible`: câmp `checkbox`, implicit dezactivat; controlează explicit dacă această calificare poate fi afișată public;
 - `verified`: câmp `checkbox`, utilizat intern;
 - `verifiedAt`: câmp `date`, utilizat intern;
 - `order`: câmp `number`.
@@ -846,7 +847,9 @@ Un profil poate primi rolul de verificator medical numai dacă:
 
 ### 12.8. Afișarea publică
 
-Frontendul va afișa numai calificările marcate ca publicabile și verificate.
+Marcarea unei calificări ca publicabilă este controlată prin câmpul `credentials[].publiclyVisible`.
+
+Frontendul va afișa o calificare numai dacă `publiclyVisible` este activat și `verified` este activat.
 
 Stările interne, sursele de verificare și observațiile administrative nu vor fi transmise utilizatorilor.
 
@@ -1099,11 +1102,22 @@ Un profil poate fi publicat numai dacă sunt completate și validate:
 - slugul unic;
 - cel puțin un rol editorial;
 - biografia scurtă în cel puțin limba română;
-- starea verificării profesionale;
+- starea verificării profesionale trebuie să fie `verified`;
 - consimțământul pentru publicare;
 - data ultimei verificări;
 - informațiile de transparență relevante;
 - dreptul de utilizare pentru fotografia publică, dacă există.
+
+În prima implementare, `profileImageConsent` confirmă numai acordul persoanei pentru
+utilizarea fotografiei și nu înlocuiește documentarea licenței sau a dreptului de
+utilizare al fișierului Media.
+
+Schema `Media` existentă nu conține încă toate metadatele necesare pentru
+documentarea completă a dreptului de utilizare. Colecția `Autori` nu va modifica
+schema `Media` în aceeași migrare. Până la introducerea separată și validată a
+acestor metadate, un profil poate fi publicat fără fotografie, dar publicarea cu
+`profileImage` va rămâne blocată dacă dreptul de utilizare nu poate fi verificat
+prin structura Media aprobată.
 
 ### 15.4. Câmpurile temporale
 
