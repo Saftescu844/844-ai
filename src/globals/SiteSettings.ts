@@ -337,6 +337,22 @@ export const SiteSettings: GlobalConfig = {
                   required: true,
                   minRows: 1,
                   maxRows: 2,
+                  defaultValue: [
+                    {
+                      code: "ro",
+                      label: "Română",
+                      shortLabel: "RO",
+                      enabled: true,
+                      order: 0,
+                    },
+                    {
+                      code: "en",
+                      label: "English",
+                      shortLabel: "EN",
+                      enabled: true,
+                      order: 1,
+                    },
+                  ],
                   fields: [
                     {
                       name: "code",
