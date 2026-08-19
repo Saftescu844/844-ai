@@ -3,6 +3,13 @@ import type {
   PublicAuthorEditorialRole,
   PublicAuthorProfile,
 } from '@/lib/authors'
+import {
+  getAuthorProfileHref,
+} from '@/lib/authors-page'
+
+export {
+  getAuthorProfileHref,
+} from '@/lib/authors-page'
 
 export type AuthorCardProps = {
   author: PublicAuthorProfile
@@ -37,15 +44,6 @@ const ROLE_LABELS: Record<
     contentCurator: 'Content curator',
     externalExpert: 'External expert',
   },
-}
-
-export function getAuthorProfileHref(
-  language: AuthorLanguage,
-  slug: string,
-) {
-  return language === 'ro'
-    ? `/ro/autori/${slug}`
-    : `/en/authors/${slug}`
 }
 
 export function getAuthorInitials(
