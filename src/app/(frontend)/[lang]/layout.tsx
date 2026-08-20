@@ -178,6 +178,78 @@ export default async function LangLayout(props: {
   const siteName = siteSettings?.identity.siteName?.trim() || fallbackSiteName
   const tagline = siteSettings?.identity.tagline?.trim() || fallbackTagline
 
+  const footerEnabled = siteSettings?.footer?.footerEnabled !== false
+  const footerIntro = siteSettings?.footer?.footerIntro?.trim() || tagline
+
+  const fallbackFooterSections = [
+    {
+      key: 'fallback-company',
+      title: lang === 'ro' ? 'Companie' : 'Company',
+      links: [
+        {
+          key: 'fallback-about',
+          label: lang === 'ro' ? 'Despre noi' : 'About us',
+          href: `/${lang}/despre`,
+          linkType: 'internal' as const,
+          openInNewTab: false,
+        },
+        {
+          key: 'fallback-contact',
+          label: 'Contact',
+          href: `/${lang}/contact`,
+          linkType: 'internal' as const,
+          openInNewTab: false,
+        },
+        {
+          key: 'fallback-advertise',
+          label: 'Advertise',
+          href: `/${lang}/advertise`,
+          linkType: 'internal' as const,
+          openInNewTab: false,
+        },
+      ],
+    },
+  ]
+
+  const configuredFooterSections = [...(siteSettings?.footer?.footerSections ?? [])]
+    .filter(
+      (section) =>
+        section.enabled !== false &&
+        Boolean(section.title?.trim()),
+    )
+    .sort((a, b) => a.order - b.order)
+    .map((section) => ({
+      key: section.id ?? `${section.order}-${section.title}`,
+      title: section.title.trim(),
+      links: [...(section.links ?? [])]
+        .filter(
+          (link) =>
+            link.enabled !== false &&
+            Boolean(link.label?.trim()) &&
+            Boolean(link.href?.trim()),
+        )
+        .sort((a, b) => a.order - b.order)
+        .map((link) => ({
+          key: link.id ?? `${link.order}-${link.href}-${link.label}`,
+          label: link.label.trim(),
+          href: link.href.trim(),
+          linkType: link.linkType,
+          openInNewTab: link.openInNewTab === true,
+        })),
+    }))
+    .filter((section) => section.links.length > 0)
+
+  const footerSections =
+    configuredFooterSections.length > 0
+      ? configuredFooterSections
+      : fallbackFooterSections
+
+  const footerCopyright =
+    siteSettings?.footer?.copyrightText?.trim() ||
+    `© 2026 844-ai.ro — ${
+      lang === 'ro' ? 'Toate drepturile rezervate' : 'All rights reserved'
+    }`
+
   return (
     <html lang={lang}>
       <body>
@@ -291,58 +363,87 @@ export default async function LangLayout(props: {
         </nav>
       </header>
       <main style={{ paddingTop: 10 }}>{props.children}</main>
-      <footer style={{ borderTop: '1px solid #e5e5e5', padding: '2rem 0 1.5rem', marginTop: 40, fontSize: 13, color: '#666' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, marginBottom: 20 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>
-              {siteName === '844-ai.ro' ? (
-                <>
-                  <span style={{ color: '#C41E3A' }}>844-ai</span>
-                  <span>.ro</span>
-                </>
-              ) : (
-                siteName
-              )}
-            </div>
-            <div style={{ color: '#999', maxWidth: 260 }}>{tagline}</div>
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: 8, color: '#333' }}>{lang === 'ro' ? 'Companie' : 'Company'}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <a href={`/${lang}/despre`} style={{ color: '#666', textDecoration: 'none' }}>{lang === 'ro' ? 'Despre noi' : 'About us'}</a>
-              <a href={`/${lang}/contact`} style={{ color: '#666', textDecoration: 'none' }}>Contact</a>
-              <a href={`/${lang}/advertise`} style={{ color: '#666', textDecoration: 'none' }}>Advertise</a>
-            </div>
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: 8, color: '#333' }}>Legal</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {legalLinks.map((link) =>
-                link.href.startsWith('/') ? (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    style={{ color: '#666', textDecoration: 'none' }}
-                  >
-                    {link.label}
-                  </Link>
+      {footerEnabled && (
+        <footer style={{ borderTop: '1px solid #e5e5e5', padding: '2rem 0 1.5rem', marginTop: 40, fontSize: 13, color: '#666' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, marginBottom: 20 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>
+                {siteName === '844-ai.ro' ? (
+                  <>
+                    <span style={{ color: '#C41E3A' }}>844-ai</span>
+                    <span>.ro</span>
+                  </>
                 ) : (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    style={{ color: '#666', textDecoration: 'none' }}
-                  >
-                    {link.label}
-                  </a>
-                ),
-              )}
+                  siteName
+                )}
+              </div>
+              <div style={{ color: '#999', maxWidth: 260 }}>{footerIntro}</div>
+            </div>
+
+            {footerSections.map((section) => (
+              <div key={section.key}>
+                <div style={{ fontWeight: 700, marginBottom: 8, color: '#333' }}>
+                  {section.title}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {section.links.map((link) =>
+                    link.linkType === 'internal' ? (
+                      <Link
+                        key={link.key}
+                        href={link.href}
+                        target={link.openInNewTab ? '_blank' : undefined}
+                        rel={link.openInNewTab ? 'noopener noreferrer' : undefined}
+                        style={{ color: '#666', textDecoration: 'none' }}
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <a
+                        key={link.key}
+                        href={link.href}
+                        target={link.openInNewTab ? '_blank' : undefined}
+                        rel={link.openInNewTab ? 'noopener noreferrer' : undefined}
+                        style={{ color: '#666', textDecoration: 'none' }}
+                      >
+                        {link.label}
+                      </a>
+                    ),
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 8, color: '#333' }}>Legal</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {legalLinks.map((link) =>
+                  link.href.startsWith('/') ? (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      style={{ color: '#666', textDecoration: 'none' }}
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      style={{ color: '#666', textDecoration: 'none' }}
+                    >
+                      {link.label}
+                    </a>
+                  ),
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        <div style={{ borderTop: '1px solid #eee', paddingTop: 14, textAlign: 'center', color: '#999' }}>
-          © 2026 844-ai.ro — {lang === 'ro' ? 'Toate drepturile rezervate' : 'All rights reserved'}
-        </div>
-      </footer>
+
+          <div style={{ borderTop: '1px solid #eee', paddingTop: 14, textAlign: 'center', color: '#999' }}>
+            {footerCopyright}
+          </div>
+        </footer>
+      )}
         </div>
       </body>
     </html>
