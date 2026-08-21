@@ -1,40 +1,70 @@
 'use client'
-import { useState } from 'react'
 
-export default function NewsletterForm({ lang }: { lang: string }) {
+import { useState } from 'react'
+import type { SiteSetting } from '@/payload-types'
+
+type NewsletterSettings = NonNullable<SiteSetting['newsletter']>
+
+function textOrFallback(value: string | null | undefined, fallback: string) {
+  return value?.trim() || fallback
+}
+
+export default function NewsletterForm({
+  lang,
+  settings,
+}: {
+  lang: string
+  settings?: NewsletterSettings | null
+}) {
   const [email, setEmail] = useState('')
   const [consimtamant, setConsimtamant] = useState(false)
   const [stare, setStare] = useState<'idle' | 'trimit' | 'succes' | 'eroare' | 'exista'>('idle')
 
-  const txt =
+  const fallback =
     lang === 'ro'
       ? {
           titlu: 'Abonează-te la newsletter',
           desc: 'Primești o dată pe săptămână cele mai importante noutăți AI, direct pe email.',
+          emailLabel: 'Adresa de email',
           placeholder: 'adresa@email.ro',
           buton: 'Abonează-te',
           succes: '✓ Ți-am trimis un email. Confirmă abonarea folosind linkul primit.',
           eroare: 'A apărut o eroare. Încearcă din nou.',
           exista: 'Această adresă e deja abonată.',
-          consimt1:
-            'Sunt de acord ca adresa mea de email să fie folosită pentru trimiterea newsletter-ului, conform ',
-          consimt2: 'Politicii de Confidențialitate',
-          consimtLipsa:
-            'Trebuie să fii de acord cu Politica de Confidențialitate pentru a te abona.',
+          consimt:
+            'Sunt de acord ca adresa mea de email să fie folosită pentru trimiterea newsletter-ului, conform',
+          privacyLabel: 'Politicii de Confidențialitate',
+          privacyHref: '/ro/politica-confidentialitate',
         }
       : {
           titlu: 'Subscribe to our newsletter',
           desc: 'Get the most important AI news once a week, straight to your inbox.',
+          emailLabel: 'Email address',
           placeholder: 'your@email.com',
           buton: 'Subscribe',
-          succes: '✓ You are subscribed! Thank you.',
+          succes:
+            "✓ We've sent you an email. Confirm your subscription using the link in the email.",
           eroare: 'Something went wrong. Please try again.',
           exista: 'This email is already subscribed.',
-          consimt1:
-            'I agree to have my email address used to send the newsletter, in accordance with the ',
-          consimt2: 'Privacy Policy',
-          consimtLipsa: 'You must agree to the Privacy Policy to subscribe.',
+          consimt:
+            'I agree to have my email address used to send the newsletter, in accordance with the',
+          privacyLabel: 'Privacy Policy',
+          privacyHref: '/en/politica-confidentialitate',
         }
+
+  const txt = {
+    titlu: textOrFallback(settings?.title, fallback.titlu),
+    desc: textOrFallback(settings?.description, fallback.desc),
+    emailLabel: textOrFallback(settings?.emailLabel, fallback.emailLabel),
+    placeholder: textOrFallback(settings?.emailPlaceholder, fallback.placeholder),
+    buton: textOrFallback(settings?.submitLabel, fallback.buton),
+    succes: textOrFallback(settings?.successMessage, fallback.succes),
+    eroare: textOrFallback(settings?.genericErrorMessage, fallback.eroare),
+    exista: textOrFallback(settings?.alreadySubscribedMessage, fallback.exista),
+    consimt: textOrFallback(settings?.consentText, fallback.consimt),
+    privacyLabel: textOrFallback(settings?.privacyLabel, fallback.privacyLabel),
+    privacyHref: textOrFallback(settings?.privacyHref, fallback.privacyHref),
+  }
 
   async function trimite(e: React.FormEvent) {
     e.preventDefault()
@@ -73,6 +103,7 @@ export default function NewsletterForm({ lang }: { lang: string }) {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          aria-label={txt.emailLabel}
           placeholder={txt.placeholder}
           required
           style={{
@@ -121,14 +152,14 @@ export default function NewsletterForm({ lang }: { lang: string }) {
           style={{ marginTop: 2, flexShrink: 0 }}
         />
         <span>
-          {txt.consimt1}
+          {txt.consimt}{' '}
           <a
-            href={`/${lang}/politica-confidentialitate`}
+            href={txt.privacyHref}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: '#185FA5', textDecoration: 'underline' }}
           >
-            {txt.consimt2}
+            {txt.privacyLabel}
           </a>
           .
         </span>

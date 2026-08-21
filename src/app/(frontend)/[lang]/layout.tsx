@@ -1,10 +1,8 @@
-import React, { cache } from 'react'
+import React from 'react'
 import Link from 'next/link'
 import '../styles.css'
 import type { Metadata } from 'next'
-import { getSiteSettings } from '@/lib/payload'
-
-const getCachedSiteSettings = cache(getSiteSettings)
+import { getCachedSiteSettings } from '@/lib/payload'
 
 const PILONI = [
   { slug: 'stiri', ro: 'Știri AI', en: 'AI News' },

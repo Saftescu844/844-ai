@@ -1,4 +1,4 @@
-import { getArticol } from '@/lib/payload'
+import { getArticol, getCachedSiteSettings } from '@/lib/payload'
 import type { Metadata } from 'next'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
@@ -60,8 +60,13 @@ export default async function PaginaArticol(props: {
   params: Promise<{ lang: string; slug: string }>
 }) {
   const { lang, slug } = await props.params
-  const articol = await getArticol(slug, lang)
+  const [articol, siteSettings] = await Promise.all([
+    getArticol(slug, lang),
+    getCachedSiteSettings(lang),
+  ])
   if (!articol) notFound()
+
+  const newsletterSettings = siteSettings?.newsletter
 
   const data = articol.publishedAt
     ? new Intl.DateTimeFormat(lang === 'ro' ? 'ro-RO' : 'en-GB', {
@@ -275,9 +280,11 @@ export default async function PaginaArticol(props: {
         </div>
       )}
 
-      <div style={{ marginTop: 32 }}>
-        <NewsletterForm lang={lang} />
-      </div>
+      {newsletterSettings?.enabled !== false && (
+        <div style={{ marginTop: 32 }}>
+          <NewsletterForm lang={lang} settings={newsletterSettings} />
+        </div>
+      )}
     </article>
   )
 }
