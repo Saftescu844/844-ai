@@ -1,5 +1,6 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
+import { cache } from 'react'
 
 const LIMBI_VALIDE = ['ro', 'en']
 
@@ -19,6 +20,8 @@ export async function getSiteSettings(limba: string) {
     depth: 1,
   })
 }
+
+export const getCachedSiteSettings = cache(getSiteSettings)
 
 export async function getArticole(limba: string, optiuni: { limit?: number } = {}) {
   if (!LIMBI_VALIDE.includes(limba)) return { docs: [] as any[] }
