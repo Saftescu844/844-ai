@@ -50,6 +50,7 @@ async function main() {
 
   const creat = await payload.create({
     collection: 'articole',
+    draft: true,
     data: {
       titlu: 'Aidoc și AI-ul în radiologie: ce poate face, ce este dovedit și ce rămâne de demonstrat',
       slug: 'aidoc-ai-radiologie-prezentare-' + Date.now().toString(36),
@@ -62,7 +63,7 @@ async function main() {
       sursaNume: 'STAT News, FDA, Aidoc, npj Digital Medicine (surse multiple)',
       sursaLink: 'https://www.statnews.com/2026/01/21/fda-clears-aidoc-tool-detect-multiple-conditions-from-ct-scan/',
       tags: [{ tag: 'radiologie' }, { tag: 'diagnostic AI' }, { tag: 'Aidoc' }, { tag: 'FDA' }],
-      status: 'draft',
+      editorialStatus: 'draft',
       generatAutomat: false,
       numarConfirmari: 1,
     } as any,

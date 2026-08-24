@@ -154,17 +154,18 @@ async function main() {
 
       const creat = await payload.create({
         collection: 'articole',
+        draft: true,
         data: {
           titlu: art.titlu, slug: slug(art.titlu), limba: 'ro', pilon: categorieId, tip: 'stire-auto',
           excerpt: (art.excerpt || '').substring(0, 298), continut: htmlToLexical(art.continut),
           sursaNume: stire.sursa, sursaLink: stire.link,
           tags: (art.tags || []).map((t: string) => ({ tag: t })),
-          status: 'published', publishedAt: new Date().toISOString(),
+          editorialStatus: 'review',
           generatAutomat: true, numarConfirmari: 1,
           ...(stire.subcategorie ? { subcategorie: stire.subcategorie } : {}),
         } as any,
       })
-      console.log('    ✓ PUBLICAT în "' + pilonSlug + '" (ID ' + creat.id + ')')
+      console.log('    ✓ CIORNĂ în "' + pilonSlug + '" (ID ' + creat.id + ')')
       publicate++
 
       // ── TRADUCERE AUTOMATĂ RO → EN ──
@@ -174,12 +175,13 @@ async function main() {
         if (tradus) {
           const creatEn = await payload.create({
             collection: 'articole',
+            draft: true,
             data: {
               titlu: tradus.titlu, slug: slugEn(tradus.titlu), limba: 'en', pilon: categorieId, tip: 'stire-auto',
               excerpt: (tradus.excerpt || '').substring(0, 298), continut: tradus.continut,
               sursaNume: stire.sursa, sursaLink: stire.link,
               tags: (art.tags || []).map((t: string) => ({ tag: t })),
-              status: 'published', publishedAt: new Date().toISOString(),
+              editorialStatus: 'review',
               generatAutomat: true, numarConfirmari: 1,
               ...(stire.subcategorie ? { subcategorie: stire.subcategorie } : {}),
               versiuneAlternativa: creat.id,
@@ -187,18 +189,18 @@ async function main() {
             } as any,
           })
           // legăm reciproc RO → EN
-          await payload.update({ collection: 'articole', id: creat.id, data: { versiuneAlternativa: creatEn.id } as any })
+          await payload.update({ collection: 'articole', id: creat.id, draft: true, data: { versiuneAlternativa: creatEn.id } as any })
           console.log('    ✓ TRADUS în engleză (ID ' + creatEn.id + '), legat reciproc')
         }
       } catch (e: any) {
-        console.log('    [Translator] Traducerea a eșuat (RO rămâne publicat): ' + e.message)
+        console.log('    [Translator] Traducerea a eșuat (ciorna RO rămâne disponibilă pentru revizuire): ' + e.message)
       }
     } catch (e: any) {
       console.log('    EROARE: ' + e.message)
     }
   }
 
-  console.log('\n=== GATA: ' + publicate + ' articole publicate ===\n')
+  console.log('\n=== GATA: ' + publicate + ' ciorne create pentru revizuire ===\n')
   process.exit(0)
 }
 

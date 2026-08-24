@@ -160,9 +160,10 @@ async function main() {
   if (problematice.length === 0) console.log('      OK Toate citatele conforme\n')
   else console.log('      ATENTIE: citate prea lungi (compliance ar corecta in productie)\n')
 
-  console.log('[4/4] Public in Payload...')
+  console.log('[4/4] Creez draft in Payload pentru revizuire...')
   const creat = await payload.create({
     collection: 'articole',
+    draft: true,
     data: {
       titlu: art.titlu,
       slug: slug(art.titlu),
@@ -173,17 +174,16 @@ async function main() {
       continut: htmlToLexical(art.continut),
       surse: surseIds.slice(0, 2),
       tags: (art.tags || []).map((t) => ({ tag: t })),
-      status: 'published',
-      publishedAt: new Date().toISOString(),
+      editorialStatus: 'review',
       generatAutomat: true,
       numarConfirmari: 2,
     },
   })
 
-  console.log('      OK PUBLICAT! ID: ' + creat.id)
+  console.log('      OK CIORNA CREATA! ID: ' + creat.id)
   console.log('\n=== SUCCES ===')
   console.log('Articolul a trecut prin tot lantul: Claude -> validare -> Payload.')
-  console.log('Verifica-l in panoul admin -> Articole.\n')
+  console.log('A fost salvat ca draft pentru revizuire in panoul admin -> Articole.\n')
   process.exit(0)
 }
 

@@ -14,14 +14,14 @@ export const Articole: CollectionConfig = {
   labels: { singular: 'Articol', plural: 'Articole' },
   admin: {
     useAsTitle: 'titlu',
-    defaultColumns: ['titlu', 'pilon', 'tip', 'limba', 'status', 'publishedAt'],
+    defaultColumns: ['titlu', 'pilon', 'tip', 'limba', 'editorialStatus', '_status', 'publishedAt'],
     group: 'Conținut',
   },
   access: {
     // public poate citi doar articolele publicate
     read: ({ req: { user } }) => {
       if (user) return true
-      return { status: { equals: 'published' } }
+      return { _status: { equals: 'published' } }
     },
   },
   versions: { drafts: true }, // draft & publish nativ
@@ -232,15 +232,69 @@ export const Articole: CollectionConfig = {
       type: 'array',
       fields: [{ name: 'tag', type: 'text' }],
     },
+    // === Identitate și responsabilitate editorială ===
     {
-      name: 'status',
+      name: 'autorPrincipal',
+      type: 'relationship',
+      relationTo: 'autori',
+      maxDepth: 0,
+      admin: {
+        description:
+          'Autorul principal al articolului. Relația nu înlocuiește rolurile generale din profilul autorului.',
+      },
+    },
+    {
+      name: 'coautori',
+      type: 'relationship',
+      relationTo: 'autori',
+      hasMany: true,
+      maxDepth: 0,
+      admin: {
+        description:
+          'Coautorii articolului, în ordinea în care trebuie considerați editorial.',
+      },
+    },
+    {
+      name: 'verificatorEditorial',
+      type: 'relationship',
+      relationTo: 'autori',
+      maxDepth: 0,
+      admin: {
+        description:
+          'Persoana care a realizat verificarea editorială a articolului.',
+      },
+    },
+    {
+      name: 'verificatorMedical',
+      type: 'relationship',
+      relationTo: 'autori',
+      maxDepth: 0,
+      admin: {
+        description:
+          'Verificator medical, utilizat numai când articolul necesită o astfel de validare.',
+      },
+    },
+    {
+      name: 'contributoriExperti',
+      type: 'relationship',
+      relationTo: 'autori',
+      hasMany: true,
+      maxDepth: 0,
+      admin: {
+        description:
+          'Experți sau evaluatori care au contribuit editorial la articol.',
+      },
+    },
+
+    {
+      name: 'editorialStatus',
       type: 'select',
       required: true,
       defaultValue: 'draft',
       options: [
-        { label: 'Draft', value: 'draft' },
+        { label: 'Draft editorial', value: 'draft' },
         { label: 'În revizuire', value: 'review' },
-        { label: 'Publicat', value: 'published' },
+        { label: 'Aprobat', value: 'approved' },
         { label: 'Blocat (compliance)', value: 'blocked' },
       ],
       index: true,
@@ -326,11 +380,22 @@ export const Articole: CollectionConfig = {
       },
     ],
     beforeChange: [
-      ({ data }) => {
-        // setează publishedAt automat la prima publicare
-        if (data.status === 'published' && !data.publishedAt) {
-          data.publishedAt = new Date().toISOString()
+      ({ data, originalDoc }) => {
+        if (!data) return data
+
+        // `_status` este singura autoritate pentru publicarea reală.
+        const nextPublicationStatus = data._status ?? originalDoc?._status
+
+        if (nextPublicationStatus === 'published') {
+          // Orice document publicat este, prin definiție, aprobat editorial.
+          data.editorialStatus = 'approved'
+
+          // Păstrăm data primei publicări; editările ulterioare nu o rescriu.
+          if (!data.publishedAt && !originalDoc?.publishedAt) {
+            data.publishedAt = new Date().toISOString()
+          }
         }
+
         return data
       },
       ({ data, originalDoc }) => {
