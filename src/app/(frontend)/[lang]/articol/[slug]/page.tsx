@@ -37,7 +37,7 @@ export async function generateMetadata(props: {
     description,
     alternates: {
       canonical: url,
-      ...(altObj?.slug
+      ...(altObj?._status === 'published' && altObj.slug
         ? {
             languages: {
               [lang === 'ro' ? 'en' : 'ro']: `/${altObj.limba}/articol/${altObj.slug}`,
@@ -100,9 +100,10 @@ export default async function PaginaArticol(props: {
     articol.versiuneAlternativa && typeof articol.versiuneAlternativa === 'object'
       ? articol.versiuneAlternativa
       : null
-  const altLimba = lang === 'ro' ? 'en' : 'ro'
   const altLink =
-    altObj && altObj.slug ? '/' + altObj.limba + '/articol/' + altObj.slug : '/' + altLimba
+    altObj?._status === 'published' && altObj.slug
+      ? '/' + altObj.limba + '/articol/' + altObj.slug
+      : null
   const txtComutator = lang === 'ro' ? 'Read in English →' : '← Citește în română'
 
   const txtSursa = lang === 'ro' ? 'Sursă' : 'Source'
@@ -133,12 +134,14 @@ export default async function PaginaArticol(props: {
         >
           {eticheta}
         </span>
-        <a
-          href={altLink}
-          style={{ fontSize: 13, color: '#185FA5', textDecoration: 'none', fontWeight: 500 }}
-        >
-          {txtComutator}
-        </a>
+        {altLink && (
+          <a
+            href={altLink}
+            style={{ fontSize: 13, color: '#185FA5', textDecoration: 'none', fontWeight: 500 }}
+          >
+            {txtComutator}
+          </a>
+        )}
       </div>
       <h1 style={{ fontSize: 32, fontWeight: 600, lineHeight: 1.2, margin: '10px 0 12px' }}>
         {articol.titlu}

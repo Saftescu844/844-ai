@@ -251,7 +251,27 @@ export interface Articole {
         id?: string | null;
       }[]
     | null;
-  status: 'draft' | 'review' | 'published' | 'blocked';
+  /**
+   * Autorul principal al articolului. Relația nu înlocuiește rolurile generale din profilul autorului.
+   */
+  autorPrincipal?: (number | null) | Autori;
+  /**
+   * Coautorii articolului, în ordinea în care trebuie considerați editorial.
+   */
+  coautori?: (number | Autori)[] | null;
+  /**
+   * Persoana care a realizat verificarea editorială a articolului.
+   */
+  verificatorEditorial?: (number | null) | Autori;
+  /**
+   * Verificator medical, utilizat numai când articolul necesită o astfel de validare.
+   */
+  verificatorMedical?: (number | null) | Autori;
+  /**
+   * Experți sau evaluatori care au contribuit editorial la articol.
+   */
+  contributoriExperti?: (number | Autori)[] | null;
+  editorialStatus: 'draft' | 'review' | 'approved' | 'blocked';
   /**
    * Știre excepțională / breaking news.
    */
@@ -921,7 +941,7 @@ export interface Search {
   keywords?: string | null;
   url?: string | null;
   language?: ('ro' | 'en') | null;
-  publicationStatus?: ('draft' | 'review' | 'published' | 'blocked') | null;
+  editorialStatus?: ('draft' | 'review' | 'approved' | 'blocked') | null;
   articleType?: ('stire-auto' | 'analiza' | 'frontiera' | 'ghid') | null;
   publishedAt?: string | null;
   isPublic?: boolean | null;
@@ -1085,7 +1105,12 @@ export interface ArticoleSelect<T extends boolean = true> {
         tag?: T;
         id?: T;
       };
-  status?: T;
+  autorPrincipal?: T;
+  coautori?: T;
+  verificatorEditorial?: T;
+  verificatorMedical?: T;
+  contributoriExperti?: T;
+  editorialStatus?: T;
   esteBreaking?: T;
   publishedAt?: T;
   clusterHash?: T;
@@ -1463,7 +1488,7 @@ export interface SearchSelect<T extends boolean = true> {
   keywords?: T;
   url?: T;
   language?: T;
-  publicationStatus?: T;
+  editorialStatus?: T;
   articleType?: T;
   publishedAt?: T;
   isPublic?: T;

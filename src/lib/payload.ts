@@ -28,7 +28,7 @@ export async function getArticole(limba: string, optiuni: { limit?: number } = {
   const payload = await payloadClient()
   return await payload.find({
     collection: 'articole',
-    where: { and: [ { limba: { equals: limba } }, { status: { equals: 'published' } } ] },
+    where: { and: [ { limba: { equals: limba } }, { _status: { equals: 'published' } } ] },
     limit: optiuni.limit || 12,
     sort: '-publishedAt',
     depth: 1,
@@ -40,7 +40,7 @@ export async function getArticol(slug: string, limba: string) {
   const payload = await payloadClient()
   const r = await payload.find({
     collection: 'articole',
-    where: { and: [ { slug: { equals: slug } }, { limba: { equals: limba } }, { status: { equals: 'published' } } ] },
+    where: { and: [ { slug: { equals: slug } }, { limba: { equals: limba } }, { _status: { equals: 'published' } } ] },
     limit: 1,
     depth: 2,
   })
@@ -67,7 +67,7 @@ export async function getArticolePilon(limba: string, pilonSlug: string) {
   const payload = await payloadClient()
   return await payload.find({
     collection: 'articole',
-    where: { and: [ { limba: { equals: limba } }, { status: { equals: 'published' } }, { 'pilon.slug': { equals: pilonSlug } } ] },
+    where: { and: [ { limba: { equals: limba } }, { _status: { equals: 'published' } }, { 'pilon.slug': { equals: pilonSlug } } ] },
     limit: 24,
     sort: '-publishedAt',
     depth: 1,
@@ -81,7 +81,7 @@ export async function getArticoleSanatate(limba: string, subcategorie?: string) 
   const payload = await payloadClient()
   const conditii: any[] = [
     { limba: { equals: limba } },
-    { status: { equals: 'published' } },
+    { _status: { equals: 'published' } },
     { 'pilon.slug': { equals: 'sanatate' } },
   ]
   if (subcategorie && SUBCATEGORII_SANATATE.includes(subcategorie)) {
@@ -101,7 +101,7 @@ export async function getArticoleEducatie(limba: string, subcategorie?: string) 
   const payload = await payloadClient()
   const conditii: any[] = [
     { limba: { equals: limba } },
-    { status: { equals: 'published' } },
+    { _status: { equals: 'published' } },
     { 'pilon.slug': { equals: 'educatie' } },
   ]
   const SUBCATEGORII_EDU = ['invatare-ai', 'institutii', 'instrumente-edu', 'cercetare', 'cariere']

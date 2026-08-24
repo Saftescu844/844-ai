@@ -18,13 +18,14 @@ async function main() {
 
   const creatEn = await payload.create({
     collection: 'articole',
+    draft: true,
     data: {
       titlu: tradus.titlu, slug: slugEn(tradus.titlu), limba: 'en', pilon: art.pilon,
       subcategorie: art.subcategorie, tip: art.tip,
       excerpt: tradus.excerpt, continut: tradus.continut,
       sursaNume: art.sursaNume, sursaLink: art.sursaLink,
       producator: art.producator, linkProducator: art.linkProducator,
-      tags: tagsCurate, status: art.status, publishedAt: new Date().toISOString(),
+      tags: tagsCurate, editorialStatus: 'review',
       generatAutomat: false, numarConfirmari: 1,
       versiuneAlternativa: art.id,
       metaTitle: tradus.metaTitle, metaDescription: tradus.metaDescription,
@@ -32,7 +33,7 @@ async function main() {
   })
   await payload.update({ collection: 'articole', id: art.id, data: { versiuneAlternativa: creatEn.id } as any })
 
-  console.log('\n✓ Tradus și publicat (ID EN: ' + creatEn.id + ')')
+  console.log('\n✓ Tradus și salvat ca draft pentru revizuire (ID EN: ' + creatEn.id + ')')
   console.log('  Slug EN: ' + creatEn.slug)
   console.log('  Legat reciproc cu RO (ID ' + art.id + ')\n')
   process.exit(0)

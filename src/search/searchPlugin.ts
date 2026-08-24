@@ -2,10 +2,10 @@ import { searchPlugin } from '@payloadcms/plugin-search'
 
 import { normalizeSearchText } from '@/search/normalizeSearchText'
 
-const ARTICLE_STATUSES = new Set([
+const ARTICLE_EDITORIAL_STATUSES = new Set([
   'draft',
   'review',
-  'published',
+  'approved',
   'blocked',
 ])
 
@@ -43,10 +43,10 @@ export const searchInfrastructurePlugin = searchPlugin({
         ? originalDoc.limba
         : undefined
 
-    const publicationStatus =
-      typeof originalDoc.status === 'string' &&
-      ARTICLE_STATUSES.has(originalDoc.status)
-        ? originalDoc.status
+    const editorialStatus =
+      typeof originalDoc.editorialStatus === 'string' &&
+      ARTICLE_EDITORIAL_STATUSES.has(originalDoc.editorialStatus)
+        ? originalDoc.editorialStatus
         : undefined
 
     const articleType =
@@ -87,7 +87,6 @@ export const searchInfrastructurePlugin = searchPlugin({
 
     const isPublic =
       originalDoc._status === 'published' &&
-      publicationStatus === 'published' &&
       Boolean(language && title && slug)
 
     return {
@@ -97,7 +96,7 @@ export const searchInfrastructurePlugin = searchPlugin({
       keywords,
       url: language && slug ? `/${language}/articol/${slug}` : '',
       language,
-      publicationStatus,
+      editorialStatus,
       articleType,
       publishedAt:
         typeof originalDoc.publishedAt === 'string'
@@ -168,13 +167,13 @@ export const searchInfrastructurePlugin = searchPlugin({
         },
       },
       {
-        name: 'publicationStatus',
+        name: 'editorialStatus',
         type: 'select',
         index: true,
         options: [
-          { label: 'Draft', value: 'draft' },
+          { label: 'Draft editorial', value: 'draft' },
           { label: 'În revizuire', value: 'review' },
-          { label: 'Publicat', value: 'published' },
+          { label: 'Aprobat', value: 'approved' },
           { label: 'Blocat', value: 'blocked' },
         ],
         admin: {

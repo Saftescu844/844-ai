@@ -13,11 +13,12 @@ async function main() {
     // căutăm variante apropiate
     const r2 = await payload.find({ collection: 'articole', where: { slug: { like: 'railway-atrage' } }, limit: 5 })
     console.log('Variante găsite:')
-    r2.docs.forEach((a: any) => console.log('  slug real:', a.slug, '| status:', a.status, '| limba:', a.limba))
+    r2.docs.forEach((a: any) => console.log('  slug real:', a.slug, '| publicare:', a._status, '| editorial:', a.editorialStatus, '| limba:', a.limba))
   } else {
     const a: any = r.docs[0]
     console.log('GĂSIT:')
-    console.log('  status:', a.status)
+    console.log('  status publicare:', a._status)
+    console.log('  status editorial:', a.editorialStatus)
     console.log('  limba:', a.limba)
     console.log('  slug:', a.slug)
   }

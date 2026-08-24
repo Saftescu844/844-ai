@@ -10,10 +10,13 @@ async function main() {
   const updated = await payload.update({
     collection: 'articole',
     id: art.id,
-    data: { status: 'published', publishedAt: new Date().toISOString() } as any,
+    data: {
+      _status: 'published',
+    } as any,
   })
   console.log('\n✓ PUBLICAT (ID ' + art.id + ')')
-  console.log('  status acum:', (updated as any).status)
+  console.log('  status publicare:', (updated as any)._status)
+  console.log('  status editorial:', (updated as any).editorialStatus)
   console.log('  URL: /ro/articol/' + art.slug + '\n')
   process.exit(0)
 }

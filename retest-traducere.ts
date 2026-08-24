@@ -25,13 +25,14 @@ async function main() {
 
   const creatEn = await payload.create({
     collection: 'articole',
+    draft: true,
     data: {
       titlu: tradus.titlu, slug: slugEn(tradus.titlu), limba: 'en', pilon: art.pilon,
       subcategorie: art.subcategorie, tip: art.tip,
       excerpt: tradus.excerpt, continut: tradus.continut,
       sursaNume: art.sursaNume, sursaLink: art.sursaLink,
       producator: art.producator, linkProducator: art.linkProducator,
-      tags: tagsCurate, status: art.status, publishedAt: new Date().toISOString(),
+      tags: tagsCurate, editorialStatus: 'review',
       generatAutomat: false, numarConfirmari: 1,
       versiuneAlternativa: art.id,
       metaTitle: metaTitleSigur, metaDescription: metaDescSigura,
