@@ -15,6 +15,25 @@ export const Articole: CollectionConfig = {
   admin: {
     useAsTitle: 'titlu',
     defaultColumns: ['titlu', 'pilon', 'tip', 'limba', 'editorialStatus', '_status', 'publishedAt'],
+    preview: (doc) => {
+      const id = doc.id
+      const lang = doc.limba
+
+      if (
+        (typeof id !== 'string' && typeof id !== 'number') ||
+        (lang !== 'ro' && lang !== 'en')
+      ) {
+        return null
+      }
+
+      const siteURL = process.env.SITE_URL?.replace(/\/$/, '')
+
+      if (!siteURL) {
+        return null
+      }
+
+      return `${siteURL}/${lang}/preview/articol/${encodeURIComponent(String(id))}`
+    },
     group: 'Conținut',
   },
   access: {
