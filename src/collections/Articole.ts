@@ -43,7 +43,11 @@ export const Articole: CollectionConfig = {
       return { _status: { equals: 'published' } }
     },
   },
-  versions: { drafts: true }, // draft & publish nativ
+  versions: {
+    drafts: {
+      schedulePublish: true,
+    },
+  }, // draft, publish și scheduling nativ
   fields: [
     {
       name: 'titlu',

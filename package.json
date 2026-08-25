@@ -17,9 +17,9 @@
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --import=tsx/esm\" playwright test --config=playwright.config.ts",
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
     "db:migrate:create": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=production payload migrate:create",
-    "db:migrate:status": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=production payload migrate:status",
-    "db:migrate:up": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=production payload migrate",
-    "db:migrate:down": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=production payload migrate:down"
+    "db:migrate:status": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=development payload migrate:status",
+    "db:migrate:up": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=development payload migrate",
+    "db:migrate:down": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=development payload migrate:down"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
