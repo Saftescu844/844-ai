@@ -13,11 +13,30 @@ function semneaza(email: string, ts: string): string {
     .digest('hex')
 }
 
+/** Semnătură HMAC separată pentru dezabonare, legată de abonamentul concret. */
+function semneazaDezabonare(id: string, email: string): string {
+  return crypto
+    .createHmac('sha256', SECRET)
+    .update('unsubscribe|' + id + '|' + email)
+    .digest('hex')
+}
+
 export function construiesteLink(email: string, lang: string): string {
   const ts = Date.now().toString()
   const sig = semneaza(email, ts)
   const e = Buffer.from(email, 'utf8').toString('base64url')
   return `${SITE}/${lang}/confirmare-newsletter?e=${e}&t=${ts}&s=${sig}`
+}
+
+export function construiesteLinkDezabonare(
+  id: string | number,
+  email: string,
+  lang: string,
+): string {
+  const abonamentId = String(id)
+  const sig = semneazaDezabonare(abonamentId, email)
+
+  return `${SITE}/${lang}/dezabonare-newsletter?i=${encodeURIComponent(abonamentId)}&s=${sig}`
 }
 
 export function decodeazaEmail(e: string): string {
@@ -38,6 +57,17 @@ export function verificaToken(email: string, ts: string, sig: string): boolean {
   const asteptat = semneaza(email, ts)
   const a = Buffer.from(sig, 'utf8')
   const b = Buffer.from(asteptat, 'utf8')
+  if (a.length !== b.length) return false
+  return crypto.timingSafeEqual(a, b)
+}
+
+export function verificaTokenDezabonare(id: string, email: string, sig: string): boolean {
+  if (!id || !email || !sig || !SECRET) return false
+
+  const asteptat = semneazaDezabonare(id, email)
+  const a = Buffer.from(sig, 'utf8')
+  const b = Buffer.from(asteptat, 'utf8')
+
   if (a.length !== b.length) return false
   return crypto.timingSafeEqual(a, b)
 }
