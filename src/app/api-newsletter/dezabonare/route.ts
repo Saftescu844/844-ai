@@ -1,8 +1,10 @@
 import { payloadClient } from '@/lib/payload'
 import { verificaTokenDezabonare } from '@/lib/newsletter-email'
 
-function redirecteaza(req: Request, lang: 'ro' | 'en', rezultat: 'dezabonat' | 'invalid') {
-  const url = new URL(`/${lang}/dezabonare-newsletter`, req.url)
+const SITE = (process.env.SITE_URL || 'https://844-ai.ro').replace(/\/+$/, '')
+
+function redirecteaza(lang: 'ro' | 'en', rezultat: 'dezabonat' | 'invalid') {
+  const url = new URL(`${SITE}/${lang}/dezabonare-newsletter`)
   url.searchParams.set('rezultat', rezultat)
 
   return Response.redirect(url, 303)
@@ -14,7 +16,7 @@ export async function POST(req: Request) {
   try {
     form = await req.formData()
   } catch {
-    return redirecteaza(req, 'ro', 'invalid')
+    return redirecteaza('ro', 'invalid')
   }
 
   const id = String(form.get('i') ?? '')
@@ -22,7 +24,7 @@ export async function POST(req: Request) {
   const lang: 'ro' | 'en' = form.get('lang') === 'en' ? 'en' : 'ro'
 
   if (!id || !sig) {
-    return redirecteaza(req, lang, 'invalid')
+    return redirecteaza(lang, 'invalid')
   }
 
   try {
@@ -34,7 +36,7 @@ export async function POST(req: Request) {
     })
 
     if (!abonat || !verificaTokenDezabonare(id, abonat.email, sig)) {
-      return redirecteaza(req, lang, 'invalid')
+      return redirecteaza(lang, 'invalid')
     }
 
     await payload.delete({
@@ -42,8 +44,8 @@ export async function POST(req: Request) {
       id: abonat.id,
     })
 
-    return redirecteaza(req, lang, 'dezabonat')
+    return redirecteaza(lang, 'dezabonat')
   } catch {
-    return redirecteaza(req, lang, 'invalid')
+    return redirecteaza(lang, 'invalid')
   }
 }
