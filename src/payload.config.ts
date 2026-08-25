@@ -68,6 +68,19 @@ export default buildConfig({
   // === Editor de conținut ===
   editor: lexicalEditor(),
 
+  // === Job runner Payload ===
+  // Rulează joburile deja puse în coada implicită.
+  // Scheduling-ul recurent automat rămâne dezactivat.
+  jobs: {
+    autoRun: [
+      {
+        queue: 'default',
+        limit: 10,
+        disableScheduling: true,
+      },
+    ],
+  },
+
   // === Toate colecțiile platformei ===
   collections: [
     Articole,
