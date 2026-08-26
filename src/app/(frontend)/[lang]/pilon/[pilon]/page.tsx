@@ -1,4 +1,4 @@
-import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getRoadmaps, getCursuri } from '@/lib/payload'
+import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri } from '@/lib/payload'
 import { notFound } from 'next/navigation'
 
 const PILONI: Record<string, { ro: string; en: string }> = {
@@ -78,7 +78,6 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
   if (pilon === 'educatie') {
     const { sub } = await props.searchParams
     const { docs: articole } = await getArticoleEducatie(lang, sub)
-    const { docs: roadmaps } = await getRoadmaps(lang)
     const { docs: cursuri } = await getCursuri(lang)
     const SUBMENIURI = [
       { slug: '', ro: 'Toate', en: 'All' },
@@ -88,17 +87,12 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
       { slug: 'cercetare', ro: 'Cercetare și inovație', en: 'Research & Innovation' },
       { slug: 'cariere', ro: 'Cariere în AI', en: 'AI Careers' },
     ]
-    const NIVEL: Record<string, { ro: string; en: string }> = {
-      incepator: { ro: 'Începător', en: 'Beginner' },
-      intermediar: { ro: 'Intermediar', en: 'Intermediate' },
-      avansat: { ro: 'Avansat', en: 'Advanced' },
-    }
     return (
       <div style={{ padding: '0.5rem 0' }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 0, marginBottom: 20 }}>{lang === 'ro' ? info.ro : info.en}</h1>
 
-        {sub === 'invatare-ai' && (roadmaps.length > 0 || cursuri.length > 0) && (
-          <div style={{ display: 'grid', gridTemplateColumns: roadmaps.length > 0 && cursuri.length > 0 ? '1fr 1fr' : '1fr', gap: 24, marginBottom: 32 }}>
+        {sub === 'invatare-ai' && cursuri.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginBottom: 32 }}>
             {cursuri.length > 0 && (
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{lang === 'ro' ? 'Cursuri' : 'Courses'}</h2>

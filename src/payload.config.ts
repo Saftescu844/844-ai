@@ -59,6 +59,13 @@ export default buildConfig({
       },
     }),
   ],
+  // === GraphQL ===
+  // API-ul GraphQL nu este utilizat de aplicație.
+  // Îl dezactivăm pentru a reduce suprafața publică expusă.
+  graphQL: {
+    disable: true,
+  },
+
   // === Autentificare: colecția Useri ===
   admin: {
     user: 'useri',

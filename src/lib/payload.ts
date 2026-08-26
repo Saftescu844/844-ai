@@ -117,19 +117,6 @@ export async function getArticoleEducatie(limba: string, subcategorie?: string) 
   })
 }
 
-export async function getRoadmaps(limba: string) {
-  if (!['ro', 'en'].includes(limba)) return { docs: [] as any[] }
-  const payload = await payloadClient()
-  return await payload.find({ collection: 'roadmaps', locale: limba as any, limit: 24, depth: 1 })
-}
-
-export async function getRoadmap(slug: string, limba: string) {
-  if (!['ro', 'en'].includes(limba)) return null
-  const payload = await payloadClient()
-  const r = await payload.find({ collection: 'roadmaps', where: { slug: { equals: slug } }, locale: limba as any, limit: 1, depth: 1 })
-  return r.docs[0] || null
-}
-
 export async function getCursuri(limba: string) {
   if (!['ro', 'en'].includes(limba)) return { docs: [] as any[] }
   const payload = await payloadClient()

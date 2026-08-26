@@ -8,6 +8,12 @@ export const Categorii: CollectionConfig = {
   slug: 'categorii',
   labels: { singular: 'Categorie', plural: 'Categorii' },
   admin: { useAsTitle: 'nume', group: 'Conținut' },
+  access: {
+    read: ({ req: { user } }) => Boolean(user),
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'nume', type: 'text', required: true },
     { name: 'slug', type: 'text', required: true, unique: true, index: true },
@@ -46,10 +52,32 @@ export const Comentarii: CollectionConfig = {
   },
   access: {
     read: ({ req: { user } }) => {
-      if (user) return true
-      return { status: { equals: 'aprobat' } } // public vede doar aprobate
+      if (user?.rol === 'admin') return true
+      return { status: { equals: 'aprobat' } } // non-admin vede doar aprobate
     },
     create: ({ req: { user } }) => Boolean(user), // doar userii înregistrați
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
+  hooks: {
+    beforeValidate: [
+      ({ data, req, operation }) => {
+        if (
+          operation !== 'create' ||
+          !data ||
+          !req.user ||
+          req.user.rol === 'admin'
+        ) {
+          return data
+        }
+
+        return {
+          ...data,
+          autor: req.user.id,
+          status: 'asteptare',
+        }
+      },
+    ],
   },
   fields: [
     { name: 'continut', type: 'textarea', required: true, maxLength: 2000 },
@@ -90,9 +118,12 @@ export const Tooluri: CollectionConfig = {
   },
   access: {
     read: ({ req: { user } }) => {
-      if (user) return true
+      if (user?.rol === 'admin') return true
       return { activ: { equals: true } }
     },
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
   },
   fields: [
     { name: 'nume', type: 'text', required: true },
@@ -164,7 +195,12 @@ export const Roadmaps: CollectionConfig = {
   slug: 'roadmaps',
   labels: { singular: 'Roadmap', plural: 'Roadmaps' },
   admin: { useAsTitle: 'titlu', group: 'Conținut' },
-  access: { read: () => true },
+  access: {
+    read: ({ req: { user } }) => user?.rol === 'admin',
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'titlu', type: 'text', required: true, localized: true },
     { name: 'slug', type: 'text', required: true, unique: true, index: true },
@@ -213,6 +249,9 @@ export const Cursuri: CollectionConfig = {
       if (user?.nivelAbonament === 'complet') return true
       return { gratuit: { equals: true } }
     },
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
   },
   fields: [
     { name: 'titlu', type: 'text', required: true, localized: true },
@@ -282,7 +321,15 @@ export const CallouriUE: CollectionConfig = {
     defaultColumns: ['titlu', 'program', 'deadline', 'eligibilRomania'],
     group: 'Comunitate',
   },
-  access: { read: () => true },
+  access: {
+    read: ({ req: { user } }) => {
+      if (user?.rol === 'admin') return true
+      return { activ: { equals: true } }
+    },
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'titlu', type: 'text', required: true },
     {
@@ -323,7 +370,12 @@ export const Media: CollectionConfig = {
   slug: 'media',
   labels: { singular: 'Media', plural: 'Media' },
   admin: { group: 'Sistem' },
-  access: { read: () => true },
+  access: {
+    read: () => true,
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   upload: {
     imageSizes: [
       { name: 'thumbnail', width: 400, height: 300, position: 'centre' },
