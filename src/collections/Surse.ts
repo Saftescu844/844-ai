@@ -14,6 +14,12 @@ export const Surse: CollectionConfig = {
     defaultColumns: ['nume', 'nivelIncredere', 'pilon', 'permiteAutoGenerare'],
     group: 'Conținut',
   },
+  access: {
+    read: ({ req: { user } }) => Boolean(user),
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'nume', type: 'text', required: true },
     {

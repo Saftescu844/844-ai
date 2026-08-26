@@ -37,11 +37,15 @@ export const Articole: CollectionConfig = {
     group: 'Conținut',
   },
   access: {
-    // public poate citi doar articolele publicate
+    // Publicul și rolurile non-admin pot citi doar articolele publicate.
+    // Permisiunile editoriale suplimentare vor fi definite într-un audit RBAC separat.
     read: ({ req: { user } }) => {
-      if (user) return true
+      if (user?.rol === 'admin') return true
       return { _status: { equals: 'published' } }
     },
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
   },
   versions: {
     drafts: {
