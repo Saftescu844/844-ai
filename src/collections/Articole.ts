@@ -1,7 +1,70 @@
-import type { CollectionConfig } from 'payload'
-import { lexicalEditor, UploadFeature, BlocksFeature, FixedToolbarFeature, TextStateFeature } from '@payloadcms/richtext-lexical'
+import { APIError, type CollectionBeforeOperationHook, type CollectionConfig } from 'payload'
+import {
+  lexicalEditor,
+  UploadFeature,
+  BlocksFeature,
+  FixedToolbarFeature,
+  TextStateFeature,
+} from '@payloadcms/richtext-lexical'
 import { VideoBlock, CalloutBlock, TableBlock } from '@/lib/richtext-blocks'
 import { richTextTextState } from '@/lib/richtext-text-state'
+
+const enforceArticlePublicationRBAC: CollectionBeforeOperationHook<'articole'> = ({
+  args,
+  operation,
+  req,
+}) => {
+  const role = req.user?.rol
+
+  // Restaurarea unei versiuni poate înlocui direct documentul live.
+  // Este rezervată exclusiv administratorilor.
+  if (operation === 'restoreVersion') {
+    if (role !== 'admin') {
+      throw new APIError('Doar administratorii pot restaura versiuni de articole.', 403)
+    }
+
+    return
+  }
+
+  // Ștergerea rămâne o operație exclusiv administrativă chiar și pentru
+  // apelurile Local API care ar folosi overrideAccess.
+  if (operation === 'delete' || operation === 'deleteByID') {
+    if (role !== 'admin') {
+      throw new APIError('Doar administratorii pot șterge articole.', 403)
+    }
+
+    return
+  }
+
+  if (operation !== 'create' && operation !== 'update' && operation !== 'updateByID') {
+    return
+  }
+
+  const { data } = args
+
+  const attemptsPublication =
+    data?._status === 'published' ||
+    args.publishAllLocales === true ||
+    Boolean(args.publishSpecificLocale)
+
+  const attemptsUnpublish = 'unpublishAllLocales' in args && args.unpublishAllLocales === true
+
+  // Publicarea și retragerea din public sunt întotdeauna decizii de admin.
+  if ((attemptsPublication || attemptsUnpublish) && role !== 'admin') {
+    throw new APIError('Doar administratorii pot publica sau retrage articole din public.', 403)
+  }
+
+  if (role === 'admin') {
+    return
+  }
+
+  // Orice alt actor — editor sau automatizare internă — poate scrie
+  // exclusiv în fluxul nativ de draft. Astfel nu poate modifica direct
+  // versiunea publică a unui articol deja publicat.
+  if (args.draft !== true) {
+    throw new APIError('Modificările non-admin trebuie salvate exclusiv ca draft.', 403)
+  }
+}
 
 // ============================================================
 //  ARTICOLE — colecția centrală, susține toți cei 5 piloni
@@ -19,10 +82,7 @@ export const Articole: CollectionConfig = {
       const id = doc.id
       const lang = doc.limba
 
-      if (
-        (typeof id !== 'string' && typeof id !== 'number') ||
-        (lang !== 'ro' && lang !== 'en')
-      ) {
+      if ((typeof id !== 'string' && typeof id !== 'number') || (lang !== 'ro' && lang !== 'en')) {
         return null
       }
 
@@ -37,14 +97,22 @@ export const Articole: CollectionConfig = {
     group: 'Conținut',
   },
   access: {
-    // Publicul și rolurile non-admin pot citi doar articolele publicate.
-    // Permisiunile editoriale suplimentare vor fi definite într-un audit RBAC separat.
+    // Adminii și editorii pot vedea întregul flux editorial.
+    // Publicul, contributorii și cititorii văd doar articolele publicate.
     read: ({ req: { user } }) => {
-      if (user?.rol === 'admin') return true
+      if (user?.rol === 'admin' || user?.rol === 'editor') return true
       return { _status: { equals: 'published' } }
     },
-    create: ({ req: { user } }) => user?.rol === 'admin',
-    update: ({ req: { user } }) => user?.rol === 'admin',
+    create: ({ req: { user } }) => user?.rol === 'admin' || user?.rol === 'editor',
+    update: ({ data, req: { user } }) => {
+      if (user?.rol === 'admin') return true
+      if (user?.rol !== 'editor') return false
+
+      // Payload verifică separat dreptul de publicare trimițând
+      // `_status: 'published'`. Editorul poate salva drafturi,
+      // dar nu primește permisiunea nativă de Publish.
+      return data?._status !== 'published'
+    },
     delete: ({ req: { user } }) => user?.rol === 'admin',
   },
   versions: {
@@ -169,7 +237,7 @@ export const Articole: CollectionConfig = {
         features: ({ defaultFeatures }) => [
           ...defaultFeatures,
           FixedToolbarFeature(),
-            TextStateFeature({ state: richTextTextState }),
+          TextStateFeature({ state: richTextTextState }),
           UploadFeature({
             collections: {
               media: {
@@ -277,8 +345,7 @@ export const Articole: CollectionConfig = {
       hasMany: true,
       maxDepth: 0,
       admin: {
-        description:
-          'Coautorii articolului, în ordinea în care trebuie considerați editorial.',
+        description: 'Coautorii articolului, în ordinea în care trebuie considerați editorial.',
       },
     },
     {
@@ -287,8 +354,7 @@ export const Articole: CollectionConfig = {
       relationTo: 'autori',
       maxDepth: 0,
       admin: {
-        description:
-          'Persoana care a realizat verificarea editorială a articolului.',
+        description: 'Persoana care a realizat verificarea editorială a articolului.',
       },
     },
     {
@@ -308,8 +374,7 @@ export const Articole: CollectionConfig = {
       hasMany: true,
       maxDepth: 0,
       admin: {
-        description:
-          'Experți sau evaluatori care au contribuit editorial la articol.',
+        description: 'Experți sau evaluatori care au contribuit editorial la articol.',
       },
     },
 
@@ -376,6 +441,7 @@ export const Articole: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeOperation: [enforceArticlePublicationRBAC],
     beforeValidate: [
       ({ data, originalDoc }) => {
         // slugificare automată: rulează DOAR dacă slug-ul lipsește sau e invalid.
@@ -407,6 +473,22 @@ export const Articole: CollectionConfig = {
       },
     ],
     beforeChange: [
+      ({ data, originalDoc, req }) => {
+        if (!data) return data
+
+        // `approved` și `blocked` sunt stări rezervate administratorului.
+        // Un draft modificat de editor sau de o automatizare trebuie să
+        // reintre în fluxul editorial și nu poate moșteni aprobarea anterioară.
+        if (req.user?.rol !== 'admin') {
+          const effectiveEditorialStatus = data.editorialStatus ?? originalDoc?.editorialStatus
+
+          if (effectiveEditorialStatus === 'approved' || effectiveEditorialStatus === 'blocked') {
+            data.editorialStatus = 'review'
+          }
+        }
+
+        return data
+      },
       ({ data, originalDoc }) => {
         if (!data) return data
 
