@@ -1,10 +1,101 @@
-import type { CollectionConfig } from 'payload'
+import { APIError, type CollectionBeforeOperationHook, type CollectionConfig } from 'payload'
 
 // ============================================================
 //  USERI — autentificare + nivel abonament (pentru Stripe)
 //  Colecția auth a platformei. Suportă comunitatea și conținutul premium.
 // ============================================================
+const protectLastAdminInvariant: CollectionBeforeOperationHook<'useri'> = async ({
+  args,
+  operation,
+  req,
+}) => {
+  const isDelete = operation === 'delete' || operation === 'deleteByID'
 
+  const isRoleDemotion =
+    (operation === 'update' || operation === 'updateByID') &&
+    'data' in args &&
+    args.data?.rol !== undefined &&
+    args.data.rol !== 'admin'
+
+  if (!isDelete && !isRoleDemotion) {
+    return
+  }
+
+  // Pentru cererile normale lăsăm access control-ul să respingă mai întâi
+  // actorii neautorizați, fără să dezvăluim informații despre administratori.
+  // Apelurile Local API cu overrideAccess rămân însă supuse invariantului.
+  const overridesAccess = 'overrideAccess' in args && args.overrideAccess === true
+
+  if (!overridesAccess && req.user?.rol !== 'admin') {
+    return
+  }
+
+  const { totalDocs: totalAdmins } = await req.payload.count({
+    collection: 'useri',
+    overrideAccess: true,
+    req,
+    where: {
+      rol: {
+        equals: 'admin',
+      },
+    },
+  })
+
+  if (totalAdmins === 0) {
+    return
+  }
+
+  let affectedAdmins = 0
+
+  if ('id' in args && (typeof args.id === 'string' || typeof args.id === 'number')) {
+    const result = await req.payload.count({
+      collection: 'useri',
+      overrideAccess: true,
+      req,
+      where: {
+        and: [
+          {
+            id: {
+              equals: args.id,
+            },
+          },
+          {
+            rol: {
+              equals: 'admin',
+            },
+          },
+        ],
+      },
+    })
+
+    affectedAdmins = result.totalDocs
+  } else if ('where' in args && args.where) {
+    const result = await req.payload.count({
+      collection: 'useri',
+      overrideAccess: true,
+      req,
+      where: {
+        and: [
+          args.where,
+          {
+            rol: {
+              equals: 'admin',
+            },
+          },
+        ],
+      },
+    })
+
+    affectedAdmins = result.totalDocs
+  }
+
+  if (affectedAdmins > 0 && affectedAdmins >= totalAdmins) {
+    throw new APIError(
+      'Operația este blocată deoarece ar elimina ultimul administrator al platformei.',
+      409,
+    )
+  }
+}
 export const Useri: CollectionConfig = {
   slug: 'useri',
   labels: { singular: 'User', plural: 'Useri' },
@@ -18,9 +109,11 @@ export const Useri: CollectionConfig = {
     defaultColumns: ['email', 'nume', 'rol', 'nivelAbonament'],
     group: 'Comunitate',
   },
+  hooks: {
+    beforeOperation: [protectLastAdminInvariant],
+  },
   access: {
-    admin: ({ req: { user } }) =>
-      user?.rol === 'admin' || user?.rol === 'editor',
+    admin: ({ req: { user } }) => user?.rol === 'admin' || user?.rol === 'editor',
 
     create: ({ req: { user } }) => user?.rol === 'admin',
 
@@ -40,6 +133,25 @@ export const Useri: CollectionConfig = {
     unlock: ({ req: { user } }) => user?.rol === 'admin',
   },
   fields: [
+    {
+      name: 'email',
+      type: 'email',
+      access: {
+        // Schimbarea adresei necesită un flux explicit de reverificare.
+        // Până la implementarea lui, emailul poate fi setat doar la creare.
+        update: () => false,
+      },
+    },
+    {
+      name: '_verified',
+      type: 'checkbox',
+      access: {
+        // Starea de verificare poate fi administrată manual doar de administratori.
+        // Fluxul legitim de verificare prin token este gestionat intern de Payload.
+        create: ({ req: { user } }) => user?.rol === 'admin',
+        update: ({ req: { user } }) => user?.rol === 'admin',
+      },
+    },
     { name: 'nume', type: 'text' },
     {
       name: 'rol',
