@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Where } from 'payload'
 import { lexicalEditor, UploadFeature } from '@payloadcms/richtext-lexical'
 
 // ============================================================
@@ -81,13 +81,43 @@ export const Comentarii: CollectionConfig = {
   },
   fields: [
     { name: 'continut', type: 'textarea', required: true, maxLength: 2000 },
-    { name: 'autor', type: 'relationship', relationTo: 'useri', required: true },
-    { name: 'articol', type: 'relationship', relationTo: 'articole', required: true, index: true },
+    {
+      name: 'autor',
+      type: 'relationship',
+      relationTo: 'useri',
+      required: true,
+      access: {
+        create: ({ req: { user } }) => user?.rol === 'admin',
+        update: ({ req: { user } }) => user?.rol === 'admin',
+      },
+    },
+    {
+      name: 'articol',
+      type: 'relationship',
+      relationTo: 'articole',
+      required: true,
+      index: true,
+      filterOptions: ({ user }) => {
+        if (user?.rol === 'admin') {
+          return true
+        }
+
+        return {
+          _status: {
+            equals: 'published',
+          },
+        }
+      },
+    },
     {
       name: 'status',
       type: 'select',
       required: true,
       defaultValue: 'asteptare',
+      access: {
+        create: ({ req: { user } }) => user?.rol === 'admin',
+        update: ({ req: { user } }) => user?.rol === 'admin',
+      },
       options: [
         { label: 'În așteptare', value: 'asteptare' },
         { label: 'Aprobat', value: 'aprobat' },
@@ -100,6 +130,39 @@ export const Comentarii: CollectionConfig = {
       name: 'raspunsLa',
       type: 'relationship',
       relationTo: 'comentarii',
+      filterOptions: ({ data, user }): boolean | Where => {
+        const articol =
+          typeof data?.articol === 'object' && data.articol !== null
+            ? data.articol.id
+            : data?.articol
+
+        if (typeof articol !== 'string' && typeof articol !== 'number') {
+          return false
+        }
+
+        if (user?.rol === 'admin') {
+          return {
+            articol: {
+              equals: articol,
+            },
+          }
+        }
+
+        return {
+          and: [
+            {
+              articol: {
+                equals: articol,
+              },
+            },
+            {
+              status: {
+                equals: 'aprobat',
+              },
+            },
+          ],
+        }
+      },
       admin: { description: 'Pentru thread-uri (răspuns la alt comentariu).' },
     },
   ],

@@ -96,6 +96,64 @@ const protectLastAdminInvariant: CollectionBeforeOperationHook<'useri'> = async 
     )
   }
 }
+
+const protectUserCommentDependencies: CollectionBeforeOperationHook<'useri'> = async ({
+  args,
+  operation,
+  req,
+}) => {
+  if (operation !== 'delete' && operation !== 'deleteByID') {
+    return
+  }
+
+  // Pentru cererile normale lăsăm access control-ul să respingă mai întâi
+  // actorii neautorizați. Local API cu overrideAccess rămâne însă protejat.
+  const overridesAccess = 'overrideAccess' in args && args.overrideAccess === true
+
+  if (!overridesAccess && req.user?.rol !== 'admin') {
+    return
+  }
+
+  let targetIDs: Array<number | string> = []
+
+  if ('id' in args && (typeof args.id === 'string' || typeof args.id === 'number')) {
+    targetIDs = [args.id]
+  } else if ('where' in args && args.where) {
+    const targets = await req.payload.find({
+      collection: 'useri',
+      depth: 0,
+      overrideAccess: true,
+      pagination: false,
+      req,
+      where: args.where,
+    })
+
+    targetIDs = targets.docs.map((doc) => doc.id)
+  }
+
+  if (targetIDs.length === 0) {
+    return
+  }
+
+  const { totalDocs: dependentComments } = await req.payload.count({
+    collection: 'comentarii',
+    overrideAccess: true,
+    req,
+    where: {
+      autor: {
+        in: targetIDs,
+      },
+    },
+  })
+
+  if (dependentComments > 0) {
+    throw new APIError(
+      'Utilizatorul nu poate fi șters cât timp există comentarii asociate.',
+      409,
+    )
+  }
+}
+
 export const Useri: CollectionConfig = {
   slug: 'useri',
   labels: { singular: 'User', plural: 'Useri' },
@@ -110,7 +168,7 @@ export const Useri: CollectionConfig = {
     group: 'Comunitate',
   },
   hooks: {
-    beforeOperation: [protectLastAdminInvariant],
+    beforeOperation: [protectLastAdminInvariant, protectUserCommentDependencies],
   },
   access: {
     admin: ({ req: { user } }) => user?.rol === 'admin' || user?.rol === 'editor',
