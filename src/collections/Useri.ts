@@ -145,6 +145,9 @@ export const Useri: CollectionConfig = {
     {
       name: '_verified',
       type: 'checkbox',
+      admin: {
+        condition: (_data, _siblingData, { user }) => user?.rol === 'admin',
+      },
       access: {
         // Starea de verificare poate fi administrată manual doar de administratori.
         // Fluxul legitim de verificare prin token este gestionat intern de Payload.
