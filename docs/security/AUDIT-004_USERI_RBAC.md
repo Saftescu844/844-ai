@@ -59,10 +59,12 @@ Documentația auditului:
 Commit de implementare:
 
 `dfc6af0` — `feat: harden user RBAC`
+Pull Request:
+
+`#43` — `feat: harden user RBAC`
 
 La momentul redactării acestui document:
 
-- nu există încă Pull Request pentru AUDIT-004;
 - nu a fost efectuat deployment în staging;
 - producția nu a fost modificată.
 
@@ -505,7 +507,7 @@ La momentul acestei documentări:
 
 * AUDIT-004 este pe branch-ul `audit/audit-004-useri-rbac`;
 - implementarea de cod este comisă în `dfc6af0` — `feat: harden user RBAC`;
-- nu există încă Pull Request;
+- Pull Request `#43` — `feat: harden user RBAC` este deschis către `staging`;
 * nu a fost făcut merge în `staging`;
 * producția nu a fost modificată.
 
