@@ -3,7 +3,8 @@
 **Proiect:** 844-ai.ro
 **Mediu analizat:** staging/dev (`844-ai-dev`)
 **Data validării tehnice:** 28 august 2026
-**Statut:** validat tehnic și runtime read-only în staging/dev; deployment staging neefectuat
+**Data validării pe staging:** 28 august 2026
+**Statut:** VALIDAT PE STAGING
 **Impact asupra producției:** niciunul
 
 ---
@@ -59,14 +60,32 @@ Documentația auditului:
 Commit de implementare:
 
 `dfc6af0` — `feat: harden user RBAC`
-Pull Request:
+
+Pull Request principal:
 
 `#43` — `feat: harden user RBAC`
 
-La momentul redactării acestui document:
+Merge în `staging`:
 
-- nu a fost efectuat deployment în staging;
-- producția nu a fost modificată.
+`cf593df` — `Merge pull request #43 from Saftescu844/audit/audit-004-useri-rbac`
+
+În timpul validării vizuale post-deployment s-a constatat că `_verified`, deși protejat corect de backend pentru rolurile non-admin, rămânea vizibil și aparent editabil în Payload Admin.
+
+Remedierea UI a fost implementată separat:
+
+`ecd3976` — `fix: hide verification field from non-admins`
+
+Pull Request follow-up:
+
+`#44` — `fix: hide verification field from non-admins`
+
+Merge follow-up în `staging`:
+
+`b3fecfb` — `Merge pull request #44 from Saftescu844/fix/audit-004-verified-admin-ui`
+
+Ambele etape au fost deployate și validate în staging.
+
+Producția nu a fost modificată.
 
 ---
 
@@ -503,21 +522,43 @@ Administratorul existent a rămas neschimbat.
 
 ## 15. Starea deploymentului
 
-La momentul acestei documentări:
+AUDIT-004 a fost integrat și validat controlat în `staging`.
 
-* AUDIT-004 este pe branch-ul `audit/audit-004-useri-rbac`;
-- implementarea de cod este comisă în `dfc6af0` — `feat: harden user RBAC`;
-- Pull Request `#43` — `feat: harden user RBAC` este deschis către `staging`;
-* nu a fost făcut merge în `staging`;
+Implementarea principală:
+
+* commit `dfc6af0` — `feat: harden user RBAC`;
+* Pull Request `#43` — `feat: harden user RBAC`;
+* merge commit `cf593df`;
+* deployment Railway staging: SUCCESS.
+
+După primul deployment, validarea cu rolul `editor` a confirmat:
+
+* utilizatorul vede numai propriul document;
+* administratorul nu este vizibil;
+* nu există posibilitatea de creare a unui utilizator nou;
+* `Nume` este editabil;
+* `Rol` este needitabil;
+* `Nivel Abonament` este needitabil;
+* `email` este needitabil;
+* endpoint-ul `/api/access` confirmă că `_verified` este read-only pentru `editor`, fără permisiune de `update`.
+
+În aceeași validare s-a constatat o anomalie de interfață: checkbox-ul `_verified` rămânea vizibil și aparent editabil în Payload Admin pentru `editor`, deși backend-ul nu acorda permisiunea de update.
+
+A fost implementat follow-up-ul UI:
+
+* commit `ecd3976` — `fix: hide verification field from non-admins`;
+* Pull Request `#44` — `fix: hide verification field from non-admins`;
+* merge commit `b3fecfb`;
+* redeployment Railway staging: SUCCESS.
+
+Validarea finală post-deployment a confirmat:
+
+* pentru `editor`, `_verified` este ascuns complet;
+* pentru `admin`, `_verified` este vizibil;
+* protecția backend pentru `_verified` rămâne activă;
 * producția nu a fost modificată.
 
-Prin urmare, statutul actual nu este încă:
-
-`VALIDAT PE STAGING`
-
-în sensul unui deployment real.
-
-Validarea realizată până acum este tehnică și runtime read-only folosind baza `844-ai-dev`.
+**Statut final AUDIT-004: VALIDAT PE STAGING.**
 
 ---
 
@@ -535,7 +576,11 @@ Rolurile non-admin rămân limitate la propriul document și nu pot modifica rol
 
 Câmpurile auth implicite Payload au fost auditate separat și nu au evidențiat alte probleme RBAC care necesită remediere în această etapă.
 
-**Statut tehnic AUDIT-004:** VALIDAT ÎN STAGING/DEV — DEPLOYMENT STAGING ÎNCĂ NEEXECUTAT.
+Validarea tehnică, runtime și vizuală post-deployment a fost finalizată cu succes în staging.
+
+**Statut final AUDIT-004: VALIDAT PE STAGING.**
+
+Producția nu a fost modificată.
 
 ---
 
