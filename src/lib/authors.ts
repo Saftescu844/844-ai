@@ -31,6 +31,7 @@ export type PublicAuthorSource = Pick<
   | 'publicationConsent'
   | 'publicContactConsent'
   | 'consentWithdrawnAt'
+  | 'nextVerificationDue'
   | 'status'
   | 'publishedAt'
   | 'lastReviewedAt'
@@ -513,9 +514,58 @@ export function normalizePublicAuthorProfile(
     cleanText(author.platformRoleDescription)
   const publicLocation = cleanText(author.publicLocation)
 
-  const editorialRoles = [
+  const rawEditorialRoles = [
     ...(author.editorialRoles ?? []),
   ]
+
+  const currentYear = new Date().getUTCFullYear()
+
+  const isCurrentVerifiedCredential = (
+    item: AuthorCredential,
+  ) =>
+    item.verified === true &&
+    (
+      typeof item.yearExpires !== 'number' ||
+      item.yearExpires >= currentYear
+    )
+
+  const hasCurrentVerifiedCredential =
+    (author.credentials ?? []).some(
+      isCurrentVerifiedCredential,
+    )
+
+  const nextVerificationDue =
+    cleanText(author.nextVerificationDue)
+
+  const parsedNextVerificationDue =
+    nextVerificationDue
+      ? Date.parse(nextVerificationDue)
+      : undefined
+
+  const professionalVerificationIsPastDue =
+    parsedNextVerificationDue !== undefined &&
+    Number.isFinite(parsedNextVerificationDue) &&
+    parsedNextVerificationDue < Date.now()
+
+  const medicalReviewerRequested =
+    author.isMedicalReviewer === true ||
+    rawEditorialRoles.includes('medicalReviewer')
+
+  const medicalReviewScopeCandidate =
+    cleanText(author.medicalReviewScope)
+
+  const medicalReviewerIsCurrent =
+    medicalReviewerRequested &&
+    hasCurrentVerifiedCredential &&
+    !professionalVerificationIsPastDue &&
+    Boolean(medicalReviewScopeCandidate)
+
+  const editorialRoles =
+    medicalReviewerIsCurrent
+      ? rawEditorialRoles
+      : rawEditorialRoles.filter(
+          (role) => role !== 'medicalReviewer',
+        )
 
   const expertiseAreas = [
     ...(author.expertiseAreas ?? []),
@@ -567,8 +617,8 @@ export function normalizePublicAuthorProfile(
   ]
 
   const medicalReviewScope =
-    author.isMedicalReviewer === true
-      ? cleanText(author.medicalReviewScope)
+    medicalReviewerIsCurrent
+      ? medicalReviewScopeCandidate
       : undefined
 
   const credentials = [
@@ -577,7 +627,7 @@ export function normalizePublicAuthorProfile(
     .filter(
       (item) =>
         item.publiclyVisible === true &&
-        item.verified === true,
+        isCurrentVerifiedCredential(item),
     )
     .sort(
       (a, b) =>

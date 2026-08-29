@@ -473,9 +473,17 @@ const validateMedicalReviewScopeForPublication:
     const status =
       data.status ?? originalDoc?.status
 
+    const editorialRoles =
+      data.editorialRoles ??
+      originalDoc?.editorialRoles ??
+      []
+
     const isMedicalReviewer =
-      data.isMedicalReviewer ??
-      originalDoc?.isMedicalReviewer
+      (
+        data.isMedicalReviewer ??
+        originalDoc?.isMedicalReviewer
+      ) === true ||
+      editorialRoles.includes('medicalReviewer')
 
     if (
       status !== 'published' ||
@@ -1000,7 +1008,14 @@ export const Autori: CollectionConfig = {
                 beforeValidate: [trimText],
               },
               admin: {
-                condition: (data) => Boolean(data?.isMedicalReviewer),
+                condition: (data) =>
+                  Boolean(data?.isMedicalReviewer) ||
+                  (
+                    Array.isArray(data?.editorialRoles) &&
+                    data.editorialRoles.includes(
+                      'medicalReviewer',
+                    )
+                  ),
                 description:
                   'Descrie limitele domeniului în care persoana poate verifica informații medicale.',
               },

@@ -395,7 +395,7 @@ describe('public author normalizer', () => {
     )
   })
 
-  it('only exposes medical review scope for an active medical reviewer flag', () => {
+  it('only exposes medical review scope for a currently verified medical reviewer', () => {
     const hidden = normalize({
       isMedicalReviewer: false,
       medicalReviewScope: 'Cardiologie',
@@ -404,6 +404,14 @@ describe('public author normalizer', () => {
     const visible = normalize({
       isMedicalReviewer: true,
       medicalReviewScope: ' Cardiologie ',
+      credentials: [
+        {
+          credentialType: 'medicalLicense',
+          title: 'Medic specialist',
+          verified: true,
+          yearExpires: new Date().getUTCFullYear(),
+        },
+      ],
     })
 
     expect(hidden).not.toBeNull()
@@ -415,6 +423,106 @@ describe('public author normalizer', () => {
 
     expect(visible?.medicalReviewScope).toBe(
       'Cardiologie',
+    )
+  })
+
+  it('suppresses expired medical-review claims from the public profile', () => {
+    const currentYear = new Date().getUTCFullYear()
+
+    const result = normalize({
+      editorialRoles: [
+        'author',
+        'medicalReviewer',
+      ],
+      isMedicalReviewer: true,
+      medicalReviewScope: 'Cardiologie',
+      credentials: [
+        {
+          credentialType: 'medicalLicense',
+          title: 'Medic specialist',
+          publiclyVisible: true,
+          verified: true,
+          yearExpires: currentYear - 1,
+        },
+      ],
+    })
+
+    expect(result).not.toBeNull()
+
+    expect(result?.editorialRoles).toEqual([
+      'author',
+    ])
+
+    expect(result).not.toHaveProperty(
+      'medicalReviewScope',
+    )
+
+    expect(result).not.toHaveProperty(
+      'credentials',
+    )
+  })
+
+  it('suppresses medical-review claims when professional verification is past due', () => {
+    const currentYear = new Date().getUTCFullYear()
+
+    const result = normalize({
+      editorialRoles: [
+        'author',
+        'medicalReviewer',
+      ],
+      isMedicalReviewer: true,
+      medicalReviewScope: 'Cardiologie',
+      nextVerificationDue:
+        '2000-01-01T00:00:00.000Z',
+      credentials: [
+        {
+          credentialType: 'medicalLicense',
+          title: 'Medic specialist',
+          publiclyVisible: true,
+          verified: true,
+          yearExpires: currentYear + 1,
+        },
+      ],
+    })
+
+    expect(result).not.toBeNull()
+
+    expect(result?.editorialRoles).toEqual([
+      'author',
+    ])
+
+    expect(result).not.toHaveProperty(
+      'medicalReviewScope',
+    )
+  })
+
+  it('suppresses the medical-review role when the required public review scope is missing', () => {
+    const currentYear = new Date().getUTCFullYear()
+
+    const result = normalize({
+      editorialRoles: [
+        'author',
+        'medicalReviewer',
+      ],
+      isMedicalReviewer: false,
+      credentials: [
+        {
+          credentialType: 'medicalLicense',
+          title: 'Medic specialist',
+          verified: true,
+          yearExpires: currentYear,
+        },
+      ],
+    })
+
+    expect(result).not.toBeNull()
+
+    expect(result?.editorialRoles).toEqual([
+      'author',
+    ])
+
+    expect(result).not.toHaveProperty(
+      'medicalReviewScope',
     )
   })
 

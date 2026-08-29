@@ -105,6 +105,7 @@ export const PUBLIC_AUTHOR_SELECT = {
   publicationConsent: true,
   publicContactConsent: true,
   consentWithdrawnAt: true,
+  nextVerificationDue: true,
 
   status: true,
   publishedAt: true,
