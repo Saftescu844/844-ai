@@ -18,7 +18,7 @@ export default function NewsletterForm({
 }) {
   const [email, setEmail] = useState('')
   const [consimtamant, setConsimtamant] = useState(false)
-  const [stare, setStare] = useState<'idle' | 'trimit' | 'succes' | 'eroare' | 'exista'>('idle')
+  const [stare, setStare] = useState<'idle' | 'trimit' | 'succes' | 'eroare'>('idle')
 
   const fallback =
     lang === 'ro'
@@ -28,9 +28,8 @@ export default function NewsletterForm({
           emailLabel: 'Adresa de email',
           placeholder: 'adresa@email.ro',
           buton: 'Abonează-te',
-          succes: '✓ Ți-am trimis un email. Confirmă abonarea folosind linkul primit.',
+          succes: '✓ Dacă adresa poate fi abonată, vei primi un email cu pașii următori.',
           eroare: 'A apărut o eroare. Încearcă din nou.',
-          exista: 'Această adresă e deja abonată.',
           consimt:
             'Sunt de acord ca adresa mea de email să fie folosită pentru trimiterea newsletter-ului, conform',
           privacyLabel: 'Politicii de Confidențialitate',
@@ -43,9 +42,8 @@ export default function NewsletterForm({
           placeholder: 'your@email.com',
           buton: 'Subscribe',
           succes:
-            "✓ We've sent you an email. Confirm your subscription using the link in the email.",
+            "✓ If this address can be subscribed, you'll receive an email with the next steps.",
           eroare: 'Something went wrong. Please try again.',
-          exista: 'This email is already subscribed.',
           consimt:
             'I agree to have my email address used to send the newsletter, in accordance with the',
           privacyLabel: 'Privacy Policy',
@@ -60,7 +58,6 @@ export default function NewsletterForm({
     buton: textOrFallback(settings?.submitLabel, fallback.buton),
     succes: textOrFallback(settings?.successMessage, fallback.succes),
     eroare: textOrFallback(settings?.genericErrorMessage, fallback.eroare),
-    exista: textOrFallback(settings?.alreadySubscribedMessage, fallback.exista),
     consimt: textOrFallback(settings?.consentText, fallback.consimt),
     privacyLabel: textOrFallback(settings?.privacyLabel, fallback.privacyLabel),
     privacyHref: textOrFallback(settings?.privacyHref, fallback.privacyHref),
@@ -80,8 +77,6 @@ export default function NewsletterForm({
       if (resp.ok) {
         setStare('succes')
         setEmail('')
-      } else if (resp.status === 409) {
-        setStare('exista')
       } else {
         setStare('eroare')
       }
@@ -166,9 +161,6 @@ export default function NewsletterForm({
       </label>
       {stare === 'eroare' && (
         <p style={{ fontSize: 13, color: '#c0392b', marginTop: 8 }}>{txt.eroare}</p>
-      )}
-      {stare === 'exista' && (
-        <p style={{ fontSize: 13, color: '#B8860B', marginTop: 8 }}>{txt.exista}</p>
       )}
     </div>
   )

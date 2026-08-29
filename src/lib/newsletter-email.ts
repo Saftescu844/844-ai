@@ -13,6 +13,18 @@ function semneaza(email: string, ts: string): string {
     .digest('hex')
 }
 
+/** Token v2: leagă confirmarea de instanța concretă a abonamentului. */
+function semneazaConfirmare(
+  abonamentId: string,
+  email: string,
+  ts: string,
+): string {
+  return crypto
+    .createHmac('sha256', SECRET)
+    .update('confirm|' + abonamentId + '|' + email + '|' + ts)
+    .digest('hex')
+}
+
 /** Semnătură HMAC separată pentru dezabonare, legată de abonamentul concret. */
 function semneazaDezabonare(id: string, email: string): string {
   return crypto
@@ -26,6 +38,18 @@ export function construiesteLink(email: string, lang: string): string {
   const sig = semneaza(email, ts)
   const e = Buffer.from(email, 'utf8').toString('base64url')
   return `${SITE}/${lang}/confirmare-newsletter?e=${e}&t=${ts}&s=${sig}`
+}
+
+export function construiesteLinkConfirmare(
+  id: string | number,
+  email: string,
+  lang: string,
+): string {
+  const abonamentId = String(id)
+  const ts = Date.now().toString()
+  const sig = semneazaConfirmare(abonamentId, email, ts)
+
+  return `${SITE}/${lang}/confirmare-newsletter?i=${encodeURIComponent(abonamentId)}&t=${ts}&s=${sig}`
 }
 
 export function construiesteLinkDezabonare(
@@ -61,6 +85,25 @@ export function verificaToken(email: string, ts: string, sig: string): boolean {
   return crypto.timingSafeEqual(a, b)
 }
 
+export function verificaTokenConfirmare(
+  id: string,
+  email: string,
+  ts: string,
+  sig: string,
+): boolean {
+  if (!id || !email || !ts || !sig || !SECRET) return false
+
+  const varsta = Date.now() - Number(ts)
+  if (!Number.isFinite(varsta) || varsta < 0 || varsta > EXPIRA_ZILE * 86400000) return false
+
+  const asteptat = semneazaConfirmare(id, email, ts)
+  const a = Buffer.from(sig, 'utf8')
+  const b = Buffer.from(asteptat, 'utf8')
+
+  if (a.length !== b.length) return false
+  return crypto.timingSafeEqual(a, b)
+}
+
 export function verificaTokenDezabonare(id: string, email: string, sig: string): boolean {
   if (!id || !email || !sig || !SECRET) return false
 
@@ -72,12 +115,16 @@ export function verificaTokenDezabonare(id: string, email: string, sig: string):
   return crypto.timingSafeEqual(a, b)
 }
 
-export async function trimiteConfirmare(email: string, lang: string): Promise<void> {
+export async function trimiteConfirmare(
+  id: string | number,
+  email: string,
+  lang: string,
+): Promise<void> {
   if (!BREVO_KEY) {
     throw new Error('BREVO_API_KEY nu este configurată')
   }
 
-  const link = construiesteLink(email, lang)
+  const link = construiesteLinkConfirmare(id, email, lang)
   const ro = lang === 'ro'
 
   const subiect = ro

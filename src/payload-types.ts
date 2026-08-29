@@ -927,6 +927,10 @@ export interface Newsletter {
    * Double opt-in confirmat.
    */
   confirmat?: boolean | null;
+  /**
+   * Metadată internă pentru cooldown-ul emailurilor de confirmare.
+   */
+  confirmationLastSentAt?: string | null;
   userAsociat?: (number | null) | Useri;
   updatedAt: string;
   createdAt: string;
@@ -1518,6 +1522,7 @@ export interface NewsletterSelect<T extends boolean = true> {
   limba?: T;
   segment?: T;
   confirmat?: T;
+  confirmationLastSentAt?: T;
   userAsociat?: T;
   updatedAt?: T;
   createdAt?: T;

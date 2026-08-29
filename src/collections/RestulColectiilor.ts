@@ -518,6 +518,14 @@ export const Newsletter: CollectionConfig = {
       defaultValue: false,
       admin: { description: 'Double opt-in confirmat.' },
     },
+    {
+      name: 'confirmationLastSentAt',
+      type: 'date',
+      admin: {
+        hidden: true,
+        description: 'Metadată internă pentru cooldown-ul emailurilor de confirmare.',
+      },
+    },
     { name: 'userAsociat', type: 'relationship', relationTo: 'useri' },
   ],
 }
