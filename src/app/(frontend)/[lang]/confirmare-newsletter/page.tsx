@@ -1,5 +1,9 @@
 import { payloadClient } from '@/lib/payload'
-import { verificaToken, decodeazaEmail } from '@/lib/newsletter-email'
+import {
+  decodeazaEmail,
+  verificaToken,
+  verificaTokenConfirmare,
+} from '@/lib/newsletter-email'
 
 const s = {
   wrap: { maxWidth: 620, margin: '0 auto', padding: '3rem 0', textAlign: 'center' as const },
@@ -22,10 +26,33 @@ const s = {
 
 type Stare = 'valid' | 'deja' | 'invalid' | 'inexistent'
 
-async function verificaAbonament(email: string, ts: string, sig: string): Promise<Stare> {
-  if (!verificaToken(email, ts, sig)) return 'invalid'
-
+async function verificaAbonament(
+  id: string,
+  email: string,
+  ts: string,
+  sig: string,
+): Promise<Stare> {
   const payload = await payloadClient()
+
+  if (id) {
+    try {
+      const abonat = await payload.findByID({
+        collection: 'newsletter',
+        id,
+      })
+
+      if (!verificaTokenConfirmare(id, abonat.email, ts, sig)) return 'invalid'
+      if (abonat.confirmat) return 'deja'
+
+      return 'valid'
+    } catch {
+      // Pentru tokenurile v2 nu distingem public între ID inexistent și token invalid.
+      return 'invalid'
+    }
+  }
+
+  // Compatibilitate temporară cu linkurile legacy deja trimise.
+  if (!verificaToken(email, ts, sig)) return 'invalid'
 
   const gasit = await payload.find({
     collection: 'newsletter',
@@ -43,7 +70,7 @@ async function verificaAbonament(email: string, ts: string, sig: string): Promis
 
 export default async function PaginaConfirmare(props: {
   params: Promise<{ lang: string }>
-  searchParams: Promise<{ e?: string; t?: string; s?: string; rezultat?: string }>
+  searchParams: Promise<{ i?: string; e?: string; t?: string; s?: string; rezultat?: string }>
 }) {
   const { lang } = await props.params
   const q = await props.searchParams
@@ -82,6 +109,7 @@ export default async function PaginaConfirmare(props: {
     )
   }
 
+  const id = q.i || ''
   const emailCodificat = q.e || ''
   const email = decodeazaEmail(emailCodificat)
   const ts = q.t || ''
@@ -90,7 +118,7 @@ export default async function PaginaConfirmare(props: {
   let stare: Stare = 'invalid'
 
   try {
-    stare = await verificaAbonament(email, ts, sig)
+    stare = await verificaAbonament(id, email, ts, sig)
   } catch {
     stare = 'invalid'
   }
@@ -158,6 +186,7 @@ export default async function PaginaConfirmare(props: {
       </p>
 
       <form method="post" action="/api-newsletter/confirmare">
+        <input type="hidden" name="i" value={id} />
         <input type="hidden" name="e" value={emailCodificat} />
         <input type="hidden" name="t" value={ts} />
         <input type="hidden" name="s" value={sig} />
