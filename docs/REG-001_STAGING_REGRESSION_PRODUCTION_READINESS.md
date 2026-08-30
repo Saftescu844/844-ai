@@ -3,7 +3,7 @@
 **Proiect:** 844-ai.ro
 **Mediu analizat:** staging/dev (`844-ai-dev`)
 **Data inventarului:** 30 august 2026
-**Statut:** INVENTAR FINALIZAT — REMEDIERI ÎN AȘTEPTARE
+**Statut:** REG-001A VALIDAT PE STAGING — REG-001B–E ÎN AȘTEPTARE
 **Impact asupra producției:** niciunul
 
 ---
@@ -56,8 +56,8 @@ Au fost confirmate:
 | R12 | P2 | `Useri` nu are încă o identitate publică dedicată pentru comentarii | OPEN |
 | R13 | P2 | Fotografia specialistului trebuie să fie opțională și independentă de verificarea profesională | OPEN |
 | R14 | P1 | Există `profileImageConsent`, dar publication-readiness blochează în prezent orice fotografie de profil | OPEN |
-| R15 | P0 | `[lang]` nu validează centralizat limbile și acceptă segmente arbitrare, inclusiv `robots.txt` | OPEN |
-| R16 | P0 | Stagingul este indexabil (`index, follow`) și nu are un `robots.txt` real | OPEN |
+| R15 | P0 | `[lang]` nu validează centralizat limbile și acceptă segmente arbitrare, inclusiv `robots.txt` | VALIDAT STAGING |
+| R16 | P0 | Stagingul este indexabil (`index, follow`) și nu are un `robots.txt` real | VALIDAT STAGING |
 
 ---
 
@@ -214,7 +214,7 @@ Fluxul public complet de signup, login și publicare a comentariilor trebuie imp
 Implementarea va fi împărțită în schimbări mici, independente și verificabile:
 
 ```text
-REG-001A — Routing + staging SEO
+REG-001A — Routing + staging SEO — VALIDAT PE STAGING
 R15 + R16
 
 REG-001B — Model Autori
@@ -251,3 +251,62 @@ REG-001 nu autorizează promovarea în producție.
 7. luată separat decizia de promovare.
 
 **Producția reală rămâne neatinsă până la validarea completă.**
+
+---
+
+## 12. Validare REG-001A — Routing + staging SEO
+
+**Data validării:** 30 august 2026
+**Status:** VALIDAT PE STAGING
+**Findings închise pe staging:** R15, R16
+**PR:** #56 — `fix: harden public routing and staging SEO`
+**Merge commit staging:** `de84a523fb370f34bcdaeee8b20108924c2fb715`
+**Deployment Railway staging:** `39bd8cc9-4f49-43f6-9078-3966b5726a53` — SUCCESS
+
+REG-001A a introdus:
+
+- validarea centralizată a limbilor publice, limitate la `ro` și `en`;
+- respingerea controlată a segmentelor invalide prin `404`;
+- protecție SEO fail-safe pentru orice mediu care nu utilizează domeniul canonic de producție `https://844-ai.ro`;
+- `noindex, nofollow` forțat pe staging;
+- un `robots.txt` real;
+- `Disallow: /` pe staging;
+- păstrarea controlului editorial `robotsDefault` numai pentru domeniul canonic de producție.
+
+Validarea live pe Railway staging a confirmat:
+
+```text
+/ro         -> 200
+/en         -> 200
+/xx         -> 404
+/robots.txt -> 200
+```
+
+`robots.txt` livrează:
+
+```text
+User-Agent: *
+Disallow: /
+```
+
+Paginile `/ro` și `/en` livrează:
+
+```html
+<meta name="robots" content="noindex, nofollow"/>
+```
+
+Pentru `/xx` nu mai este generat un document cu `<html lang="xx">`.
+
+Content-Type pentru `/robots.txt` este `text/plain`.
+
+Validările locale efectuate înainte de deployment:
+
+- Vitest REG-001A: 4/4 teste PASS;
+- TypeScript: PASS;
+- ESLint: PASS;
+- `git diff --check`: PASS;
+- smoke-test local cu variabilele Railway staging: PASS.
+
+Nu a fost necesară nicio migrare de bază de date.
+
+**Producția reală nu a fost modificată. REG-001A nu autorizează promovarea în producție.**
