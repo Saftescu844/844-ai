@@ -2,9 +2,9 @@
 
 **Proiect:** 844-ai.ro
 **Mediu analizat:** staging/dev (`844-ai-dev`)
-**Data validării tehnice:** 29 august 2026
-**Data validării pe staging:** 29 august 2026
-**Statut:** VALIDAT PE STAGING CU F05 OPEN / REMEDIATION PLANNED
+**Data validării tehnice:** 29–30 august 2026
+**Data validării pe staging:** 30 august 2026
+**Statut:** VALIDAT PE STAGING
 **Impact asupra producției:** niciunul
 
 ---
@@ -25,7 +25,7 @@ Producția reală nu a fost modificată în cadrul acestui audit.
 | F02 — Confirmation resend abuse / email bombing | MEDIUM | REMEDIAT ȘI VALIDAT PE STAGING/DB |
 | F03 — Token de confirmare nelegat de ciclul concret al abonamentului | MEDIUM | REMEDIAT ȘI VALIDAT PE STAGING |
 | F04 — Email recuperabil din URL-ul de confirmare | LOW/MEDIUM | REMEDIAT PENTRU LINKURILE NOI; LEGACY RĂMÂNE TRANZITORIU |
-| F05 — Lipsă cleanup automat pentru pending subscriptions | LOW | OPEN / REMEDIATION PLANNED |
+| F05 — Retenția înscrierilor neconfirmate | LOW | REMEDIAT ȘI VALIDAT PE STAGING |
 
 ---
 
@@ -42,7 +42,7 @@ Producția reală nu a fost modificată în cadrul acestui audit.
 - tokenurile expiră;
 - noile linkuri de confirmare nu mai transportă emailul;
 - compatibilitatea legacy este păstrată temporar pentru linkurile deja emise;
-- F05 rămâne explicit deschis până la implementarea unui mecanism tehnic de retenție.
+- înscrierile newsletter neconfirmate sunt eliminate automat după 30 de zile de la `createdAt`; resend-ul nu prelungește retenția.
 
 ---
 
@@ -199,15 +199,17 @@ Linkurile legacy deja emise continuă să funcționeze temporar. Generatorul leg
 
 ## 8. F05 — Retenția înscrierilor neconfirmate
 
-**LOW — OPEN / REMEDIATION PLANNED**
+**LOW — REMEDIAT ȘI VALIDAT PE STAGING**
 
-Înregistrările cu `confirmat=false` nu au încă un mecanism automat de cleanup după o perioadă definită.
+Înscrierile cu `confirmat=false` sunt păstrate maximum 30 de zile de la `createdAt`. Retrimiterea confirmării nu prelungește retenția, iar abonamentele confirmate nu sunt eligibile pentru cleanup.
 
-Politica de confidențialitate declară că abonarea la newsletter se bazează pe consimțământ explicit și că abonații sunt păstrați cât timp rămân abonați, plus maximum 30 de zile după dezabonare. Politica nu definește separat lifecycle-ul unei înscrieri care nu finalizează confirmarea.
+Remedierea folosește `src/lib/newsletter-pending-retention.ts` și un `DELETE` PostgreSQL atomic și parametrizat pe `confirmat=false` și `created_at < $1`. Nu a fost necesar un câmp nou sau o migrare DB.
 
-AUDIT-007 nu clasifică această situație drept „încălcare GDPR confirmată”. Este documentată ca gap de lifecycle și retenție.
+Runnerul `scripts/cleanup-newsletter-pending.ts` a fost validat pe staging: vechi+pending → șters, recent+pending → păstrat, vechi+confirmat → păstrat; cleanup real `deleted=4`, apoi `deleted=0` la a doua rulare.
 
-F05 nu este implementat în acest PR. Follow-up-ul trebuie să stabilească perioada de retenție, timestamp-ul sursă, semantica resend-urilor, cleanup-ul idempotent, scheduling-ul, observabilitatea, testele și eventuala actualizare a politicii publice.
+Execuția automată rulează prin serviciul Railway separat `newsletter-retention`, zilnic la `0 3 * * *` (03:00 UTC), folosind `Dockerfile.retention`. Deployment validat: `780ec4b8-ab07-46e4-93c0-81bbb9b73d66`; rularea manuală post-deployment: `SUCCESS`, `[newsletter-retention] deleted=0`.
+
+AUDIT-007 tratează situația inițială ca gap tehnic de lifecycle și retenție, nu ca o încălcare GDPR confirmată.
 
 ---
 
@@ -244,8 +246,9 @@ Teste:
 - `newsletter-email-sender.int.spec.ts`
 - `newsletter-confirmation-cooldown.int.spec.ts`
 - `newsletter-subscribe-response.int.spec.ts`
+- `newsletter-pending-retention.int.spec.ts`
 
-Rezultat total: **14/14 PASS**
+Rezultat total: **18/18 PASS**
 
 Alte verificări:
 - `git diff --check` — PASS;
@@ -287,6 +290,12 @@ Proiect staging: `resilient-harmony`.
 
 Environment-ul din acest proiect se numește intern `production`, dar nu reprezintă proiectul real de producție.
 
+F05 retenție: commit `a2a9c19b5fd9c79256ded6b26fa633088762b72a`, PR #52, merge în `staging` `14dd0c9bba4fad2e880937fb979f16e2010c18f6`.
+
+Runtime cron dedicat: commit `b8f210ec702fd630e7597b3e29fc6cf63e78ddd6`, PR #53, merge în `staging` `d435f4b1c648f6fceadb5b68c566fdde065a5d30`.
+
+Serviciul Railway `newsletter-retention` rulează zilnic la `0 3 * * *`; deploymentul `780ec4b8-ab07-46e4-93c0-81bbb9b73d66` a fost validat `SUCCESS`.
+
 ---
 
 ## 12. Smoke-test post-deployment
@@ -312,21 +321,21 @@ HTTP 400
 
 Fixture-urile AUDIT-007 au fost temporare și au fost eliminate.
 
-`INVENTORY_BEFORE=4`
+Validare fixture F05: `INVENTORY_BEFORE=4`, `INVENTORY_AFTER=4`, `CLEANUP_PASS`.
 
-`INVENTORY_AFTER=4`
+Cleanup real staging: 4 înscrieri pending expirate eligibile, `deleted=4`, inventar final `0`.
 
-`CLEANUP_PASS`
+Rulare idempotentă ulterioară: `[newsletter-retention] deleted=0`.
 
 ---
 
 ## 14. Concluzie
 
-**AUDIT-007 — VALIDAT PE STAGING CU F05 OPEN / REMEDIATION PLANNED**
+**AUDIT-007 — VALIDAT PE STAGING**
 
-F01, F02 și F03 sunt remediate și validate. F04 este remediat pentru linkurile noi, cu risc tranzitoriu limitat la compatibilitatea legacy. F05 rămâne deschis și trebuie tratat într-un task separat.
+F01, F02, F03 și F05 sunt remediate și validate pe staging. F04 este remediat pentru linkurile noi, cu risc tranzitoriu limitat la compatibilitatea legacy.
 
-Au fost confirmate 14/14 teste automate, migrarea staging/dev, deployment staging `SUCCESS`, `/ro` și `/admin` cu `HTTP 200`, F01 post-deploy `PASS`, F03/F04 post-deploy `PASS` și cleanup DB complet.
+Au fost confirmate 18/18 teste automate, migrarea staging/dev, deploymentul web `SUCCESS`, `/ro` și `/admin` cu `HTTP 200`, validările post-deploy F01/F03/F04, validarea runtime F05, cleanup-ul real și execuția cron `SUCCESS`.
 
 Producția reală a rămas neatinsă.
 
@@ -338,4 +347,4 @@ Documentația AUDIT-007 trebuie comisă separat și integrată numai în `stagin
 
 Nu este necesar un deployment Railway suplimentar pentru o modificare exclusivă de documentație.
 
-F05 rămâne task separat. Orice promovare către producția reală necesită o decizie și o validare separată.
+AUDIT-007 este închis pe staging. Orice promovare către producția reală necesită o decizie și o validare separată.
