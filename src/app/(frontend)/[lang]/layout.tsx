@@ -1,8 +1,10 @@
 import React from 'react'
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import '../styles.css'
 import type { Metadata } from 'next'
 import { getCachedSiteSettings } from '@/lib/payload'
+import { isPublicLanguage, isPublicProductionSite } from '@/lib/public-environment'
 
 const PILONI = [
   { slug: 'stiri', ro: 'Știri AI', en: 'AI News' },
@@ -16,6 +18,8 @@ export async function generateMetadata(props: {
   params: Promise<{ lang: string }>
 }): Promise<Metadata> {
   const { lang } = await props.params
+  if (!isPublicLanguage(lang)) notFound()
+
   const siteSettings = await getCachedSiteSettings(lang)
 
   const fallbackTitle =
@@ -69,7 +73,7 @@ export async function generateMetadata(props: {
       images: shareImageMetadata ? [shareImageMetadata] : undefined,
     },
     robots:
-      robotsDefault === 'noindexNofollow'
+      !isPublicProductionSite() || robotsDefault === 'noindexNofollow'
         ? { index: false, follow: false }
         : { index: true, follow: true },
   }
@@ -80,6 +84,8 @@ export default async function LangLayout(props: {
   params: Promise<{ lang: string }>
 }) {
   const { lang } = await props.params
+  if (!isPublicLanguage(lang)) notFound()
+
   const siteSettings = await getCachedSiteSettings(lang)
 
   const fallbackPrimaryNavigation = PILONI.map((p) => ({
