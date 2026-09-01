@@ -6,6 +6,7 @@ import * as migration_20260819_102350_articole_autori_relations from './20260819
 import * as migration_20260823_181759_articles_editorial_status_workflow from './20260823_181759_articles_editorial_status_workflow';
 import * as migration_20260825_060427_article_scheduling from './20260825_060427_article_scheduling';
 import * as migration_20260829_122921_audit007_newsletter_confirmation_cooldown from './20260829_122921_audit007_newsletter_confirmation_cooldown';
+import * as migration_20260901_100156_reg001b1_author_profile_type from './20260901_100156_reg001b1_author_profile_type';
 
 export const migrations = [
   {
@@ -46,6 +47,11 @@ export const migrations = [
   {
     up: migration_20260829_122921_audit007_newsletter_confirmation_cooldown.up,
     down: migration_20260829_122921_audit007_newsletter_confirmation_cooldown.down,
-    name: '20260829_122921_audit007_newsletter_confirmation_cooldown'
+    name: '20260829_122921_audit007_newsletter_confirmation_cooldown',
+  },
+  {
+    up: migration_20260901_100156_reg001b1_author_profile_type.up,
+    down: migration_20260901_100156_reg001b1_author_profile_type.down,
+    name: '20260901_100156_reg001b1_author_profile_type'
   },
 ];

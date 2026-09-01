@@ -21,6 +21,7 @@ type AuthorPayload =
 
 export const PUBLIC_AUTHOR_SELECT = {
   id: true,
+  profileType: true,
   fullName: true,
   slug: true,
 

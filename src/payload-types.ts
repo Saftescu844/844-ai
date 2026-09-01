@@ -411,6 +411,7 @@ export interface Surse {
  */
 export interface Autori {
   id: number;
+  profileType: 'person' | 'editorialSystem';
   fullName: string;
   /**
    * Identificator stabil pentru ruta publică. După creare nu se regenerează automat din nume.
@@ -1233,6 +1234,7 @@ export interface ArticoleSelect<T extends boolean = true> {
  * via the `definition` "autori_select".
  */
 export interface AutoriSelect<T extends boolean = true> {
+  profileType?: T;
   fullName?: T;
   slug?: T;
   publicTitle?: T;
