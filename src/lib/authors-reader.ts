@@ -3,6 +3,7 @@ import type { SelectType } from 'payload'
 import type { Autori } from '@/payload-types'
 import {
   type AuthorLanguage,
+  type PublicAuthorImage,
   type PublicAuthorProfile,
   type PublicAuthorSource,
   mergeAuthorLocaleFallback,
@@ -14,7 +15,11 @@ const AUTHOR_SLUG_PATTERN =
   /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 type SelectedAuthorSource =
-  PublicAuthorSource & Pick<Autori, 'id'>
+  PublicAuthorSource &
+  Pick<
+    Autori,
+    'id' | 'profileImage' | 'socialImage'
+  >
 
 type AuthorPayload =
   Awaited<ReturnType<typeof payloadClient>>
@@ -27,6 +32,7 @@ export const PUBLIC_AUTHOR_SELECT = {
 
   publicTitle: true,
   primaryAffiliation: true,
+  profileImage: true,
   shortBio: true,
   biography: true,
   platformRoleDescription: true,
@@ -114,8 +120,157 @@ export const PUBLIC_AUTHOR_SELECT = {
 
   metaTitle: true,
   metaDescription: true,
+  socialImage: true,
   robots: true,
 } satisfies SelectType
+
+function getMediaID(
+  value:
+    | Autori['profileImage']
+    | Autori['socialImage'],
+): number | undefined {
+  if (typeof value === 'number') {
+    return value
+  }
+
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof value.id === 'number'
+  ) {
+    return value.id
+  }
+
+  return undefined
+}
+
+function cleanPublicText(
+  value: unknown,
+): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const cleaned = value.trim()
+
+  return cleaned.length > 0
+    ? cleaned
+    : undefined
+}
+
+function cleanPublicImageURL(
+  value: unknown,
+): string | undefined {
+  const cleaned = cleanPublicText(value)
+
+  if (!cleaned) return undefined
+
+  try {
+    const parsed = new URL(cleaned)
+
+    return parsed.protocol === 'https:'
+      ? cleaned
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+async function readPublicAuthorImage(
+  payload: AuthorPayload,
+  value:
+    | Autori['profileImage']
+    | Autori['socialImage'],
+  language: AuthorLanguage,
+): Promise<PublicAuthorImage | undefined> {
+  const id = getMediaID(value)
+
+  if (id === undefined) {
+    return undefined
+  }
+
+  const media = await payload.findByID({
+    collection: 'media',
+    id,
+    locale: language,
+    fallbackLocale: false,
+    overrideAccess: true,
+    depth: 0,
+    disableErrors: true,
+    select: {
+      url: true,
+      alt: true,
+      credit: true,
+      sursaImagine: true,
+      dreptUtilizareConfirmat: true,
+    },
+  })
+
+  if (
+    !media?.sursaImagine ||
+    media.dreptUtilizareConfirmat !== true
+  ) {
+    return undefined
+  }
+
+  const credit = cleanPublicText(media.credit)
+
+  if (
+    media.sursaImagine === 'alta' &&
+    !credit
+  ) {
+    return undefined
+  }
+
+  const url = cleanPublicImageURL(media.url)
+
+  if (!url) {
+    return undefined
+  }
+
+  const alt = cleanPublicText(media.alt)
+
+  return {
+    url,
+    ...(alt ? { alt } : {}),
+    ...(credit ? { credit } : {}),
+  }
+}
+
+async function attachPublicAuthorImages(
+  payload: AuthorPayload,
+  source: SelectedAuthorSource,
+  profile: PublicAuthorProfile | null,
+  language: AuthorLanguage,
+): Promise<PublicAuthorProfile | null> {
+  if (!profile) {
+    return null
+  }
+
+  const [profileImage, socialImage] =
+    await Promise.all([
+      readPublicAuthorImage(
+        payload,
+        source.profileImage,
+        language,
+      ),
+      readPublicAuthorImage(
+        payload,
+        source.socialImage,
+        language,
+      ),
+    ])
+
+  return {
+    ...profile,
+    ...(profileImage
+      ? { profileImage }
+      : {}),
+    ...(socialImage
+      ? { socialImage }
+      : {}),
+  }
+}
 
 function normalizeSlug(
   value: string,
@@ -201,11 +356,19 @@ export async function getPublicAuthorInLocale(
 
   if (!author) return null
 
-  return normalizePublicAuthorProfile(
+  const profile =
+    normalizePublicAuthorProfile(
+      author,
+      {
+        language,
+      },
+    )
+
+  return attachPublicAuthorImages(
+    payload,
     author,
-    {
-      language,
-    },
+    profile,
+    language,
   )
 }
 
@@ -228,11 +391,19 @@ export async function getPublicAuthor(
   if (!primary) return null
 
   if (language === 'ro') {
-    return normalizePublicAuthorProfile(
+    const profile =
+      normalizePublicAuthorProfile(
+        primary,
+        {
+          language: 'ro',
+        },
+      )
+
+    return attachPublicAuthorImages(
+      payload,
       primary,
-      {
-        language: 'ro',
-      },
+      profile,
+      'ro',
     )
   }
 
@@ -243,11 +414,19 @@ export async function getPublicAuthor(
   )
 
   if (!fallback) {
-    return normalizePublicAuthorProfile(
+    const profile =
+      normalizePublicAuthorProfile(
+        primary,
+        {
+          language: 'en',
+        },
+      )
+
+    return attachPublicAuthorImages(
+      payload,
       primary,
-      {
-        language: 'en',
-      },
+      profile,
+      'en',
     )
   }
 
@@ -270,13 +449,21 @@ export async function getPublicAuthor(
       fallback,
     )
 
-  return normalizePublicAuthorProfile(
-    merged.source,
-    {
-      language: 'en',
-      fallbackFrom: 'ro',
-      fallbackFields:
-        merged.fallbackFields,
-    },
+  const profile =
+    normalizePublicAuthorProfile(
+      merged.source,
+      {
+        language: 'en',
+        fallbackFrom: 'ro',
+        fallbackFields:
+          merged.fallbackFields,
+      },
+    )
+
+  return attachPublicAuthorImages(
+    payload,
+    primary,
+    profile,
+    'en',
   )
 }

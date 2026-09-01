@@ -468,7 +468,29 @@ export const Media: CollectionConfig = {
         { label: 'Pixabay', value: 'pixabay' },
         { label: 'Unsplash', value: 'unsplash' },
         { label: 'Proprie', value: 'proprie' },
+        { label: 'Altă sursă', value: 'alta' },
       ],
+    },
+    {
+      name: 'dreptUtilizareConfirmat',
+      type: 'checkbox',
+      defaultValue: false,
+      access: {
+        read: ({ req: { user } }) =>
+          user?.rol === 'admin',
+      },
+      admin: {
+        description:
+          'Bifează doar dacă dreptul 844-ai.ro de a publica imaginea a fost verificat.',
+      },
+    },
+    {
+      name: 'credit',
+      type: 'text',
+      admin: {
+        description:
+          'Opțional. Credit / atribuire pentru imagine, când sursa sau licența o cere.',
+      },
     },
   ],
 }

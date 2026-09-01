@@ -143,25 +143,65 @@ export default function AuthorProfile({
           marginBottom: 28,
         }}
       >
-        <div
-          aria-hidden="true"
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: '50%',
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#f1f1ef',
-            color: '#444',
-            fontSize: 20,
-            fontWeight: 700,
-            letterSpacing: '0.03em',
-          }}
-        >
-          {getAuthorInitials(author.fullName)}
-        </div>
+        {author.profileImage ? (
+          <figure
+            style={{
+              margin: 0,
+              width: 92,
+              flexShrink: 0,
+            }}
+          >
+            <img
+              src={author.profileImage.url}
+              alt={
+                author.profileImage.alt ??
+                author.fullName
+              }
+              width={72}
+              height={72}
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: '50%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+
+            {author.profileImage.credit && (
+              <figcaption
+                style={{
+                  marginTop: 4,
+                  fontSize: 10,
+                  lineHeight: 1.25,
+                  color: '#888',
+                }}
+              >
+                {author.profileImage.credit}
+              </figcaption>
+            )}
+          </figure>
+        ) : (
+          <div
+            aria-hidden="true"
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: '50%',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#f1f1ef',
+              color: '#444',
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: '0.03em',
+            }}
+          >
+            {getAuthorInitials(author.fullName)}
+          </div>
+        )}
 
         <div>
           <h1

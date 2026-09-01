@@ -90,6 +90,31 @@ describe('AuthorProfile', () => {
     )
   })
 
+  it('renders the approved profile image and credit', () => {
+    const html = renderToStaticMarkup(
+      <AuthorProfile
+        author={fixture({
+          profileImage: {
+            url: 'https://media.example.com/ana.jpg',
+            alt: 'Fotografie Ana Popescu',
+            credit: 'Foto: Instituția X',
+          },
+        })}
+        language="ro"
+      />,
+    )
+
+    expect(html).toContain(
+      'https://media.example.com/ana.jpg',
+    )
+    expect(html).toContain(
+      'Fotografie Ana Popescu',
+    )
+    expect(html).toContain(
+      'Foto: Instituția X',
+    )
+  })
+
   it('uses the short biography when extended biography is absent', () => {
     const html = renderToStaticMarkup(
       <AuthorProfile

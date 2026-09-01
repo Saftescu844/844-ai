@@ -209,8 +209,6 @@ describe('public author reader', () => {
       'archivalReason',
       'createdAt',
       'updatedAt',
-      'profileImage',
-      'socialImage',
     ]
 
     for (const field of forbiddenTopLevel) {
@@ -230,6 +228,87 @@ describe('public author reader', () => {
     expect(
       select.professionalIdentifiers,
     ).not.toHaveProperty('verificationUrl')
+  })
+
+  it('exposes only safe approved profile-image fields', async () => {
+    mockDocs([
+      selectedAuthor({
+        profileImage: 10,
+      }),
+    ])
+
+    findByIDMock.mockResolvedValue({
+      id: 10,
+      url: 'https://media.example.com/ana.jpg',
+      alt: 'Dr. Ana Popescu',
+      credit: 'Foto: Instituția X',
+      sursaImagine: 'alta',
+      dreptUtilizareConfirmat: true,
+      hashMD5: 'internal-secret-hash',
+    })
+
+    const result =
+      await getPublicAuthorInLocale(
+        'ana-popescu',
+        'ro',
+      )
+
+    expect(result?.profileImage).toEqual({
+      url: 'https://media.example.com/ana.jpg',
+      alt: 'Dr. Ana Popescu',
+      credit: 'Foto: Instituția X',
+    })
+
+    expect(result?.profileImage).not.toHaveProperty(
+      'hashMD5',
+    )
+    expect(result?.profileImage).not.toHaveProperty(
+      'dreptUtilizareConfirmat',
+    )
+
+    expect(findByIDMock).toHaveBeenCalledWith({
+      collection: 'media',
+      id: 10,
+      locale: 'ro',
+      fallbackLocale: false,
+      overrideAccess: true,
+      depth: 0,
+      disableErrors: true,
+      select: {
+        url: true,
+        alt: true,
+        credit: true,
+        sursaImagine: true,
+        dreptUtilizareConfirmat: true,
+      },
+    })
+  })
+
+  it('suppresses profile images when Media rights are no longer confirmed', async () => {
+    mockDocs([
+      selectedAuthor({
+        profileImage: 10,
+      }),
+    ])
+
+    findByIDMock.mockResolvedValue({
+      id: 10,
+      url: 'https://media.example.com/ana.jpg',
+      alt: 'Dr. Ana Popescu',
+      sursaImagine: 'proprie',
+      dreptUtilizareConfirmat: false,
+    })
+
+    const result =
+      await getPublicAuthorInLocale(
+        'ana-popescu',
+        'ro',
+      )
+
+    expect(result).not.toBeNull()
+    expect(result).not.toHaveProperty(
+      'profileImage',
+    )
   })
 
   it('does not use English as a fallback for Romanian profiles', async () => {
