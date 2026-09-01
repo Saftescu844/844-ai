@@ -372,6 +372,103 @@ export async function getPublicAuthorInLocale(
   )
 }
 
+export async function getPublicAuthorByID(
+  id: Autori['id'],
+  language: AuthorLanguage,
+): Promise<PublicAuthorProfile | null> {
+  if (
+    typeof id !== 'number' ||
+    !Number.isInteger(id) ||
+    id <= 0
+  ) {
+    return null
+  }
+
+  const payload = await payloadClient()
+
+  const primary = await findAuthorByID(
+    payload,
+    id,
+    language,
+  )
+
+  if (!primary) return null
+
+  if (language === 'ro') {
+    const profile =
+      normalizePublicAuthorProfile(
+        primary,
+        {
+          language: 'ro',
+        },
+      )
+
+    return attachPublicAuthorImages(
+      payload,
+      primary,
+      profile,
+      'ro',
+    )
+  }
+
+  const fallback = await findAuthorByID(
+    payload,
+    id,
+    'ro',
+  )
+
+  if (!fallback) {
+    const profile =
+      normalizePublicAuthorProfile(
+        primary,
+        {
+          language: 'en',
+        },
+      )
+
+    return attachPublicAuthorImages(
+      payload,
+      primary,
+      profile,
+      'en',
+    )
+  }
+
+  const validFallback =
+    normalizePublicAuthorProfile(
+      fallback,
+      {
+        language: 'ro',
+      },
+    )
+
+  if (!validFallback) return null
+
+  const merged =
+    mergeAuthorLocaleFallback(
+      primary,
+      fallback,
+    )
+
+  const profile =
+    normalizePublicAuthorProfile(
+      merged.source,
+      {
+        language: 'en',
+        fallbackFrom: 'ro',
+        fallbackFields:
+          merged.fallbackFields,
+      },
+    )
+
+  return attachPublicAuthorImages(
+    payload,
+    primary,
+    profile,
+    'en',
+  )
+}
+
 export async function getPublicAuthor(
   slugValue: string,
   language: AuthorLanguage,
