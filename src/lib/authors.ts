@@ -4,6 +4,7 @@ export type AuthorLanguage = 'ro' | 'en'
 
 export type PublicAuthorSource = Pick<
   Autori,
+  | 'profileType'
   | 'fullName'
   | 'slug'
   | 'publicTitle'
@@ -493,9 +494,17 @@ export function normalizePublicAuthorProfile(
   author: PublicAuthorSource,
   options: NormalizePublicAuthorOptions,
 ): PublicAuthorProfile | null {
+  const profileType =
+    author.profileType === 'editorialSystem'
+      ? 'editorialSystem'
+      : 'person'
+
   if (
     author.status !== 'published' ||
-    author.publicationConsent !== true ||
+    (
+      profileType === 'person' &&
+      author.publicationConsent !== true
+    ) ||
     Boolean(author.consentWithdrawnAt)
   ) {
     return null
@@ -548,8 +557,11 @@ export function normalizePublicAuthorProfile(
     parsedNextVerificationDue < Date.now()
 
   const medicalReviewerRequested =
-    author.isMedicalReviewer === true ||
-    rawEditorialRoles.includes('medicalReviewer')
+    profileType === 'person' &&
+    (
+      author.isMedicalReviewer === true ||
+      rawEditorialRoles.includes('medicalReviewer')
+    )
 
   const medicalReviewScopeCandidate =
     cleanText(author.medicalReviewScope)

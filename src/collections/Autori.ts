@@ -243,6 +243,11 @@ const getPublicationReadinessErrors = (
 ) => {
   const errors: string[] = []
 
+  const profileType =
+    document.profileType === 'editorialSystem'
+      ? 'editorialSystem'
+      : 'person'
+
   const editorialRoles = Array.isArray(document.editorialRoles)
     ? document.editorialRoles.filter(
         (role): role is string =>
@@ -256,13 +261,19 @@ const getPublicationReadinessErrors = (
     )
   }
 
-  if (document.verificationStatus !== 'verified') {
+  if (
+    profileType === 'person' &&
+    document.verificationStatus !== 'verified'
+  ) {
     errors.push(
       'Starea verificării profesionale trebuie să fie Verificat.',
     )
   }
 
-  if (document.publicationConsent !== true) {
+  if (
+    profileType === 'person' &&
+    document.publicationConsent !== true
+  ) {
     errors.push(
       'Consimțământul pentru publicarea profilului trebuie confirmat.',
     )
@@ -313,7 +324,16 @@ const getPublicationReadinessErrors = (
     document.isMedicalReviewer === true ||
     editorialRoles.includes('medicalReviewer')
 
-  if (isMedicalReviewer) {
+  if (
+    profileType === 'editorialSystem' &&
+    isMedicalReviewer
+  ) {
+    errors.push(
+      'O identitate editorială de sistem nu poate avea rol de verificator medical.',
+    )
+  }
+
+  if (profileType === 'person' && isMedicalReviewer) {
     const credentials = Array.isArray(document.credentials)
       ? document.credentials
       : []
@@ -682,10 +702,21 @@ export const Autori: CollectionConfig = {
         {
           label: 'Identitate și profil public',
           fields: [
+              {
+                name: 'profileType',
+                type: 'select',
+                label: 'Tip profil',
+                required: true,
+                defaultValue: 'person',
+                options: [
+                  { label: 'Persoană', value: 'person' },
+                  { label: 'Identitate editorială / sistem', value: 'editorialSystem' },
+                ],
+              },
             {
               name: 'fullName',
               type: 'text',
-              label: 'Nume complet',
+              label: 'Nume / denumire publică',
               required: true,
               index: true,
               maxLength: 150,

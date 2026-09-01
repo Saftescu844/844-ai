@@ -14,6 +14,7 @@ function fixture(
 ): Autori {
   return {
     id: 1,
+    profileType: 'person',
     fullName: 'Dr. Ana Popescu',
     slug: 'ana-popescu',
     editorialRoles: ['author'],
@@ -76,6 +77,50 @@ describe('public author normalizer', () => {
         publicationConsent: false,
       }),
     ).toBeNull()
+  })
+
+  it('allows an editorial system profile without personal publication consent', () => {
+    const result = normalize({
+      profileType: 'editorialSystem',
+      publicationConsent: false,
+    })
+
+    expect(result).not.toBeNull()
+    expect(result?.editorialRoles).toEqual([
+      'author',
+    ])
+  })
+
+  it('never exposes medical-review claims for an editorial system profile', () => {
+    const currentYear = new Date().getUTCFullYear()
+
+    const result = normalize({
+      profileType: 'editorialSystem',
+      publicationConsent: false,
+      editorialRoles: [
+        'author',
+        'medicalReviewer',
+      ],
+      isMedicalReviewer: true,
+      medicalReviewScope: 'Cardiologie',
+      credentials: [
+        {
+          credentialType: 'medicalLicense',
+          title: 'Medic specialist',
+          publiclyVisible: true,
+          verified: true,
+          yearExpires: currentYear + 1,
+        },
+      ],
+    })
+
+    expect(result).not.toBeNull()
+    expect(result?.editorialRoles).toEqual([
+      'author',
+    ])
+    expect(result).not.toHaveProperty(
+      'medicalReviewScope',
+    )
   })
 
   it('rejects a profile after consent withdrawal', () => {
@@ -607,6 +652,7 @@ describe('public author normalizer', () => {
 
     const forbidden = [
       'id',
+      'profileType',
       'verificationStatus',
       'verifiedAt',
       'verifiedBy',
