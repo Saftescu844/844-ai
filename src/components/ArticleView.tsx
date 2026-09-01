@@ -1,6 +1,7 @@
 import { RichText } from '@payloadcms/richtext-lexical/react'
 
 import ArticleAttribution from '@/components/ArticleAttribution'
+import ArticleDates from '@/components/ArticleDates'
 import NewsletterForm from '@/components/NewsletterForm'
 import type { PublicArticleAttribution } from '@/lib/article-attribution'
 import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
@@ -33,14 +34,6 @@ export default function ArticleView({
   attribution,
   newsletterSettings,
 }: ArticleViewProps) {
-  const data = articol.publishedAt
-    ? new Intl.DateTimeFormat(lang === 'ro' ? 'ro-RO' : 'en-GB', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }).format(new Date(articol.publishedAt))
-    : ''
-
   const eticheta =
     articol.tip === 'analiza'
       ? lang === 'ro'
@@ -150,17 +143,13 @@ export default function ArticleView({
         lang={lang}
       />
 
-      {data && (
-        <p
-          style={{
-            color: '#888',
-            fontSize: 14,
-            marginBottom: 28,
-          }}
-        >
-          {data}
-        </p>
-      )}
+      <ArticleDates
+        publishedAt={articol.publishedAt}
+        significantUpdatedAt={
+          articol.significantUpdatedAt
+        }
+        lang={lang}
+      />
 
       {esteSanatate && (
         <div

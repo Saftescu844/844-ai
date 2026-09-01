@@ -452,6 +452,16 @@ export const Articole: CollectionConfig = {
       type: 'date',
       admin: { position: 'sidebar' },
     },
+    {
+      name: 'significantUpdatedAt',
+      label: 'Actualizare editorială semnificativă',
+      type: 'date',
+      admin: {
+        position: 'sidebar',
+        description:
+          'Completează doar când articolul a primit o actualizare editorială semnificativă pentru cititor.',
+      },
+    },
     // === Metadate tehnice de la Auto-Publisher ===
     {
       type: 'collapsible',
