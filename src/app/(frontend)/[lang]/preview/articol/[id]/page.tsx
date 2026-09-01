@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 
 import ArticleView from '@/components/ArticleView'
+import { resolvePublicArticleAttribution } from '@/lib/article-attribution'
 import {
   getCachedSiteSettings,
   payloadClient,
@@ -59,7 +60,14 @@ export default async function ArticlePreviewPage(props: {
     notFound()
   }
 
-  const siteSettings = await getCachedSiteSettings(lang)
+  const [siteSettings, attribution] =
+    await Promise.all([
+      getCachedSiteSettings(lang),
+      resolvePublicArticleAttribution(
+        articol,
+        lang,
+      ),
+    ])
 
   return (
     <>
@@ -83,6 +91,7 @@ export default async function ArticlePreviewPage(props: {
       <ArticleView
         articol={articol}
         lang={lang}
+        attribution={attribution}
         newsletterSettings={siteSettings?.newsletter}
       />
     </>

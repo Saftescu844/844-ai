@@ -16,6 +16,7 @@ vi.mock('@/lib/payload', () => ({
 import {
   PUBLIC_AUTHOR_SELECT,
   getPublicAuthor,
+  getPublicAuthorByID,
   getPublicAuthorInLocale,
 } from '../../src/lib/authors-reader'
 
@@ -308,6 +309,63 @@ describe('public author reader', () => {
     expect(result).not.toBeNull()
     expect(result).not.toHaveProperty(
       'profileImage',
+    )
+  })
+
+  it('rejects an invalid author ID before initializing Payload', async () => {
+    const result =
+      await getPublicAuthorByID(
+        0,
+        'ro',
+      )
+
+    expect(result).toBeNull()
+    expect(payloadClient).not.toHaveBeenCalled()
+    expect(findByIDMock).not.toHaveBeenCalled()
+  })
+
+  it('resolves an author ID through the same safe public contract', async () => {
+    findByIDMock.mockResolvedValue(
+      selectedAuthor({
+        fullName: ' Redacția 844 AI ',
+        slug: 'redactia-844-ai',
+        profileType: 'editorialSystem',
+        shortBio: ' Identitate editorială ',
+      }),
+    )
+
+    const result =
+      await getPublicAuthorByID(
+        99,
+        'ro',
+      )
+
+    expect(findByIDMock).toHaveBeenCalledWith({
+      collection: 'autori',
+      id: 99,
+      locale: 'ro',
+      fallbackLocale: false,
+      overrideAccess: true,
+      depth: 0,
+      disableErrors: true,
+      select: PUBLIC_AUTHOR_SELECT,
+    })
+
+    expect(result).toEqual({
+      fullName: 'Redacția 844 AI',
+      slug: 'redactia-844-ai',
+      shortBio: 'Identitate editorială',
+      editorialRoles: ['author'],
+      robots: 'indexFollow',
+      localization: {
+        language: 'ro',
+        fallbackFields: [],
+      },
+    })
+
+    expect(result).not.toHaveProperty('id')
+    expect(result).not.toHaveProperty(
+      'publicationConsent',
     )
   })
 

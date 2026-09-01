@@ -1,12 +1,15 @@
 import { RichText } from '@payloadcms/richtext-lexical/react'
 
+import ArticleAttribution from '@/components/ArticleAttribution'
 import NewsletterForm from '@/components/NewsletterForm'
+import type { PublicArticleAttribution } from '@/lib/article-attribution'
 import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
 import type { Articole, SiteSetting } from '@/payload-types'
 
 type ArticleViewProps = {
   articol: Articole
   lang: string
+  attribution: PublicArticleAttribution
   newsletterSettings?: SiteSetting['newsletter']
 }
 
@@ -27,6 +30,7 @@ function videoEmbed(url: string): string | null {
 export default function ArticleView({
   articol,
   lang,
+  attribution,
   newsletterSettings,
 }: ArticleViewProps) {
   const data = articol.publishedAt
@@ -140,6 +144,11 @@ export default function ArticleView({
       >
         {articol.titlu}
       </h1>
+
+      <ArticleAttribution
+        attribution={attribution}
+        lang={lang}
+      />
 
       {data && (
         <p

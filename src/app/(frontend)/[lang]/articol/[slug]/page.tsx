@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import ArticleView from '@/components/ArticleView'
+import { resolvePublicArticleAttribution } from '@/lib/article-attribution'
 import { getArticol, getCachedSiteSettings } from '@/lib/payload'
 
 export async function generateMetadata(props: {
@@ -70,10 +71,20 @@ export default async function PaginaArticol(props: {
     notFound()
   }
 
+  const language =
+    lang === 'en' ? 'en' : 'ro'
+
+  const attribution =
+    await resolvePublicArticleAttribution(
+      articol,
+      language,
+    )
+
   return (
     <ArticleView
       articol={articol}
       lang={lang}
+      attribution={attribution}
       newsletterSettings={siteSettings?.newsletter}
     />
   )
