@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import ArticleView from '@/components/ArticleView'
+import { getPublicArticleDates } from '@/lib/article-dates'
 import { resolvePublicArticleAttribution } from '@/lib/article-attribution'
 import { getArticol, getCachedSiteSettings } from '@/lib/payload'
 
@@ -16,6 +17,8 @@ export async function generateMetadata(props: {
   const title = articol.metaTitle || articol.titlu
   const description = articol.metaDescription || articol.excerpt || ''
   const url = `/${lang}/articol/${slug}`
+  const publicDates =
+    getPublicArticleDates(articol)
 
   const img = articol.imaginePrincipala
   const imgUrl =
@@ -50,8 +53,17 @@ export async function generateMetadata(props: {
       url,
       locale: lang === 'ro' ? 'ro_RO' : 'en_US',
       ...(imgUrl ? { images: [{ url: imgUrl }] } : {}),
-      ...(articol.publishedAt
-        ? { publishedTime: articol.publishedAt }
+      ...(publicDates.publishedAt
+        ? {
+            publishedTime:
+              publicDates.publishedAt,
+          }
+        : {}),
+      ...(publicDates.significantUpdatedAt
+        ? {
+            modifiedTime:
+              publicDates.significantUpdatedAt,
+          }
         : {}),
     },
   }

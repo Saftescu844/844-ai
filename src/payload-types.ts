@@ -286,6 +286,10 @@ export interface Articole {
   esteBreaking?: boolean | null;
   publishedAt?: string | null;
   /**
+   * Completează doar când articolul a primit o actualizare editorială semnificativă pentru cititor.
+   */
+  significantUpdatedAt?: string | null;
+  /**
    * Hash de deduplicare tematică.
    */
   clusterHash?: string | null;
@@ -1226,6 +1230,7 @@ export interface ArticoleSelect<T extends boolean = true> {
   editorialStatus?: T;
   esteBreaking?: T;
   publishedAt?: T;
+  significantUpdatedAt?: T;
   clusterHash?: T;
   unghi?: T;
   generatAutomat?: T;
