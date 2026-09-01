@@ -107,6 +107,12 @@ export type PublicAuthorLocalization = {
   fallbackFields: string[]
 }
 
+export type PublicAuthorImage = {
+  url: string
+  alt?: string
+  credit?: string
+}
+
 export type PublicAuthorProfile = {
   fullName: string
   slug: string
@@ -117,6 +123,7 @@ export type PublicAuthorProfile = {
   biography?: NonNullable<Autori['biography']>
   platformRoleDescription?: string
   publicLocation?: string
+  profileImage?: PublicAuthorImage
 
   editorialRoles: PublicAuthorEditorialRole[]
   expertiseAreas?: PublicAuthorExpertiseArea[]
@@ -142,6 +149,7 @@ export type PublicAuthorProfile = {
 
   metaTitle?: string
   metaDescription?: string
+  socialImage?: PublicAuthorImage
   robots: Autori['robots']
 
   localization: PublicAuthorLocalization

@@ -300,26 +300,6 @@ const getPublicationReadinessErrors = (
     )
   }
 
-  /*
-   * Media nu conține încă metadatele complete aprobate
-   * pentru licență / drept de utilizare.
-   *
-   * Până la implementarea separată a acelor metadate,
-   * profilurile pot fi publicate fără imagini proprii,
-   * dar nu cu profileImage sau socialImage configurat.
-   */
-  if (hasValue(document.profileImage)) {
-    errors.push(
-      'Fotografia nu poate fi publicată încă: schema Media nu documentează complet dreptul de utilizare.',
-    )
-  }
-
-  if (hasValue(document.socialImage)) {
-    errors.push(
-      'Imaginea socială nu poate fi publicată încă: schema Media nu documentează complet dreptul de utilizare.',
-    )
-  }
-
   const isMedicalReviewer =
     document.isMedicalReviewer === true ||
     editorialRoles.includes('medicalReviewer')
@@ -384,6 +364,129 @@ const getPublicationReadinessErrors = (
   return errors
 }
 
+
+const getRelationshipID = (
+  value: unknown,
+): string | number | undefined => {
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number'
+  ) {
+    return value
+  }
+
+  const record = asRecord(value)
+
+  return (
+    typeof record.id === 'string' ||
+    typeof record.id === 'number'
+  )
+    ? record.id
+    : undefined
+}
+
+const validateAuthorMediaForPublication:
+  CollectionBeforeChangeHook<AutoriDocument> = async ({
+    data,
+    originalDoc,
+    req,
+  }) => {
+    const document = {
+      ...asRecord(originalDoc),
+      ...asRecord(data),
+    }
+
+    if (document.status !== 'published') {
+      return data
+    }
+
+    const profileType =
+      document.profileType === 'editorialSystem'
+        ? 'editorialSystem'
+        : 'person'
+
+    if (
+      profileType === 'person' &&
+      hasValue(document.profileImage) &&
+      document.profileImageConsent !== true
+    ) {
+      throw new APIError(
+        'Profilul de autor nu poate fi publicat. Consimțământul pentru fotografia de profil trebuie confirmat.',
+        400,
+      )
+    }
+
+    const validateMedia = async (
+      value: unknown,
+      label: string,
+    ) => {
+      if (!hasValue(value)) {
+        return
+      }
+
+      const id = getRelationshipID(value)
+
+      if (id === undefined) {
+        throw new APIError(
+          `Profilul de autor nu poate fi publicat. ${label} nu poate fi verificată în Media.`,
+          400,
+        )
+      }
+
+      const media = await req.payload.findByID({
+        collection: 'media',
+        id,
+        depth: 0,
+        overrideAccess: true,
+        disableErrors: true,
+        req,
+        select: {
+          sursaImagine: true,
+          dreptUtilizareConfirmat: true,
+          credit: true,
+        },
+      })
+
+      if (!media?.sursaImagine) {
+        throw new APIError(
+          `Profilul de autor nu poate fi publicat. ${label}: sursa imaginii trebuie completată în Media.`,
+          400,
+        )
+      }
+
+      if (media.dreptUtilizareConfirmat !== true) {
+        throw new APIError(
+          `Profilul de autor nu poate fi publicat. ${label}: dreptul de utilizare trebuie confirmat în Media.`,
+          400,
+        )
+      }
+
+      if (
+        media.sursaImagine === 'alta' &&
+        (
+          typeof media.credit !== 'string' ||
+          media.credit.trim().length === 0
+        )
+      ) {
+        throw new APIError(
+          `Profilul de autor nu poate fi publicat. ${label}: pentru Altă sursă trebuie completat creditul / sursa în Media.`,
+          400,
+        )
+      }
+    }
+
+    await validateMedia(
+      document.profileImage,
+      'Fotografia de profil',
+    )
+
+    await validateMedia(
+      document.socialImage,
+      'Imaginea socială',
+    )
+
+    return data
+  }
 
 const validateRomanianShortBioForPublication:
   CollectionBeforeChangeHook<AutoriDocument> = async ({
@@ -690,6 +793,7 @@ export const Autori: CollectionConfig = {
 
         return data
       },
+      validateAuthorMediaForPublication,
       validateRomanianShortBioForPublication,
       validateMedicalReviewScopeForPublication,
     ],

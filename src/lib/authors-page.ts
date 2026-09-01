@@ -71,6 +71,10 @@ export function buildPublicAuthorMetadata(
   const alternateHrefs =
     getAuthorAlternateHrefs(author.slug)
 
+  const socialImage =
+    author.socialImage ??
+    author.profileImage
+
   return {
     title,
 
@@ -100,6 +104,20 @@ export function buildPublicAuthorMetadata(
 
       type: 'profile',
       url: canonical,
+
+      ...(socialImage
+        ? {
+            images: [
+              {
+                url: socialImage.url,
+                alt:
+                  socialImage.alt ??
+                  author.fullName,
+              },
+            ],
+          }
+        : {}),
+
       locale:
         language === 'ro'
           ? 'ro_RO'

@@ -98,6 +98,51 @@ describe('public author page contract', () => {
     )
   })
 
+  it('uses socialImage for Open Graph and falls back to profileImage', () => {
+    const explicit =
+      buildPublicAuthorMetadata(
+        fixture({
+          profileImage: {
+            url: 'https://media.example.com/profile.jpg',
+          },
+          socialImage: {
+            url: 'https://media.example.com/social.jpg',
+            alt: 'Imagine socială Ana Popescu',
+          },
+        }),
+        'ro',
+      )
+
+    expect(explicit.openGraph).toMatchObject({
+      images: [
+        {
+          url: 'https://media.example.com/social.jpg',
+          alt: 'Imagine socială Ana Popescu',
+        },
+      ],
+    })
+
+    const fallback =
+      buildPublicAuthorMetadata(
+        fixture({
+          profileImage: {
+            url: 'https://media.example.com/profile.jpg',
+          },
+          socialImage: undefined,
+        }),
+        'ro',
+      )
+
+    expect(fallback.openGraph).toMatchObject({
+      images: [
+        {
+          url: 'https://media.example.com/profile.jpg',
+          alt: 'Ana Popescu',
+        },
+      ],
+    })
+  })
+
   it('publishes canonical and hreflang for both approved routes', () => {
     const metadata =
       buildPublicAuthorMetadata(

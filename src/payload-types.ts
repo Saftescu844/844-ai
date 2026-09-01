@@ -336,7 +336,15 @@ export interface Media {
    * Hash pentru deduplicare (blacklist imagini repetate).
    */
   hashMD5?: string | null;
-  sursaImagine?: ('pexels' | 'pixabay' | 'unsplash' | 'proprie') | null;
+  sursaImagine?: ('pexels' | 'pixabay' | 'unsplash' | 'proprie' | 'alta') | null;
+  /**
+   * Bifează doar dacă dreptul 844-ai.ro de a publica imaginea a fost verificat.
+   */
+  dreptUtilizareConfirmat?: boolean | null;
+  /**
+   * Opțional. Credit / atribuire pentru imagine, când sursa sau licența o cere.
+   */
+  credit?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1537,6 +1545,8 @@ export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   hashMD5?: T;
   sursaImagine?: T;
+  dreptUtilizareConfirmat?: T;
+  credit?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

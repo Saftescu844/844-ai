@@ -96,6 +96,31 @@ describe('AuthorCard', () => {
     expect(html).toContain('AP')
   })
 
+  it('renders the approved profile image and credit', () => {
+    const html = renderToStaticMarkup(
+      <AuthorCard
+        author={fixture({
+          profileImage: {
+            url: 'https://media.example.com/ana.jpg',
+            alt: 'Fotografie Ana Popescu',
+            credit: 'Foto: Instituția X',
+          },
+        })}
+        language="ro"
+      />,
+    )
+
+    expect(html).toContain(
+      'https://media.example.com/ana.jpg',
+    )
+    expect(html).toContain(
+      'Fotografie Ana Popescu',
+    )
+    expect(html).toContain(
+      'Foto: Instituția X',
+    )
+  })
+
   it('renders English labels and route', () => {
     const html = renderToStaticMarkup(
       <AuthorCard
