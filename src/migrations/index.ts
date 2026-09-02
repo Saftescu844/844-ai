@@ -10,6 +10,7 @@ import * as migration_20260901_100156_reg001b1_author_profile_type from './20260
 import * as migration_20260901_111927_reg001b2_author_media from './20260901_111927_reg001b2_author_media';
 import * as migration_20260901_141009_reg001c4_significant_update_date from './20260901_141009_reg001c4_significant_update_date';
 import * as migration_20260902_105310 from './20260902_105310';
+import * as migration_20260902_120037 from './20260902_120037';
 
 export const migrations = [
   {
@@ -70,6 +71,11 @@ export const migrations = [
   {
     up: migration_20260902_105310.up,
     down: migration_20260902_105310.down,
-    name: '20260902_105310'
+    name: '20260902_105310',
+  },
+  {
+    up: migration_20260902_120037.up,
+    down: migration_20260902_120037.down,
+    name: '20260902_120037'
   },
 ];
