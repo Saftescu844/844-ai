@@ -33,17 +33,18 @@ Flash AI este separat de colecția `Articole`.
 Colecție Payload: `flash-ai`
 
 Câmpuri principale:
-- `title`
+- `titlu`
 - `slug`
-- `language`: `ro | en`
-- `alternateVersion`
+- `limba`: `ro | en`
+- `versiuneAlternativa`
 - `excerpt`
-- `content`
+- `continut`
 - `flashType`
 - `informationStatus`
 - `riskLevel`
-- `author`
-- `medicalReviewer`
+- `autorPrincipal`
+- `verificatorEditorial`
+- `verificatorMedical`
 - `relatedArticle`
 - `relatedFlash`
 - `publishedAt`
