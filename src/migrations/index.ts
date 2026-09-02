@@ -9,6 +9,7 @@ import * as migration_20260829_122921_audit007_newsletter_confirmation_cooldown 
 import * as migration_20260901_100156_reg001b1_author_profile_type from './20260901_100156_reg001b1_author_profile_type';
 import * as migration_20260901_111927_reg001b2_author_media from './20260901_111927_reg001b2_author_media';
 import * as migration_20260901_141009_reg001c4_significant_update_date from './20260901_141009_reg001c4_significant_update_date';
+import * as migration_20260902_105310 from './20260902_105310';
 
 export const migrations = [
   {
@@ -64,6 +65,11 @@ export const migrations = [
   {
     up: migration_20260901_141009_reg001c4_significant_update_date.up,
     down: migration_20260901_141009_reg001c4_significant_update_date.down,
-    name: '20260901_141009_reg001c4_significant_update_date'
+    name: '20260901_141009_reg001c4_significant_update_date',
+  },
+  {
+    up: migration_20260902_105310.up,
+    down: migration_20260902_105310.down,
+    name: '20260902_105310'
   },
 ];

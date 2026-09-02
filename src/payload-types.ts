@@ -68,6 +68,7 @@ export interface Config {
   blocks: {};
   collections: {
     articole: Articole;
+    'flash-ai': FlashAi;
     autori: Autori;
     surse: Surse;
     categorii: Categorii;
@@ -89,6 +90,7 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     articole: ArticoleSelect<false> | ArticoleSelect<true>;
+    'flash-ai': FlashAiSelect<false> | FlashAiSelect<true>;
     autori: AutoriSelect<false> | AutoriSelect<true>;
     surse: SurseSelect<false> | SurseSelect<true>;
     categorii: CategoriiSelect<false> | CategoriiSelect<true>;
@@ -707,6 +709,109 @@ export interface Useri {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "flash-ai".
+ */
+export interface FlashAi {
+  id: number;
+  titlu: string;
+  slug: string;
+  limba: 'ro' | 'en';
+  /**
+   * Flash-ul echivalent în cealaltă limbă.
+   */
+  versiuneAlternativa?: (number | null) | FlashAi;
+  pilon: number | Categorii;
+  flashType: 'announcement' | 'research' | 'regulation' | 'product' | 'business' | 'incident' | 'update' | 'other';
+  excerpt?: string | null;
+  /**
+   * Țintă editorială Flash: aproximativ 400–1000 de cuvinte.
+   */
+  continut: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  imaginePrincipala?: (number | null) | Media;
+  surseFlash?:
+    | {
+        sursa?: (number | null) | Surse;
+        url: string;
+        sourcePublishedAt?: string | null;
+        primary?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  informationStatus: 'official' | 'confirmed' | 'emerging' | 'preliminary' | 'disputed' | 'unverified';
+  riskLevel: 'low' | 'medium' | 'high';
+  isHealthRelated?: boolean | null;
+  medicalEvidenceType?:
+    | (
+        | 'notApplicable'
+        | 'preclinical'
+        | 'clinicalStudy'
+        | 'systematicReview'
+        | 'guidelineOrConsensus'
+        | 'regulatoryDecision'
+        | 'realWorldEvidence'
+        | 'productOrCompanyClaim'
+        | 'other'
+      )
+    | null;
+  clinicalValidationStatus?:
+    | (
+        | 'notApplicable'
+        | 'notValidated'
+        | 'underEvaluation'
+        | 'limitedEvidence'
+        | 'validatedForSpecificUse'
+        | 'authorizedOrApproved'
+        | 'unclear'
+      )
+    | null;
+  disclaimerTypes?:
+    | (
+        | 'medicalInformational'
+        | 'emergingEvidence'
+        | 'notClinicallyValidated'
+        | 'regulatoryStatusLimitedOrUnclear'
+        | 'specialistDecision'
+      )[]
+    | null;
+  specialistQuestions?:
+    | {
+        question: string;
+        id?: string | null;
+      }[]
+    | null;
+  autorPrincipal?: (number | null) | Autori;
+  verificatorEditorial?: (number | null) | Autori;
+  verificatorMedical?: (number | null) | Autori;
+  relatedArticle?: (number | null) | Articole;
+  relatedFlash?: (number | null) | FlashAi;
+  editorialStatus: 'draft' | 'review' | 'approved' | 'blocked';
+  automationDecision: 'autoPublish' | 'review' | 'blocked';
+  decisionReason?: string | null;
+  eventFingerprint?: string | null;
+  sourceFingerprint?: string | null;
+  generatAutomat?: boolean | null;
+  publishedAt?: string | null;
+  significantUpdatedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "comentarii".
  */
 export interface Comentarii {
@@ -1094,6 +1199,10 @@ export interface PayloadLockedDocument {
         value: number | Articole;
       } | null)
     | ({
+        relationTo: 'flash-ai';
+        value: number | FlashAi;
+      } | null)
+    | ({
         relationTo: 'autori';
         value: number | Autori;
       } | null)
@@ -1238,6 +1347,58 @@ export interface ArticoleSelect<T extends boolean = true> {
   numarConfirmari?: T;
   metaTitle?: T;
   metaDescription?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "flash-ai_select".
+ */
+export interface FlashAiSelect<T extends boolean = true> {
+  titlu?: T;
+  slug?: T;
+  limba?: T;
+  versiuneAlternativa?: T;
+  pilon?: T;
+  flashType?: T;
+  excerpt?: T;
+  continut?: T;
+  imaginePrincipala?: T;
+  surseFlash?:
+    | T
+    | {
+        sursa?: T;
+        url?: T;
+        sourcePublishedAt?: T;
+        primary?: T;
+        id?: T;
+      };
+  informationStatus?: T;
+  riskLevel?: T;
+  isHealthRelated?: T;
+  medicalEvidenceType?: T;
+  clinicalValidationStatus?: T;
+  disclaimerTypes?: T;
+  specialistQuestions?:
+    | T
+    | {
+        question?: T;
+        id?: T;
+      };
+  autorPrincipal?: T;
+  verificatorEditorial?: T;
+  verificatorMedical?: T;
+  relatedArticle?: T;
+  relatedFlash?: T;
+  editorialStatus?: T;
+  automationDecision?: T;
+  decisionReason?: T;
+  eventFingerprint?: T;
+  sourceFingerprint?: T;
+  generatAutomat?: T;
+  publishedAt?: T;
+  significantUpdatedAt?: T;
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
@@ -2129,10 +2290,15 @@ export interface TaskSchedulePublish {
   input: {
     type?: ('publish' | 'unpublish') | null;
     locale?: string | null;
-    doc?: {
-      relationTo: 'articole';
-      value: number | Articole;
-    } | null;
+    doc?:
+      | ({
+          relationTo: 'articole';
+          value: number | Articole;
+        } | null)
+      | ({
+          relationTo: 'flash-ai';
+          value: number | FlashAi;
+        } | null);
     global?: string | null;
     user?: (number | null) | Useri;
   };
