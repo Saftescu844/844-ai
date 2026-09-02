@@ -1,9 +1,10 @@
 import type { CollectionConfig } from 'payload'
 
 // ============================================================
-//  SURSE — cu nivel de încredere (Primar/Secundar/Speculativ)
-//  Reflectă sistemul de scoring din documentul oficial de surse.
-//  Auto-Publisher verifică nivelul înainte de a genera automat.
+//  SURSE — registrul editorial central pentru Flash Engine.
+//  Câmpurile legacy sunt păstrate temporar pentru compatibilitate,
+//  dar noul engine folosește exclusiv modelul sourceRole /
+//  editorialTrust / citationMode / allowIngestion / allowAutoPublish.
 // ============================================================
 
 export const Surse: CollectionConfig = {
@@ -11,7 +12,14 @@ export const Surse: CollectionConfig = {
   labels: { singular: 'Sursă', plural: 'Surse' },
   admin: {
     useAsTitle: 'nume',
-    defaultColumns: ['nume', 'nivelIncredere', 'pilon', 'permiteAutoGenerare'],
+    defaultColumns: [
+      'nume',
+      'sourceRole',
+      'editorialTrust',
+      'allowIngestion',
+      'allowAutoPublish',
+      'activa',
+    ],
     group: 'Conținut',
   },
   access: {
@@ -29,6 +37,72 @@ export const Surse: CollectionConfig = {
       admin: { description: 'URL-ul de bază al sursei.' },
     },
     {
+      name: 'sourceRole',
+      label: 'Rolul sursei',
+      type: 'select',
+      required: true,
+      defaultValue: 'secondary',
+      options: [
+        { label: 'Primară', value: 'primary' },
+        { label: 'Secundară', value: 'secondary' },
+      ],
+      index: true,
+      admin: {
+        description:
+          'Primary = instituția, organizația sau autorul care produce informația originală.',
+      },
+    },
+    {
+      name: 'editorialTrust',
+      label: 'Încredere editorială',
+      type: 'select',
+      required: true,
+      defaultValue: 'restricted',
+      options: [
+        { label: 'Ridicată', value: 'high' },
+        { label: 'Standard', value: 'standard' },
+        { label: 'Restricționată', value: 'restricted' },
+      ],
+      index: true,
+      admin: {
+        description:
+          'Nivel intern de încredere. O sursă nouă pornește conservator ca restricted.',
+      },
+    },
+    {
+      name: 'citationMode',
+      label: 'Mod de citare',
+      type: 'select',
+      required: true,
+      defaultValue: 'paraphrase',
+      options: [
+        { label: 'Parafrazare + link', value: 'paraphrase' },
+        { label: 'Citat scurt + link', value: 'shortQuote' },
+      ],
+    },
+    {
+      name: 'allowIngestion',
+      label: 'Permite ingestia Flash',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description:
+          'Permite Flash Engine să preia materiale din această sursă. Implicit dezactivat.',
+      },
+    },
+    {
+      name: 'allowAutoPublish',
+      label: 'Permite evaluarea pentru AUTO',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description:
+          'Nu garantează publicarea automată. Permite doar intrarea în evaluarea AUTO, dacă toate celelalte reguli sunt îndeplinite.',
+      },
+    },
+
+    // Câmpuri legacy — păstrate temporar pentru compatibilitate.
+    {
       name: 'nivelIncredere',
       type: 'select',
       required: true,
@@ -39,6 +113,7 @@ export const Surse: CollectionConfig = {
         { label: 'Speculativ (frontieră)', value: 'speculativ' },
       ],
       index: true,
+      admin: { hidden: true },
     },
     {
       name: 'tipCitarePermis',
@@ -50,15 +125,13 @@ export const Surse: CollectionConfig = {
         { label: 'Doar parafrazare + link', value: 'parafrazare' },
         { label: 'Etichetă frontieră obligatorie', value: 'frontiera' },
       ],
+      admin: { hidden: true },
     },
     {
       name: 'permiteAutoGenerare',
       type: 'checkbox',
       defaultValue: true,
-      admin: {
-        description:
-          'Dacă Auto-Publisher poate genera articole din această sursă. Speculativ = de obicei false.',
-      },
+      admin: { hidden: true },
     },
     {
       name: 'pilon',

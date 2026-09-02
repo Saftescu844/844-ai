@@ -400,11 +400,25 @@ export interface Surse {
    * URL-ul de bază al sursei.
    */
   url: string;
+  /**
+   * Primary = instituția, organizația sau autorul care produce informația originală.
+   */
+  sourceRole: 'primary' | 'secondary';
+  /**
+   * Nivel intern de încredere. O sursă nouă pornește conservator ca restricted.
+   */
+  editorialTrust: 'high' | 'standard' | 'restricted';
+  citationMode: 'paraphrase' | 'shortQuote';
+  /**
+   * Permite Flash Engine să preia materiale din această sursă. Implicit dezactivat.
+   */
+  allowIngestion?: boolean | null;
+  /**
+   * Nu garantează publicarea automată. Permite doar intrarea în evaluarea AUTO, dacă toate celelalte reguli sunt îndeplinite.
+   */
+  allowAutoPublish?: boolean | null;
   nivelIncredere: 'primar' | 'secundar' | 'speculativ';
   tipCitarePermis: 'citat-scurt' | 'parafrazare' | 'frontiera';
-  /**
-   * Dacă Auto-Publisher poate genera articole din această sursă. Speculativ = de obicei false.
-   */
   permiteAutoGenerare?: boolean | null;
   /**
    * Pilonii pentru care e relevantă această sursă.
@@ -1534,6 +1548,11 @@ export interface AutoriSelect<T extends boolean = true> {
 export interface SurseSelect<T extends boolean = true> {
   nume?: T;
   url?: T;
+  sourceRole?: T;
+  editorialTrust?: T;
+  citationMode?: T;
+  allowIngestion?: T;
+  allowAutoPublish?: T;
   nivelIncredere?: T;
   tipCitarePermis?: T;
   permiteAutoGenerare?: T;
