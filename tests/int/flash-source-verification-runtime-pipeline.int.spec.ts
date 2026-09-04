@@ -5,8 +5,40 @@ import {
 } from 'vitest'
 
 import {
-  runFlashSourceVerificationRuntimePipeline,
+  runFlashSourceVerificationRuntimePipeline as runRuntimePipeline,
 } from '@/lib/flash/runtimeEvidence/sourceVerificationRuntimePipeline'
+
+import type {
+  FlashSourceRetrieverOptions,
+} from '@/lib/flash/runtimeEvidence/sourceRetriever'
+
+const publicResolver =
+  async () => [
+    {
+      address:
+        '93.184.216.34',
+      family: 4 as const,
+    },
+  ]
+
+async function runFlashSourceVerificationRuntimePipeline(
+  sources:
+    FlashSourceRetrievalInput[],
+  options:
+    FlashSourceRetrieverOptions = {},
+) {
+  return runRuntimePipeline(
+    sources,
+    {
+      networkPolicyOptions: {
+        resolveHostname:
+          publicResolver,
+      },
+
+      ...options,
+    },
+  )
+}
 
 import type {
   FlashSourceRetrievalInput,

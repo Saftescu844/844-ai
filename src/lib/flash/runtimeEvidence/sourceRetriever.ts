@@ -1,3 +1,9 @@
+import {
+  evaluateFlashSourceNetworkPolicy,
+  type FlashSourceNetworkPolicyOptions,
+  type FlashSourceNetworkPolicyReason,
+} from './sourceNetworkPolicy'
+
 import type {
   FlashSourceVerificationCandidate,
 } from './sourceVerificationEvidence'
@@ -17,6 +23,7 @@ export type FlashSourceRetrievalFailureReason =
   | 'redirect_limit_exceeded'
   | 'timeout'
   | 'network_error'
+  | 'network_policy_blocked'
   | 'http_error'
   | 'empty_content'
 
@@ -35,6 +42,9 @@ export interface FlashSourceRetrievalResult {
 
   failureReason:
     FlashSourceRetrievalFailureReason | null
+
+  networkPolicyReason:
+    FlashSourceNetworkPolicyReason | null
 }
 
 export interface FlashSourceRetrieverOptions {
@@ -42,6 +52,9 @@ export interface FlashSourceRetrieverOptions {
   timeoutMs?: number
   maxRedirects?: number
   maxBytes?: number
+
+  networkPolicyOptions?:
+    FlashSourceNetworkPolicyOptions
 }
 
 const DEFAULT_TIMEOUT_MS = 8_000
@@ -265,6 +278,7 @@ function failedResult(
       | 'contentType'
       | 'bytesRead'
       | 'textContent'
+      | 'networkPolicyReason'
     >
   > = {},
 ): FlashSourceRetrievalResult {
@@ -297,6 +311,10 @@ function failedResult(
       null,
 
     failureReason,
+
+    networkPolicyReason:
+      overrides.networkPolicyReason ??
+      null,
   }
 }
 
@@ -355,6 +373,25 @@ export async function retrieveFlashSource(
     return failedResult(
       input,
       'source_identity_mismatch',
+    )
+  }
+
+  const initialNetworkPolicy =
+    await evaluateFlashSourceNetworkPolicy(
+      concreteUrl.toString(),
+      options.networkPolicyOptions,
+    )
+
+  if (
+    !initialNetworkPolicy.allowed
+  ) {
+    return failedResult(
+      input,
+      'network_policy_blocked',
+      {
+        networkPolicyReason:
+          initialNetworkPolicy.reason,
+      },
     )
   }
 
@@ -479,6 +516,28 @@ export async function retrieveFlashSource(
           )
         }
 
+        const redirectNetworkPolicy =
+          await evaluateFlashSourceNetworkPolicy(
+            nextUrl.toString(),
+            options.networkPolicyOptions,
+          )
+
+        if (
+          !redirectNetworkPolicy.allowed
+        ) {
+          return failedResult(
+            input,
+            'network_policy_blocked',
+            {
+              statusCode:
+                response.status,
+
+              networkPolicyReason:
+                redirectNetworkPolicy.reason,
+            },
+          )
+        }
+
         currentUrl =
           nextUrl
 
@@ -584,6 +643,9 @@ export async function retrieveFlashSource(
 
           failureReason:
             'empty_content',
+
+          networkPolicyReason:
+            null,
         }
       }
 
@@ -614,6 +676,9 @@ export async function retrieveFlashSource(
           body.textContent,
 
         failureReason: null,
+
+        networkPolicyReason:
+          null,
       }
     }
   } finally {

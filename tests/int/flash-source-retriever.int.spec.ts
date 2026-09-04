@@ -5,8 +5,38 @@ import {
 } from 'vitest'
 
 import {
-  retrieveFlashSource,
+  retrieveFlashSource as retrieveFlashSourceRuntime,
+  type FlashSourceRetrievalInput,
+  type FlashSourceRetrieverOptions,
 } from '@/lib/flash/runtimeEvidence/sourceRetriever'
+
+const publicResolver =
+  async () => [
+    {
+      address:
+        '93.184.216.34',
+      family: 4 as const,
+    },
+  ]
+
+async function retrieveFlashSource(
+  input:
+    FlashSourceRetrievalInput,
+  options:
+    FlashSourceRetrieverOptions = {},
+) {
+  return retrieveFlashSourceRuntime(
+    input,
+    {
+      networkPolicyOptions: {
+        resolveHostname:
+          publicResolver,
+      },
+
+      ...options,
+    },
+  )
+}
 
 import {
   evaluateFlashSourceVerification,
