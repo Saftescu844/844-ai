@@ -5,14 +5,14 @@ import {
 } from './anthropicSemanticTextExecutor'
 
 import {
+  createFlashMedicalInterpretationSemanticProducer,
+} from './medicalInterpretationSemanticProducer'
+
+import {
   createAnthropicSdkTextClient,
 } from './anthropicSdkTextClient'
 
-import {
-  createFlashSafetySemanticProducer,
-} from './safetySemanticProducer'
-
-export interface AnthropicSafetySemanticProducerOptions {
+export interface AnthropicMedicalInterpretationSemanticProducerOptions {
   client:
     Anthropic
 
@@ -27,7 +27,7 @@ export interface AnthropicSafetySemanticProducerOptions {
 }
 
 /**
- * Compoziție Anthropic + Safety.
+ * Compoziție Anthropic + Medical Interpretation.
  *
  * Nu:
  * - citește ANTHROPIC_API_KEY;
@@ -35,16 +35,13 @@ export interface AnthropicSafetySemanticProducerOptions {
  * - face request la creare;
  * - scrie în Payload;
  * - decide AUTO / REVIEW / BLOCK.
- *
- * Requestul apare doar când producerul este executat
- * prin runFlashSemanticEvidenceProducer().
  */
-export function createAnthropicFlashSafetySemanticProducer({
+export function createAnthropicFlashMedicalInterpretationSemanticProducer({
   client,
   model,
   maxTokens,
   temperature,
-}: AnthropicSafetySemanticProducerOptions) {
+}: AnthropicMedicalInterpretationSemanticProducerOptions) {
   const executor =
     createAnthropicSemanticTextExecutor({
       client:
@@ -69,7 +66,7 @@ export function createAnthropicFlashSafetySemanticProducer({
           }),
     })
 
-  return createFlashSafetySemanticProducer({
+  return createFlashMedicalInterpretationSemanticProducer({
     executor,
 
     provider:
