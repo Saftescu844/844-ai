@@ -39,6 +39,9 @@ export interface FlashFactualSourceDocument {
   finalUrl:
     string | null
 
+  contentType:
+    string | null
+
   /**
    * Conținut reutilizat din Source Verification.
    * Acest bridge NU face HTTP retrieval.
@@ -348,6 +351,9 @@ export function buildFlashFactualSourceCorpus(
         retrieval.candidate
           .finalUrl ??
         null,
+
+      contentType:
+        retrieval.contentType,
 
       textContent,
     })
