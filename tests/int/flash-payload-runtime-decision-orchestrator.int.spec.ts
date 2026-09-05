@@ -15,6 +15,10 @@ import {
   type FlashRuntimeSemanticEvidenceInput,
 } from '@/lib/flash/runtimeEvidence/payloadRuntimeDecisionOrchestrator'
 
+import {
+  runFlashSourceVerificationFromPayloadReadOnly,
+} from '@/lib/flash/runtimeEvidence/payloadSourceVerificationRuntime'
+
 type OrchestratorPayload =
   Parameters<
     typeof evaluateFlashRuntimeByIdReadOnly
@@ -368,6 +372,114 @@ describe(
         ).toEqual({
           decision:
             'autoPublish',
+          reasons: [
+            'auto_publish_gates_passed',
+          ],
+        })
+      },
+    )
+
+    it(
+      'preserves source retrieval behavior when no precomputed verification is supplied',
+      async () => {
+        const sourceRetriever =
+          successfulSourceOptions()
+
+        const result =
+          await evaluateFlashRuntimeByIdReadOnly(
+            payloadReader(),
+            1,
+            safeSemanticEvidence(),
+            {
+              sourceRetriever,
+            },
+          )
+
+        expect(
+          sourceRetriever.fetchImpl,
+        ).toHaveBeenCalledTimes(
+          1,
+        )
+
+        expect(
+          result
+            .sourceVerification
+            .verificationCoverage,
+        ).toBe(
+          'complete',
+        )
+      },
+    )
+
+    it(
+      'reuses precomputed source verification without an additional HTTP retrieval',
+      async () => {
+        const precomputeRetriever =
+          successfulSourceOptions()
+
+        const precomputedSourceVerification =
+          await runFlashSourceVerificationFromPayloadReadOnly(
+            payloadReader(),
+            1,
+            precomputeRetriever,
+          )
+
+        expect(
+          precomputeRetriever.fetchImpl,
+        ).toHaveBeenCalledTimes(
+          1,
+        )
+
+        expect(
+          precomputedSourceVerification
+            .verificationCoverage,
+        ).toBe(
+          'complete',
+        )
+
+        const unusedRetriever =
+          successfulSourceOptions()
+
+        const result =
+          await evaluateFlashRuntimeByIdReadOnly(
+            payloadReader(),
+            1,
+            safeSemanticEvidence(),
+            {
+              sourceRetriever:
+                unusedRetriever,
+
+              precomputedSourceVerification,
+            },
+          )
+
+        expect(
+          unusedRetriever.fetchImpl,
+        ).not.toHaveBeenCalled()
+
+        expect(
+          result.sourceVerification,
+        ).toBe(
+          precomputedSourceVerification,
+        )
+
+        expect(
+          result
+            .runtimeDecision
+            .aggregatedEvidence
+            .complete,
+        ).toBe(
+          true,
+        )
+
+        expect(
+          result
+            .runtimeDecision
+            .decision,
+        ).toEqual({
+          decision:
+            'autoPublish',
+
           reasons: [
             'auto_publish_gates_passed',
           ],
