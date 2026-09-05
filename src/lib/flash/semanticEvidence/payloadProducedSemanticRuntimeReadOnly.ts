@@ -14,6 +14,10 @@ import {
 } from '../runtimeEvidence/payloadRuntimeDecisionOrchestrator'
 
 import type {
+  FlashExtraordinaryClaimEvidenceInput,
+} from '../runtimeEvidence/extraordinaryClaimEvidence'
+
+import type {
   FlashMedicalInterpretationEvidenceInput,
 } from '../runtimeEvidence/medicalInterpretationEvidence'
 
@@ -41,7 +45,9 @@ type FlashPayloadReader =
 export type FlashRuntimeSemanticEvidenceWithoutProducedComponents =
   Omit<
     FlashRuntimeSemanticEvidenceInput,
-    'safety' | 'medicalInterpretation'
+    | 'safety'
+    | 'medicalInterpretation'
+    | 'extraordinaryClaim'
   >
 
 export interface FlashPayloadProducedSemanticRuntimeResult {
@@ -58,14 +64,23 @@ export interface FlashPayloadProducedSemanticRuntimeResult {
       FlashMedicalInterpretationEvidenceInput
     >
 
+  extraordinaryClaimProduction:
+    FlashSemanticEvidenceProducerResult<
+      FlashExtraordinaryClaimEvidenceInput
+    >
+
   runtime:
     FlashPayloadRuntimeDecisionResult
 }
 
 /**
  * Wrapper read-only pentru producerea semantică
- * Safety + Medical Interpretation înainte de
- * orchestratorul runtime existent.
+ * înainte de orchestratorul runtime existent.
+ *
+ * Produce independent:
+ * - Safety;
+ * - Medical Interpretation;
+ * - Extraordinary Claim.
  *
  * Nu:
  * - modifică orchestratorul stabil;
@@ -76,7 +91,8 @@ export interface FlashPayloadProducedSemanticRuntimeResult {
  * - apelează publisher-ul legacy.
  *
  * Un producer eșuat devine doar componenta sa null.
- * Nu produce PASS implicit.
+ * Nu produce PASS implicit și nu invalidează
+ * componentele produse cu succes.
  */
 export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOnly({
   payload,
@@ -84,6 +100,7 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
   runId,
   safetyProducer,
   medicalInterpretationProducer,
+  extraordinaryClaimProducer,
   semanticEvidence,
   options = {},
 }: {
@@ -106,6 +123,11 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
       FlashMedicalInterpretationEvidenceInput
     >
 
+  extraordinaryClaimProducer:
+    FlashSemanticEvidenceProducer<
+      FlashExtraordinaryClaimEvidenceInput
+    >
+
   semanticEvidence:
     FlashRuntimeSemanticEvidenceWithoutProducedComponents
 
@@ -116,7 +138,7 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
 > {
   /**
    * Citim documentul editorial o singură dată
-   * pentru ambii producători semantici.
+   * pentru toți producătorii semantici.
    */
   const flash =
     await payload.findByID({
@@ -169,6 +191,20 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
       },
     })
 
+  const extraordinaryClaimProduction =
+    await runFlashSemanticEvidenceProducer({
+      producer:
+        extraordinaryClaimProducer,
+
+      input: {
+        document:
+          semanticDocument,
+
+        runId:
+          `${runId}:extraordinaryClaim`,
+      },
+    })
+
   const runtime =
     await evaluateFlashRuntimeByIdReadOnly(
       payload,
@@ -185,6 +221,11 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
           medicalInterpretationProduction.ok
             ? medicalInterpretationProduction.evidence
             : null,
+
+        extraordinaryClaim:
+          extraordinaryClaimProduction.ok
+            ? extraordinaryClaimProduction.evidence
+            : null,
       },
       options,
     )
@@ -193,6 +234,7 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
     semanticDocument,
     safetyProduction,
     medicalInterpretationProduction,
+    extraordinaryClaimProduction,
     runtime,
   }
 }

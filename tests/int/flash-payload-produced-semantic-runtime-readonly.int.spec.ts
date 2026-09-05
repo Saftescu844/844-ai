@@ -15,6 +15,10 @@ import {
 } from '@/lib/flash/semanticEvidence/payloadProducedSemanticRuntimeReadOnly'
 
 import {
+  createFlashExtraordinaryClaimSemanticProducer,
+} from '@/lib/flash/semanticEvidence/extraordinaryClaimSemanticProducer'
+
+import {
   createFlashMedicalInterpretationSemanticProducer,
 } from '@/lib/flash/semanticEvidence/medicalInterpretationSemanticProducer'
 
@@ -139,6 +143,8 @@ function flash(
           'Instrucțiunea analizată este periculoasă.',
           '',
           'Rezultatul poate avea relevanță clinică pentru pacienții cu boala X.',
+          '',
+          'Compania afirmă că sistemul vindecă toate cazurile fără excepție.',
         ].join('\n'),
       ),
 
@@ -319,9 +325,6 @@ function remainingSemanticEvidence():
       null,
 
     contradictions:
-      null,
-
-    extraordinaryClaim:
       null,
 
     regulatoryStatus:
@@ -515,6 +518,99 @@ function medicalFindings({
   ]
 }
 
+function extraordinaryFindings({
+  extraordinary =
+    false,
+}: {
+  extraordinary?:
+    boolean
+} = {}) {
+  return [
+    {
+      id:
+        'extraordinary-breakthrough-cure',
+
+      type:
+        'breakthroughOrCureClaim',
+
+      verdict:
+        extraordinary
+          ? 'present'
+          : 'absent',
+
+      evidenceText:
+        extraordinary
+          ? 'vindecă toate cazurile fără excepție'
+          : null,
+    },
+    {
+      id:
+        'extraordinary-near-perfect-performance',
+
+      type:
+        'nearPerfectPerformance',
+
+      verdict:
+        'absent',
+
+      evidenceText:
+        null,
+    },
+    {
+      id:
+        'extraordinary-broad-universal-effect',
+
+      type:
+        'broadOrUniversalEffect',
+
+      verdict:
+        'absent',
+
+      evidenceText:
+        null,
+    },
+    {
+      id:
+        'extraordinary-replacement-established-practice',
+
+      type:
+        'replacementOfEstablishedPractice',
+
+      verdict:
+        'absent',
+
+      evidenceText:
+        null,
+    },
+    {
+      id:
+        'extraordinary-unprecedented-capability',
+
+      type:
+        'unprecedentedCapability',
+
+      verdict:
+        'absent',
+
+      evidenceText:
+        null,
+    },
+    {
+      id:
+        'extraordinary-other',
+
+      type:
+        'otherExtraordinaryClaim',
+
+      verdict:
+        'absent',
+
+      evidenceText:
+        null,
+    },
+  ]
+}
+
 function executorReturning(
   raw:
     string,
@@ -559,11 +655,29 @@ function medicalProducer(
   })
 }
 
+function extraordinaryProducer(
+  raw:
+    string,
+) {
+  return createFlashExtraordinaryClaimSemanticProducer({
+    executor:
+      executorReturning(
+        raw,
+      ),
+
+    provider:
+      'test-provider',
+
+    model:
+      'test-model',
+  })
+}
+
 describe(
   'Flash Payload produced semantic runtime wrapper',
   () => {
     it(
-      'produces both Safety and Medical evidence before the existing runtime orchestrator',
+      'produces Safety, Medical, and Extraordinary evidence before the existing runtime orchestrator',
       async () => {
         const result =
           await evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOnly({
@@ -592,6 +706,14 @@ describe(
                 }),
               ),
 
+            extraordinaryClaimProducer:
+              extraordinaryProducer(
+                JSON.stringify({
+                  findings:
+                    extraordinaryFindings(),
+                }),
+              ),
+
             semanticEvidence:
               remainingSemanticEvidence(),
           })
@@ -602,6 +724,10 @@ describe(
 
         expect(
           result.medicalInterpretationProduction.ok,
+        ).toBe(true)
+
+        expect(
+          result.extraordinaryClaimProduction.ok,
         ).toBe(true)
 
         expect(
@@ -623,6 +749,15 @@ describe(
         )
 
         expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).not.toContain(
+          'extraordinaryClaim',
+        )
+
+        expect(
           result.safetyProduction
             .run.runId,
         ).toBe(
@@ -635,6 +770,14 @@ describe(
             .run.runId,
         ).toBe(
           'semantic-runtime-1:medicalInterpretation',
+        )
+
+        expect(
+          result
+            .extraordinaryClaimProduction
+            .run.runId,
+        ).toBe(
+          'semantic-runtime-1:extraordinaryClaim',
         )
       },
     )
@@ -669,6 +812,14 @@ describe(
                       important:
                         true,
                     }),
+                }),
+              ),
+
+            extraordinaryClaimProducer:
+              extraordinaryProducer(
+                JSON.stringify({
+                  findings:
+                    extraordinaryFindings(),
                 }),
               ),
 
@@ -738,6 +889,14 @@ describe(
                 }),
               ),
 
+            extraordinaryClaimProducer:
+              extraordinaryProducer(
+                JSON.stringify({
+                  findings:
+                    extraordinaryFindings(),
+                }),
+              ),
+
             semanticEvidence:
               remainingSemanticEvidence(),
           })
@@ -787,6 +946,14 @@ describe(
             medicalInterpretationProducer:
               medicalProducer(
                 '{"findings":[]}',
+              ),
+
+            extraordinaryClaimProducer:
+              extraordinaryProducer(
+                JSON.stringify({
+                  findings:
+                    extraordinaryFindings(),
+                }),
               ),
 
             semanticEvidence:
@@ -872,6 +1039,14 @@ describe(
                 }),
               ),
 
+            extraordinaryClaimProducer:
+              extraordinaryProducer(
+                JSON.stringify({
+                  findings:
+                    extraordinaryFindings(),
+                }),
+              ),
+
             semanticEvidence:
               remainingSemanticEvidence(),
           })
@@ -915,6 +1090,189 @@ describe(
             .missingComponents,
         ).not.toContain(
           'medicalInterpretation',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .decision
+            .decision,
+        ).toBe(
+          'review',
+        )
+      },
+    )
+
+    it(
+      'preserves an Extraordinary Claim finding through the full runtime path to REVIEW',
+      async () => {
+        const result =
+          await evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOnly({
+            payload:
+              payloadReader(),
+
+            flashId:
+              1,
+
+            runId:
+              'semantic-runtime-6',
+
+            safetyProducer:
+              safetyProducer(
+                JSON.stringify({
+                  findings:
+                    safetyFindings(),
+                }),
+              ),
+
+            medicalInterpretationProducer:
+              medicalProducer(
+                JSON.stringify({
+                  findings:
+                    medicalFindings(),
+                }),
+              ),
+
+            extraordinaryClaimProducer:
+              extraordinaryProducer(
+                JSON.stringify({
+                  findings:
+                    extraordinaryFindings({
+                      extraordinary:
+                        true,
+                    }),
+                }),
+              ),
+
+            semanticEvidence:
+              remainingSemanticEvidence(),
+          })
+
+        expect(
+          result.runtime
+            .extraordinaryClaim
+            ?.decisionEvidence,
+        ).toEqual({
+          extraordinaryClaimNeedsReview:
+            true,
+        })
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .decision
+            .decision,
+        ).toBe(
+          'review',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .decision
+            .reasons,
+        ).toContain(
+          'extraordinary_claim',
+        )
+      },
+    )
+
+    it(
+      'keeps successful Safety and Medical evidence when Extraordinary production fails',
+      async () => {
+        const result =
+          await evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOnly({
+            payload:
+              payloadReader(),
+
+            flashId:
+              1,
+
+            runId:
+              'semantic-runtime-7',
+
+            safetyProducer:
+              safetyProducer(
+                JSON.stringify({
+                  findings:
+                    safetyFindings(),
+                }),
+              ),
+
+            medicalInterpretationProducer:
+              medicalProducer(
+                JSON.stringify({
+                  findings:
+                    medicalFindings(),
+                }),
+              ),
+
+            extraordinaryClaimProducer:
+              extraordinaryProducer(
+                '{"findings":[]}',
+              ),
+
+            semanticEvidence:
+              remainingSemanticEvidence(),
+          })
+
+        expect(
+          result.safetyProduction.ok,
+        ).toBe(true)
+
+        expect(
+          result.medicalInterpretationProduction.ok,
+        ).toBe(true)
+
+        expect(
+          result.extraordinaryClaimProduction,
+        ).toMatchObject({
+          ok:
+            false,
+
+          reason:
+            'invalid_output',
+        })
+
+        expect(
+          result.runtime.safety,
+        ).not.toBeNull()
+
+        expect(
+          result.runtime
+            .medicalInterpretation,
+        ).not.toBeNull()
+
+        expect(
+          result.runtime
+            .extraordinaryClaim,
+        ).toBeNull()
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).not.toContain(
+          'safety',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).not.toContain(
+          'medicalInterpretation',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).toContain(
+          'extraordinaryClaim',
         )
 
         expect(
