@@ -22,6 +22,10 @@ import type {
 } from '../runtimeEvidence/medicalInterpretationEvidence'
 
 import type {
+  FlashRegulatoryStatusEvidenceInput,
+} from '../runtimeEvidence/regulatoryStatusEvidence'
+
+import type {
   FlashSafetyEvidenceInput,
 } from '../runtimeEvidence/safetyEvidence'
 
@@ -48,6 +52,7 @@ export type FlashRuntimeSemanticEvidenceWithoutProducedComponents =
     | 'safety'
     | 'medicalInterpretation'
     | 'extraordinaryClaim'
+    | 'regulatoryStatus'
   >
 
 export interface FlashPayloadProducedSemanticRuntimeResult {
@@ -69,6 +74,11 @@ export interface FlashPayloadProducedSemanticRuntimeResult {
       FlashExtraordinaryClaimEvidenceInput
     >
 
+  regulatoryStatusProduction:
+    FlashSemanticEvidenceProducerResult<
+      FlashRegulatoryStatusEvidenceInput
+    >
+
   runtime:
     FlashPayloadRuntimeDecisionResult
 }
@@ -80,7 +90,8 @@ export interface FlashPayloadProducedSemanticRuntimeResult {
  * Produce independent:
  * - Safety;
  * - Medical Interpretation;
- * - Extraordinary Claim.
+ * - Extraordinary Claim;
+ * - Regulatory Status.
  *
  * Nu:
  * - modifică orchestratorul stabil;
@@ -101,6 +112,7 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
   safetyProducer,
   medicalInterpretationProducer,
   extraordinaryClaimProducer,
+  regulatoryStatusProducer,
   semanticEvidence,
   options = {},
 }: {
@@ -126,6 +138,11 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
   extraordinaryClaimProducer:
     FlashSemanticEvidenceProducer<
       FlashExtraordinaryClaimEvidenceInput
+    >
+
+  regulatoryStatusProducer:
+    FlashSemanticEvidenceProducer<
+      FlashRegulatoryStatusEvidenceInput
     >
 
   semanticEvidence:
@@ -205,6 +222,20 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
       },
     })
 
+  const regulatoryStatusProduction =
+    await runFlashSemanticEvidenceProducer({
+      producer:
+        regulatoryStatusProducer,
+
+      input: {
+        document:
+          semanticDocument,
+
+        runId:
+          `${runId}:regulatoryStatus`,
+      },
+    })
+
   const runtime =
     await evaluateFlashRuntimeByIdReadOnly(
       payload,
@@ -226,6 +257,11 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
           extraordinaryClaimProduction.ok
             ? extraordinaryClaimProduction.evidence
             : null,
+
+        regulatoryStatus:
+          regulatoryStatusProduction.ok
+            ? regulatoryStatusProduction.evidence
+            : null,
       },
       options,
     )
@@ -235,6 +271,7 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
     safetyProduction,
     medicalInterpretationProduction,
     extraordinaryClaimProduction,
+    regulatoryStatusProduction,
     runtime,
   }
 }

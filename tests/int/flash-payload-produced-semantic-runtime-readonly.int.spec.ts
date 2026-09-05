@@ -23,6 +23,10 @@ import {
 } from '@/lib/flash/semanticEvidence/medicalInterpretationSemanticProducer'
 
 import {
+  createFlashRegulatoryStatusSemanticProducer,
+} from '@/lib/flash/semanticEvidence/regulatoryStatusSemanticProducer'
+
+import {
   createFlashSafetySemanticProducer,
 } from '@/lib/flash/semanticEvidence/safetySemanticProducer'
 
@@ -326,9 +330,6 @@ function remainingSemanticEvidence():
 
     contradictions:
       null,
-
-    regulatoryStatus:
-      null,
   }
 }
 
@@ -611,6 +612,45 @@ function extraordinaryFindings({
   ]
 }
 
+function regulatoryOutput({
+  unclear =
+    false,
+}: {
+  unclear?:
+    boolean
+} = {}) {
+  if (unclear) {
+    return {
+      regulatoryContextRelevant:
+        true,
+
+      findings: [
+        {
+          id:
+            'regulatory-jurisdiction',
+
+          type:
+            'jurisdictionApplicability',
+
+          verdict:
+            'unclear',
+
+          evidenceText:
+            null,
+        },
+      ],
+    }
+  }
+
+  return {
+    regulatoryContextRelevant:
+      false,
+
+    findings:
+      [],
+  }
+}
+
 function executorReturning(
   raw:
     string,
@@ -673,11 +713,29 @@ function extraordinaryProducer(
   })
 }
 
+function regulatoryProducer(
+  raw:
+    string,
+) {
+  return createFlashRegulatoryStatusSemanticProducer({
+    executor:
+      executorReturning(
+        raw,
+      ),
+
+    provider:
+      'test-provider',
+
+    model:
+      'test-model',
+  })
+}
+
 describe(
   'Flash Payload produced semantic runtime wrapper',
   () => {
     it(
-      'produces Safety, Medical, and Extraordinary evidence before the existing runtime orchestrator',
+      'produces Safety, Medical, Extraordinary, and Regulatory evidence before the existing runtime orchestrator',
       async () => {
         const result =
           await evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOnly({
@@ -714,6 +772,13 @@ describe(
                 }),
               ),
 
+            regulatoryStatusProducer:
+              regulatoryProducer(
+                JSON.stringify(
+                  regulatoryOutput(),
+                ),
+              ),
+
             semanticEvidence:
               remainingSemanticEvidence(),
           })
@@ -728,6 +793,10 @@ describe(
 
         expect(
           result.extraordinaryClaimProduction.ok,
+        ).toBe(true)
+
+        expect(
+          result.regulatoryStatusProduction.ok,
         ).toBe(true)
 
         expect(
@@ -758,6 +827,15 @@ describe(
         )
 
         expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).not.toContain(
+          'regulatoryStatus',
+        )
+
+        expect(
           result.safetyProduction
             .run.runId,
         ).toBe(
@@ -778,6 +856,14 @@ describe(
             .run.runId,
         ).toBe(
           'semantic-runtime-1:extraordinaryClaim',
+        )
+
+        expect(
+          result
+            .regulatoryStatusProduction
+            .run.runId,
+        ).toBe(
+          'semantic-runtime-1:regulatoryStatus',
         )
       },
     )
@@ -821,6 +907,13 @@ describe(
                   findings:
                     extraordinaryFindings(),
                 }),
+              ),
+
+            regulatoryStatusProducer:
+              regulatoryProducer(
+                JSON.stringify(
+                  regulatoryOutput(),
+                ),
               ),
 
             semanticEvidence:
@@ -897,6 +990,13 @@ describe(
                 }),
               ),
 
+            regulatoryStatusProducer:
+              regulatoryProducer(
+                JSON.stringify(
+                  regulatoryOutput(),
+                ),
+              ),
+
             semanticEvidence:
               remainingSemanticEvidence(),
           })
@@ -954,6 +1054,13 @@ describe(
                   findings:
                     extraordinaryFindings(),
                 }),
+              ),
+
+            regulatoryStatusProducer:
+              regulatoryProducer(
+                JSON.stringify(
+                  regulatoryOutput(),
+                ),
               ),
 
             semanticEvidence:
@@ -1045,6 +1152,13 @@ describe(
                   findings:
                     extraordinaryFindings(),
                 }),
+              ),
+
+            regulatoryStatusProducer:
+              regulatoryProducer(
+                JSON.stringify(
+                  regulatoryOutput(),
+                ),
               ),
 
             semanticEvidence:
@@ -1144,6 +1258,13 @@ describe(
                 }),
               ),
 
+            regulatoryStatusProducer:
+              regulatoryProducer(
+                JSON.stringify(
+                  regulatoryOutput(),
+                ),
+              ),
+
             semanticEvidence:
               remainingSemanticEvidence(),
           })
@@ -1212,6 +1333,13 @@ describe(
                 '{"findings":[]}',
               ),
 
+            regulatoryStatusProducer:
+              regulatoryProducer(
+                JSON.stringify(
+                  regulatoryOutput(),
+                ),
+              ),
+
             semanticEvidence:
               remainingSemanticEvidence(),
           })
@@ -1273,6 +1401,235 @@ describe(
             .missingComponents,
         ).toContain(
           'extraordinaryClaim',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .decision
+            .decision,
+        ).toBe(
+          'review',
+        )
+      },
+    )
+
+    it(
+      'preserves unclear Regulatory Status through the full runtime path to REVIEW',
+      async () => {
+        const result =
+          await evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOnly({
+            payload:
+              payloadReader(),
+
+            flashId:
+              1,
+
+            runId:
+              'semantic-runtime-8',
+
+            safetyProducer:
+              safetyProducer(
+                JSON.stringify({
+                  findings:
+                    safetyFindings(),
+                }),
+              ),
+
+            medicalInterpretationProducer:
+              medicalProducer(
+                JSON.stringify({
+                  findings:
+                    medicalFindings(),
+                }),
+              ),
+
+            extraordinaryClaimProducer:
+              extraordinaryProducer(
+                JSON.stringify({
+                  findings:
+                    extraordinaryFindings(),
+                }),
+              ),
+
+            regulatoryStatusProducer:
+              regulatoryProducer(
+                JSON.stringify(
+                  regulatoryOutput({
+                    unclear:
+                      true,
+                  }),
+                ),
+              ),
+
+            semanticEvidence:
+              remainingSemanticEvidence(),
+          })
+
+        expect(
+          result.regulatoryStatusProduction.ok,
+        ).toBe(true)
+
+        expect(
+          result.runtime
+            .regulatoryStatus
+            ?.decisionEvidence,
+        ).toEqual({
+          regulatoryStatusUnclear:
+            true,
+        })
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).not.toContain(
+          'regulatoryStatus',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .decision
+            .decision,
+        ).toBe(
+          'review',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .decision
+            .reasons,
+        ).toContain(
+          'regulatory_status_unclear',
+        )
+      },
+    )
+
+    it(
+      'keeps successful Safety, Medical, and Extraordinary evidence when Regulatory production fails',
+      async () => {
+        const result =
+          await evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOnly({
+            payload:
+              payloadReader(),
+
+            flashId:
+              1,
+
+            runId:
+              'semantic-runtime-9',
+
+            safetyProducer:
+              safetyProducer(
+                JSON.stringify({
+                  findings:
+                    safetyFindings(),
+                }),
+              ),
+
+            medicalInterpretationProducer:
+              medicalProducer(
+                JSON.stringify({
+                  findings:
+                    medicalFindings(),
+                }),
+              ),
+
+            extraordinaryClaimProducer:
+              extraordinaryProducer(
+                JSON.stringify({
+                  findings:
+                    extraordinaryFindings(),
+                }),
+              ),
+
+            regulatoryStatusProducer:
+              regulatoryProducer(
+                '{"regulatoryContextRelevant":false,"findings":[{"id":"invalid","type":"approvalOrAuthorization","verdict":"clear","evidenceText":null}]}',
+              ),
+
+            semanticEvidence:
+              remainingSemanticEvidence(),
+          })
+
+        expect(
+          result.safetyProduction.ok,
+        ).toBe(true)
+
+        expect(
+          result.medicalInterpretationProduction.ok,
+        ).toBe(true)
+
+        expect(
+          result.extraordinaryClaimProduction.ok,
+        ).toBe(true)
+
+        expect(
+          result.regulatoryStatusProduction,
+        ).toMatchObject({
+          ok:
+            false,
+
+          reason:
+            'invalid_output',
+        })
+
+        expect(
+          result.runtime.safety,
+        ).not.toBeNull()
+
+        expect(
+          result.runtime
+            .medicalInterpretation,
+        ).not.toBeNull()
+
+        expect(
+          result.runtime
+            .extraordinaryClaim,
+        ).not.toBeNull()
+
+        expect(
+          result.runtime
+            .regulatoryStatus,
+        ).toBeNull()
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).not.toContain(
+          'safety',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).not.toContain(
+          'medicalInterpretation',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).not.toContain(
+          'extraordinaryClaim',
+        )
+
+        expect(
+          result.runtime
+            .runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ).toContain(
+          'regulatoryStatus',
         )
 
         expect(
