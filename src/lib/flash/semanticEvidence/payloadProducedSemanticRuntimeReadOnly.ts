@@ -14,6 +14,10 @@ import {
 } from '../runtimeEvidence/payloadRuntimeDecisionOrchestrator'
 
 import type {
+  FlashContradictionEvidenceInput,
+} from '../runtimeEvidence/contradictionEvidence'
+
+import type {
   FlashExtraordinaryClaimEvidenceInput,
 } from '../runtimeEvidence/extraordinaryClaimEvidence'
 
@@ -28,6 +32,17 @@ import type {
 import type {
   FlashSafetyEvidenceInput,
 } from '../runtimeEvidence/safetyEvidence'
+
+import {
+  buildFlashContradictionSemanticCandidatesFromFactualProvenance,
+  type FlashContradictionCandidateBridgeResult,
+  type FlashContradictionEvidenceTextResolver,
+} from './contradictionCandidateBridge'
+
+import {
+  runFlashContradictionSemanticProducer,
+  type FlashContradictionSemanticProducer,
+} from './contradictionSemanticProducer'
 
 import {
   buildFlashSemanticDocument,
@@ -49,6 +64,7 @@ type FlashPayloadReader =
 export type FlashRuntimeSemanticEvidenceWithoutProducedComponents =
   Omit<
     FlashRuntimeSemanticEvidenceInput,
+    | 'contradictions'
     | 'safety'
     | 'medicalInterpretation'
     | 'extraordinaryClaim'
@@ -58,6 +74,14 @@ export type FlashRuntimeSemanticEvidenceWithoutProducedComponents =
 export interface FlashPayloadProducedSemanticRuntimeResult {
   semanticDocument:
     FlashSemanticDocument
+
+  contradictionBridge:
+    FlashContradictionCandidateBridgeResult | null
+
+  contradictionProduction:
+    FlashSemanticEvidenceProducerResult<
+      FlashContradictionEvidenceInput
+    > | null
 
   safetyProduction:
     FlashSemanticEvidenceProducerResult<
@@ -88,6 +112,7 @@ export interface FlashPayloadProducedSemanticRuntimeResult {
  * înainte de orchestratorul runtime existent.
  *
  * Produce independent:
+ * - Contradictions, din factual provenance;
  * - Safety;
  * - Medical Interpretation;
  * - Extraordinary Claim;
@@ -113,6 +138,8 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
   medicalInterpretationProducer,
   extraordinaryClaimProducer,
   regulatoryStatusProducer,
+  contradictionProducer,
+  contradictionEvidenceTextResolver,
   semanticEvidence,
   options = {},
 }: {
@@ -144,6 +171,12 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
     FlashSemanticEvidenceProducer<
       FlashRegulatoryStatusEvidenceInput
     >
+
+  contradictionProducer?:
+    FlashContradictionSemanticProducer
+
+  contradictionEvidenceTextResolver?:
+    FlashContradictionEvidenceTextResolver
 
   semanticEvidence:
     FlashRuntimeSemanticEvidenceWithoutProducedComponents
@@ -236,12 +269,66 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
       },
     })
 
+  /**
+   * Contradictions reutilizează exact factual provenance
+   * primit deja de runtime.
+   *
+   * Nu există un al doilea input factual paralel.
+   */
+  const contradictionBridge =
+    semanticEvidence.factualSupport ===
+      null ||
+    contradictionEvidenceTextResolver ===
+      undefined
+      ? null
+      : await buildFlashContradictionSemanticCandidatesFromFactualProvenance({
+          input:
+            semanticEvidence.factualSupport,
+
+          resolveEvidenceText:
+            contradictionEvidenceTextResolver,
+        })
+
+  /**
+   * Un bridge incomplet NU devine cases: [].
+   *
+   * Doar un candidate set complet poate fi trimis
+   * producerului semantic.
+   */
+  const contradictionProduction =
+    contradictionBridge !== null &&
+    contradictionBridge.complete &&
+    contradictionProducer !==
+      undefined
+      ? await runFlashContradictionSemanticProducer({
+          producer:
+            contradictionProducer,
+
+          input: {
+            runId:
+              `${runId}:contradictions`,
+
+            candidateSetComplete:
+              true,
+
+            candidates:
+              contradictionBridge.candidates,
+          },
+        })
+      : null
+
   const runtime =
     await evaluateFlashRuntimeByIdReadOnly(
       payload,
       flashId,
       {
         ...semanticEvidence,
+
+        contradictions:
+          contradictionProduction?.ok ===
+          true
+            ? contradictionProduction.evidence
+            : null,
 
         safety:
           safetyProduction.ok
@@ -268,6 +355,8 @@ export async function evaluateFlashRuntimeWithProducedSemanticEvidenceByIdReadOn
 
   return {
     semanticDocument,
+    contradictionBridge,
+    contradictionProduction,
     safetyProduction,
     medicalInterpretationProduction,
     extraordinaryClaimProduction,
