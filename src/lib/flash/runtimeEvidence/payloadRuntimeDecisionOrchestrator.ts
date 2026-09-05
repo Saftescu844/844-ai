@@ -120,6 +120,16 @@ export interface FlashPayloadRuntimeDecisionOptions {
 
   sourceRetriever?:
     FlashSourceRetrieverOptions
+
+  /**
+   * Rezultat Source Verification deja calculat pentru
+   * același Flash.
+   *
+   * Când este prezent, orchestratorul îl reutilizează
+   * și nu mai face un al doilea HTTP retrieval.
+   */
+  precomputedSourceVerification?:
+    FlashPayloadSourceVerificationRuntimeResult
 }
 
 export interface FlashPayloadRuntimeDecisionResult {
@@ -193,6 +203,7 @@ export async function evaluateFlashRuntimeByIdReadOnly(
     )
 
   const sourceVerification =
+    options.precomputedSourceVerification ??
     await runFlashSourceVerificationFromPayloadReadOnly(
       payload,
       flashId,
