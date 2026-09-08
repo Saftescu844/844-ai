@@ -11,6 +11,9 @@ import {
 const script =
   'scripts/flash-runtime-evaluate.ts'
 
+const CLI_TEST_TIMEOUT_MS =
+  15_000
+
 function runCli(
   args:
     string[],
@@ -94,6 +97,7 @@ describe(
           '--allow-provider-requests',
         )
       },
+      CLI_TEST_TIMEOUT_MS,
     )
 
     it(
@@ -124,6 +128,7 @@ describe(
           'Invalid --flash-id: abc',
         )
       },
+      CLI_TEST_TIMEOUT_MS,
     )
 
     it(
@@ -151,6 +156,7 @@ describe(
           'Missing required --model',
         )
       },
+      CLI_TEST_TIMEOUT_MS,
     )
 
     it(
@@ -188,6 +194,7 @@ describe(
           'ANTHROPIC_API_KEY is not configured.',
         )
       },
+      CLI_TEST_TIMEOUT_MS,
     )
 
     it(
@@ -218,6 +225,7 @@ describe(
           'ANTHROPIC_API_KEY is not configured.',
         )
       },
+      CLI_TEST_TIMEOUT_MS,
     )
   },
 )
