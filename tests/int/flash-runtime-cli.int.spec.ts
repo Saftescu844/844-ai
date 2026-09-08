@@ -160,6 +160,35 @@ describe(
     )
 
     it(
+      'rejects a missing model value before provider access',
+      () => {
+        const result =
+          runCli([
+            '--flash-id',
+            '1',
+
+            '--model',
+            '--allow-provider-requests',
+          ])
+
+        expect(
+          result.status,
+        ).toBe(
+          1,
+        )
+
+        expect(
+          output(
+            result,
+          ),
+        ).toContain(
+          'Missing required --model',
+        )
+      },
+      CLI_TEST_TIMEOUT_MS,
+    )
+
+    it(
       'blocks provider requests unless explicitly allowed',
       () => {
         const result =

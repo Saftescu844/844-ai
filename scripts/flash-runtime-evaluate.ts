@@ -51,12 +51,21 @@ function argument(
     return null
   }
 
-  return (
+  const value =
     process.argv[
       index + 1
-    ]?.trim() ||
-    null
-  )
+    ]?.trim()
+
+  if (
+    !value ||
+    value.startsWith(
+      '--',
+    )
+  ) {
+    return null
+  }
+
+  return value
 }
 
 function hasFlag(
