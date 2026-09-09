@@ -11,6 +11,7 @@ import * as migration_20260901_111927_reg001b2_author_media from './20260901_111
 import * as migration_20260901_141009_reg001c4_significant_update_date from './20260901_141009_reg001c4_significant_update_date';
 import * as migration_20260902_105310 from './20260902_105310';
 import * as migration_20260902_120037 from './20260902_120037';
+import * as migration_20260909_074122_reg001d_flash_engine_runs from './20260909_074122_reg001d_flash_engine_runs';
 
 export const migrations = [
   {
@@ -76,6 +77,11 @@ export const migrations = [
   {
     up: migration_20260902_120037.up,
     down: migration_20260902_120037.down,
-    name: '20260902_120037'
+    name: '20260902_120037',
+  },
+  {
+    up: migration_20260909_074122_reg001d_flash_engine_runs.up,
+    down: migration_20260909_074122_reg001d_flash_engine_runs.down,
+    name: '20260909_074122_reg001d_flash_engine_runs'
   },
 ];
