@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     articole: Articole;
     'flash-ai': FlashAi;
+    'flash-engine-runs': FlashEngineRun;
     autori: Autori;
     surse: Surse;
     categorii: Categorii;
@@ -91,6 +92,7 @@ export interface Config {
   collectionsSelect: {
     articole: ArticoleSelect<false> | ArticoleSelect<true>;
     'flash-ai': FlashAiSelect<false> | FlashAiSelect<true>;
+    'flash-engine-runs': FlashEngineRunsSelect<false> | FlashEngineRunsSelect<true>;
     autori: AutoriSelect<false> | AutoriSelect<true>;
     surse: SurseSelect<false> | SurseSelect<true>;
     categorii: CategoriiSelect<false> | CategoriiSelect<true>;
@@ -825,6 +827,80 @@ export interface FlashAi {
   _status?: ('draft' | 'published') | null;
 }
 /**
+ * Jurnal tehnic read-only pentru execuțiile Flash Engine. Nu reprezintă autoritatea de publicare.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "flash-engine-runs".
+ */
+export interface FlashEngineRun {
+  id: number;
+  /**
+   * Relația curentă către Flash. Poate deveni null dacă documentul Flash este șters.
+   */
+  flash?: (number | null) | FlashAi;
+  /**
+   * ID-ul original al Flash-ului evaluat, păstrat independent de existența ulterioară a documentului.
+   */
+  flashIdSnapshot: number;
+  /**
+   * Identificator unic al unei execuții Flash Engine.
+   */
+  runId: string;
+  status: 'running' | 'completed' | 'failed';
+  /**
+   * Providerul semantic utilizat de această execuție.
+   */
+  provider: string;
+  model: string;
+  /**
+   * Versiunea logică sau revizia Flash Engine folosită pentru evaluare.
+   */
+  engineVersion: string;
+  startedAt: string;
+  completedAt?: string | null;
+  decision?: ('autoPublish' | 'review' | 'blocked') | null;
+  /**
+   * Codurile structurate returnate de Decision Engine.
+   */
+  reasons?:
+    | {
+        reason: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Snapshot structurat al intrării finale în Decision Engine.
+   */
+  decisionInputSnapshot?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Rezumat auditabil al componentelor runtime. Nu stochează pagini sursă sau chunks brute.
+   */
+  evidenceSummary?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  errorCode?: string | null;
+  /**
+   * Mesaj tehnic sanitizat. Nu se stochează chei API sau răspunsuri provider brute.
+   */
+  errorMessage?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "comentarii".
  */
@@ -1416,6 +1492,34 @@ export interface FlashAiSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "flash-engine-runs_select".
+ */
+export interface FlashEngineRunsSelect<T extends boolean = true> {
+  flash?: T;
+  flashIdSnapshot?: T;
+  runId?: T;
+  status?: T;
+  provider?: T;
+  model?: T;
+  engineVersion?: T;
+  startedAt?: T;
+  completedAt?: T;
+  decision?: T;
+  reasons?:
+    | T
+    | {
+        reason?: T;
+        id?: T;
+      };
+  decisionInputSnapshot?: T;
+  evidenceSummary?: T;
+  errorCode?: T;
+  errorMessage?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

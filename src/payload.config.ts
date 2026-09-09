@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url'
 // === Colecții ===
 import { Articole } from './collections/Articole'
 import { FlashAI } from './collections/FlashAI'
+import { FlashEngineRuns } from './collections/FlashEngineRuns'
 import { Autori } from './collections/Autori'
 import { Surse } from './collections/Surse'
 import { Useri } from './collections/Useri'
@@ -93,6 +94,7 @@ export default buildConfig({
   collections: [
     Articole,
     FlashAI,
+    FlashEngineRuns,
     Autori,
     Surse,
     Categorii,
