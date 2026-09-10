@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import robots from '@/app/robots'
+import robots, { dynamic } from '@/app/robots'
 
 const originalSiteURL = process.env.SITE_URL
 
@@ -9,6 +9,10 @@ afterEach(() => {
 })
 
 describe('robots route', () => {
+  it('is evaluated dynamically so SITE_URL is read at runtime', () => {
+    expect(dynamic).toBe('force-dynamic')
+  })
+
   it('blocks crawling outside the public production site', () => {
     process.env.SITE_URL = 'https://844-ai-production.up.railway.app'
 
