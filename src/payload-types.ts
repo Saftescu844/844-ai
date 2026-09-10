@@ -128,6 +128,7 @@ export interface Config {
   user: Useri;
   jobs: {
     tasks: {
+      evaluateFlashEngine: TaskEvaluateFlashEngine;
       schedulePublish: TaskSchedulePublish;
       inline: {
         input: unknown;
@@ -1237,7 +1238,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'schedulePublish';
+        taskSlug: 'inline' | 'evaluateFlashEngine' | 'schedulePublish';
         taskID: string;
         input?:
           | {
@@ -1270,7 +1271,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'schedulePublish') | null;
+  taskSlug?: ('inline' | 'evaluateFlashEngine' | 'schedulePublish') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -2404,6 +2405,21 @@ export interface CollectionsWidget {
     [k: string]: unknown;
   };
   width: 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskEvaluateFlashEngine".
+ */
+export interface TaskEvaluateFlashEngine {
+  input: {
+    flashId: number;
+    model: string;
+    allowProviderRequests: boolean;
+  };
+  output: {
+    runId: string;
+    decision: 'autoPublish' | 'review' | 'blocked';
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

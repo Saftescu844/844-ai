@@ -26,6 +26,7 @@ import {
 } from './collections/RestulColectiilor'
 import { SiteSettings } from './globals/SiteSettings'
 import { searchInfrastructurePlugin } from './search/searchPlugin'
+import { EvaluateFlashEngineTask } from './lib/flash/jobs/evaluateFlashEngineTask'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -81,6 +82,10 @@ export default buildConfig({
   // Rulează joburile deja puse în coada implicită.
   // Scheduling-ul recurent automat rămâne dezactivat.
   jobs: {
+    tasks: [
+      EvaluateFlashEngineTask,
+    ],
+
     autoRun: [
       {
         queue: 'default',
