@@ -224,7 +224,7 @@ describe(
     )
 
     it(
-      'runs at most one eligible provider-authorized unattempted Flash Engine job',
+      'runs at most one eligible provider-authorized unattempted Flash Engine job in FIFO order',
       async () => {
         const {
           payloadFactory,
@@ -259,6 +259,9 @@ describe(
 
           limit:
             1,
+
+          processingOrder:
+            'createdAt',
 
           sequential:
             true,
