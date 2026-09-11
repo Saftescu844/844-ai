@@ -98,6 +98,9 @@ export async function runFlashEngineManualQueueOnce({
    * - zero încercări anterioare;
    * - autorizarea providerului stocată în job.
    *
+   * FIFO este explicit prin createdAt, astfel încât "next" să rămână
+   * determinist chiar dacă default-ul Payload se schimbă ulterior.
+   *
    * Task-ul evaluateFlashEngine verifică din nou allowProviderRequests,
    * deci acesta rămâne un al doilea nivel independent de guard.
    */
@@ -108,6 +111,9 @@ export async function runFlashEngineManualQueueOnce({
 
       limit:
         1,
+
+      processingOrder:
+        'createdAt',
 
       sequential:
         true,
