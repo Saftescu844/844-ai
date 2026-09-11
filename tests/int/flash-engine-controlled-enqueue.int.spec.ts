@@ -29,7 +29,21 @@ const stagingEnvironment =
         .serviceId,
   } as NodeJS.ProcessEnv
 
-function createPayloadFactory() {
+function createPayloadFactory(
+  existingJobs:
+    Record<
+      string,
+      unknown
+    >[] = [],
+) {
+  const find =
+    vi.fn(
+      async () => ({
+        docs:
+          existingJobs,
+      }),
+    )
+
   const queue =
     vi.fn(
       async () => ({
@@ -42,6 +56,8 @@ function createPayloadFactory() {
     vi.fn(
       async () =>
         ({
+          find,
+
           jobs: {
             queue,
           },
@@ -56,8 +72,49 @@ function createPayloadFactory() {
     )
 
   return {
+    find,
     payloadFactory,
     queue,
+  }
+}
+
+function pendingJob({
+  id = 41,
+  flashId = 7,
+  model =
+    'claude-test-model',
+}: {
+  id?: number
+  flashId?: number
+  model?: string
+} = {}) {
+  return {
+    id,
+
+    input: {
+      flashId,
+      model,
+      allowProviderRequests:
+        true,
+    },
+
+    completedAt:
+      null,
+
+    totalTried:
+      0,
+
+    hasError:
+      false,
+
+    processing:
+      false,
+
+    queue:
+      FLASH_ENGINE_MANUAL_QUEUE,
+
+    taskSlug:
+      FLASH_ENGINE_TASK_SLUG,
   }
 }
 
@@ -297,6 +354,7 @@ describe(
       'queues exactly one provider-authorized task in the manual queue',
       async () => {
         const {
+          find,
           payloadFactory,
           queue,
         } =
@@ -327,6 +385,40 @@ describe(
         ).toHaveBeenCalledTimes(
           1,
         )
+
+        expect(
+          find,
+        ).toHaveBeenCalledTimes(
+          1,
+        )
+
+        expect(
+          find,
+        ).toHaveBeenCalledWith({
+          collection:
+            'payload-jobs',
+
+          depth:
+            0,
+
+          overrideAccess:
+            true,
+
+          pagination:
+            false,
+
+          where: {
+            queue: {
+              equals:
+                'flash-engine-manual',
+            },
+
+            taskSlug: {
+              equals:
+                'evaluateFlashEngine',
+            },
+          },
+        })
 
         expect(
           queue,
@@ -371,7 +463,210 @@ describe(
 
           task:
             'evaluateFlashEngine',
+
+          reusedExisting:
+            false,
         })
+      },
+    )
+
+    it(
+      'reuses an equivalent pending provider-authorized job',
+      async () => {
+        const existingJob =
+          pendingJob({
+            id:
+              88,
+          })
+
+        const {
+          payloadFactory,
+          queue,
+        } =
+          createPayloadFactory([
+            existingJob,
+          ])
+
+        const result =
+          await queueFlashEngineEvaluationJob({
+            payloadFactory,
+
+            flashId:
+              7,
+
+            model:
+              '  claude-test-model  ',
+
+            allowJobWrite:
+              true,
+
+            allowProviderRequests:
+              true,
+
+            environment:
+              stagingEnvironment,
+          })
+
+        expect(
+          queue,
+        ).not.toHaveBeenCalled()
+
+        expect(
+          result,
+        ).toEqual({
+          job:
+            existingJob,
+
+          queue:
+            'flash-engine-manual',
+
+          task:
+            'evaluateFlashEngine',
+
+          reusedExisting:
+            true,
+        })
+      },
+    )
+
+    it(
+      'allows the same Flash to be queued for a different model',
+      async () => {
+        const {
+          payloadFactory,
+          queue,
+        } =
+          createPayloadFactory([
+            pendingJob(),
+          ])
+
+        const result =
+          await queueFlashEngineEvaluationJob({
+            payloadFactory,
+
+            flashId:
+              7,
+
+            model:
+              'different-model',
+
+            allowJobWrite:
+              true,
+
+            allowProviderRequests:
+              true,
+
+            environment:
+              stagingEnvironment,
+          })
+
+        expect(
+          queue,
+        ).toHaveBeenCalledTimes(
+          1,
+        )
+
+        expect(
+          result.reusedExisting,
+        ).toBe(
+          false,
+        )
+      },
+    )
+
+    it(
+      'allows a different Flash to be queued for the same model',
+      async () => {
+        const {
+          payloadFactory,
+          queue,
+        } =
+          createPayloadFactory([
+            pendingJob(),
+          ])
+
+        const result =
+          await queueFlashEngineEvaluationJob({
+            payloadFactory,
+
+            flashId:
+              8,
+
+            model:
+              'claude-test-model',
+
+            allowJobWrite:
+              true,
+
+            allowProviderRequests:
+              true,
+
+            environment:
+              stagingEnvironment,
+          })
+
+        expect(
+          queue,
+        ).toHaveBeenCalledTimes(
+          1,
+        )
+
+        expect(
+          result.reusedExisting,
+        ).toBe(
+          false,
+        )
+      },
+    )
+
+    it(
+      'does not reuse an attempted job',
+      async () => {
+        const attemptedJob = {
+          ...pendingJob(),
+          totalTried:
+            1,
+        }
+
+        const {
+          payloadFactory,
+          queue,
+        } =
+          createPayloadFactory([
+            attemptedJob,
+          ])
+
+        const result =
+          await queueFlashEngineEvaluationJob({
+            payloadFactory,
+
+            flashId:
+              7,
+
+            model:
+              'claude-test-model',
+
+            allowJobWrite:
+              true,
+
+            allowProviderRequests:
+              true,
+
+            environment:
+              stagingEnvironment,
+          })
+
+        expect(
+          queue,
+        ).toHaveBeenCalledTimes(
+          1,
+        )
+
+        expect(
+          result.reusedExisting,
+        ).toBe(
+          false,
+        )
       },
     )
   },
