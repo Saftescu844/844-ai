@@ -159,7 +159,7 @@ describe(
     )
 
     it(
-      'rejects a non-STAGING environment before Payload initialization',
+      'rejects a non-STAGING project or environment before Payload initialization',
       async () => {
         const {
           payloadFactory,
@@ -175,17 +175,60 @@ describe(
             environment: {
               ...stagingEnvironment,
 
-              RAILWAY_SERVICE_ID:
-                'wrong-service',
+              RAILWAY_ENVIRONMENT_ID:
+                'wrong-environment',
             },
           }),
         ).rejects.toThrow(
-          'Flash Engine execution is restricted to the configured STAGING environment.',
+          'Flash Engine run-next execution is restricted to the configured STAGING environment.',
         )
 
         expect(
           payloadFactory,
         ).not.toHaveBeenCalled()
+      },
+    )
+
+    it(
+      'allows a separate Railway service inside the exact STAGING project and environment',
+      async () => {
+        const {
+          payloadFactory,
+          run,
+        } =
+          createPayloadFactory()
+
+        const result =
+          await runFlashEngineManualQueueOnce({
+            ...baseOptions(
+              payloadFactory,
+            ),
+
+            environment: {
+              ...stagingEnvironment,
+
+              RAILWAY_SERVICE_ID:
+                'flash-engine-worker-service',
+            },
+          })
+
+        expect(
+          payloadFactory,
+        ).toHaveBeenCalledTimes(
+          1,
+        )
+
+        expect(
+          run,
+        ).toHaveBeenCalledTimes(
+          1,
+        )
+
+        expect(
+          result.executed,
+        ).toBe(
+          true,
+        )
       },
     )
 

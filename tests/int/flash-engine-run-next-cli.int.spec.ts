@@ -208,7 +208,7 @@ describe(
         expect(
           combined,
         ).toContain(
-          'Flash Engine execution is restricted to the configured STAGING environment.',
+          'Flash Engine run-next execution is restricted to the configured STAGING environment.',
         )
 
         expect(
