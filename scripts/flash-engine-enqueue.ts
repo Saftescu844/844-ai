@@ -56,7 +56,8 @@ Usage:
     --allow-provider-requests
 
 Behavior:
-  - queues exactly one evaluateFlashEngine task
+  - queues one evaluateFlashEngine task when no equivalent pending job exists
+  - reuses an equivalent untouched pending job for the same Flash + model
   - uses queue: ${FLASH_ENGINE_MANUAL_QUEUE}
   - does NOT run the job
   - does NOT call Anthropic during enqueue
@@ -197,6 +198,9 @@ async function main() {
 
     automaticallyRun:
       false,
+
+    reusedExisting:
+      result.reusedExisting,
   })
 }
 

@@ -22,7 +22,7 @@ export const FLASH_ENGINE_STAGING_RAILWAY_TARGET = {
 type FlashEngineQueuePayload =
   Pick<
     Payload,
-    'jobs'
+    'find' | 'jobs'
   >
 
 export interface QueueFlashEngineEvaluationJobOptions {
@@ -175,6 +175,106 @@ export async function queueFlashEngineEvaluationJob({
   const payload =
     await payloadFactory()
 
+  /**
+   * Duplicate guard pentru fluxul manual controlat:
+   * dacă același Flash + model are deja un job provider-authorized
+   * neatins în coada manuală, îl reutilizăm și nu mai scriem unul.
+   *
+   * Joburile procesate / eșuate / încercate nu blochează un enqueue nou.
+   * Acest guard evită duplicatele operatorului în fluxul curent cu un
+   * singur producer; nu pretinde atomicitate între producători concurenți.
+   */
+  const queuedJobs =
+    await payload.find({
+      collection:
+        'payload-jobs',
+
+      depth:
+        0,
+
+      overrideAccess:
+        true,
+
+      pagination:
+        false,
+
+      where: {
+        queue: {
+          equals:
+            FLASH_ENGINE_MANUAL_QUEUE,
+        },
+
+        taskSlug: {
+          equals:
+            FLASH_ENGINE_TASK_SLUG,
+        },
+      },
+    })
+
+  const existingJob =
+    queuedJobs.docs.find(
+      job => {
+        if (
+          job.completedAt !=
+            null ||
+          job.totalTried !==
+            0 ||
+          job.hasError !==
+            false ||
+          job.processing !==
+            false
+        ) {
+          return false
+        }
+
+        const input =
+          job.input
+
+        if (
+          !input ||
+          typeof input !==
+            'object' ||
+          Array.isArray(
+            input,
+          )
+        ) {
+          return false
+        }
+
+        const candidate =
+          input as Record<
+            string,
+            unknown
+          >
+
+        return (
+          candidate.flashId ===
+            flashId &&
+          candidate.model ===
+            model &&
+          candidate
+            .allowProviderRequests ===
+            true
+        )
+      },
+    )
+
+  if (existingJob) {
+    return {
+      job:
+        existingJob,
+
+      queue:
+        FLASH_ENGINE_MANUAL_QUEUE,
+
+      task:
+        FLASH_ENGINE_TASK_SLUG,
+
+      reusedExisting:
+        true,
+    }
+  }
+
   const job =
     await payload.jobs.queue({
       task:
@@ -204,5 +304,8 @@ export async function queueFlashEngineEvaluationJob({
 
     task:
       FLASH_ENGINE_TASK_SLUG,
+
+    reusedExisting:
+      false,
   }
 }
