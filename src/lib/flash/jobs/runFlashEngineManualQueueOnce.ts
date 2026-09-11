@@ -4,12 +4,9 @@ import type {
 
 import {
   FLASH_ENGINE_MANUAL_QUEUE,
+  FLASH_ENGINE_STAGING_RAILWAY_TARGET,
   FLASH_ENGINE_TASK_SLUG,
 } from '@/lib/flash/jobs/queueFlashEngineEvaluationJob'
-
-import {
-  assertFlashEngineRunStagingEnvironment,
-} from '@/lib/flash/jobs/runFlashEngineEvaluationJobByID'
 
 type FlashEngineRunNextPayload =
   Pick<
@@ -29,6 +26,70 @@ export interface RunFlashEngineManualQueueOnceOptions {
 
   environment?:
     NodeJS.ProcessEnv
+}
+
+function assertFlashEngineRunNextStagingEnvironment(
+  environment:
+    NodeJS.ProcessEnv =
+      process.env,
+): void {
+  const mismatches:
+    string[] = []
+
+  if (
+    environment
+      .RAILWAY_PROJECT_ID !==
+    FLASH_ENGINE_STAGING_RAILWAY_TARGET
+      .projectId
+  ) {
+    mismatches.push(
+      'RAILWAY_PROJECT_ID',
+    )
+  }
+
+  if (
+    environment
+      .RAILWAY_ENVIRONMENT_ID !==
+    FLASH_ENGINE_STAGING_RAILWAY_TARGET
+      .environmentId
+  ) {
+    mismatches.push(
+      'RAILWAY_ENVIRONMENT_ID',
+    )
+  }
+
+  if (
+    environment
+      .PAYLOAD_DB_PUSH !==
+    'false'
+  ) {
+    mismatches.push(
+      'PAYLOAD_DB_PUSH',
+    )
+  }
+
+  if (
+    !environment
+      .ANTHROPIC_API_KEY
+  ) {
+    mismatches.push(
+      'ANTHROPIC_API_KEY',
+    )
+  }
+
+  if (
+    mismatches.length >
+    0
+  ) {
+    throw new Error(
+      [
+        'Flash Engine run-next execution is restricted to the configured STAGING environment.',
+        `Environment mismatch: ${mismatches.join(', ')}.`,
+      ].join(
+        ' ',
+      ),
+    )
+  }
 }
 
 /**
@@ -79,12 +140,14 @@ export async function runFlashEngineManualQueueOnce({
 
   /*
    * Guard 3:
-   * reutilizăm exact restricția deja validată pentru run-by-ID:
-   * - target Railway STAGING exact;
-   * - PAYLOAD_DB_PUSH=false;
-   * - ANTHROPIC_API_KEY prezentă.
+   * run-next poate rula fie din serviciul principal, fie dintr-un worker
+   * separat, dar numai în proiectul + environment-ul Railway STAGING exact,
+   * cu PAYLOAD_DB_PUSH=false și cheia Anthropic prezentă.
+   *
+   * Nu legăm runner-ul periodic de un service ID anume; coada/task-ul și
+   * limit: 1 sunt restricțiile operaționale relevante aici.
    */
-  assertFlashEngineRunStagingEnvironment(
+  assertFlashEngineRunNextStagingEnvironment(
     environment,
   )
 
