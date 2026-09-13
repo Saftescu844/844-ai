@@ -16,6 +16,12 @@ type FlashPayloadReader =
 
 export interface FlashArticlePrePersistenceDedupReadOnlyOptions {
   /**
+   * Fingerprint determinist calculat înainte de persistență.
+   * Dacă este prezent, este folosit doar ca semnal de review.
+   */
+  sourceFingerprint?: string | null
+
+  /**
    * Numărul maxim de Flash-uri recente din aceeași limbă
    * folosite pentru semnalul euristic de titlu normalizat.
    */
@@ -46,6 +52,19 @@ function normalizeTitleSampleLimit(
   )
 }
 
+function normalizeFingerprint(
+  value: string | null | undefined,
+): string | null {
+  const normalized =
+    value
+      ?.trim()
+      .toLowerCase()
+
+  return normalized
+    ? normalized
+    : null
+}
+
 function toPrePersistenceRecord(
   flash: FlashAi,
 ): FlashPrePersistenceDedupRecord {
@@ -53,6 +72,8 @@ function toPrePersistenceRecord(
     id: flash.id,
     language: flash.limba,
     title: flash.titlu,
+    sourceFingerprint:
+      flash.sourceFingerprint,
     sourceUrls:
       (flash.surseFlash ?? [])
         .map(
@@ -85,6 +106,11 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
   const candidateDocs =
     new Map<string, FlashAi>()
 
+  const candidateSourceFingerprint =
+    normalizeFingerprint(
+      options.sourceFingerprint,
+    )
+
   /*
    * Semnal puternic pre-persistență:
    * căutăm URL-ul canonic exact deja citat de un Flash.
@@ -109,6 +135,34 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
     candidateDocs,
     sourceMatches.docs,
   )
+
+  /*
+   * Semnal determinist de review:
+   * dacă REG-001N a produs sourceFingerprint,
+   * căutăm exact același fingerprint deja persistat.
+   * Acest semnal nu transformă candidatul în duplicat evident.
+   */
+  if (candidateSourceFingerprint) {
+    const fingerprintMatches =
+      await payload.find({
+        collection: 'flash-ai',
+        depth: 0,
+        draft: true,
+        overrideAccess: true,
+        limit: 100,
+        where: {
+          sourceFingerprint: {
+            equals:
+              candidateSourceFingerprint,
+          },
+        },
+      })
+
+    addUniqueDocs(
+      candidateDocs,
+      fingerprintMatches.docs,
+    )
+  }
 
   /*
    * Semnal euristic:
@@ -152,6 +206,10 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
       evaluateFlashArticlePrePersistenceDedup(
         candidate,
         existing,
+        {
+          sourceFingerprint:
+            candidateSourceFingerprint,
+        },
       ),
   }
 }

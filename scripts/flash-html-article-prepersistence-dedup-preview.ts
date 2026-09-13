@@ -64,7 +64,8 @@ Behavior:
   - normalizes them into the REG-001L candidate contract
   - computes the deterministic REG-001N sourceFingerprint from the canonical URL
   - checks the candidate read-only against existing FlashAI records
-  - checks canonical source URL reuse and same-language normalized title matches
+  - checks canonical source URL reuse, sourceFingerprint reuse, and same-language normalized title matches
+  - sourceFingerprint reuse is a review signal, not an obvious-duplicate decision
   - keeps eventFingerprint pending and therefore keeps final dedup pending
   - does NOT call Anthropic
   - does NOT create, update, or delete FlashAI
@@ -330,6 +331,10 @@ async function main() {
     await evaluateFlashArticlePrePersistenceDedupReadOnly(
       payload,
       normalized,
+      {
+        sourceFingerprint:
+          fingerprints.sourceFingerprint,
+      },
     )
 
   console.log(
