@@ -15,6 +15,33 @@ import {
 export const DEFAULT_ANTHROPIC_PREPERSISTENCE_EDITORIAL_MAX_TOKENS =
   4096
 
+export const ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA:
+  Record<string, unknown> = {
+    type: 'object',
+    properties: {
+      language: {
+        type: 'string',
+        const: 'ro',
+      },
+      editorialTitle: {
+        type: 'string',
+      },
+      editorialParagraphs: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          type: 'string',
+        },
+      },
+    },
+    required: [
+      'language',
+      'editorialTitle',
+      'editorialParagraphs',
+    ],
+    additionalProperties: false,
+  }
+
 export interface AnthropicPrePersistenceEditorialGenerationSemanticProducerOptions {
   client: Anthropic
   model: string
@@ -29,7 +56,11 @@ export interface AnthropicPrePersistenceEditorialGenerationSemanticProducerOptio
  * The higher default token ceiling is deliberate: a validated Flash
  * editorial may contain 500–1000 Romanian words plus strict JSON framing.
  * It remains only a ceiling; the semantic parser still enforces the exact
- * editorial word-count contract.
+ * editorial word-count and title-length contract.
+ *
+ * Anthropic structured output constrains only the JSON shape. The
+ * application parser remains authoritative for 500–1000 words, title
+ * length, language value, and all fail-closed semantic boundaries.
  *
  * It does not:
  * - read ANTHROPIC_API_KEY;
@@ -57,6 +88,8 @@ export function createAnthropicFlashPrePersistenceEditorialGenerationSemanticPro
         ),
       model,
       maxTokens,
+      structuredOutputSchema:
+        ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA,
       ...(temperature === undefined
         ? {}
         : {
