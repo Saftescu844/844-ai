@@ -13,6 +13,8 @@ import type {
 } from '@/lib/flash/semanticEvidence/prePersistenceClassificationSemanticOutput'
 
 import {
+  FLASH_EDITORIAL_PREFERRED_MAX_WORDS,
+  FLASH_EDITORIAL_PREFERRED_MIN_WORDS,
   buildFlashPrePersistenceEditorialGenerationSemanticPrompt,
 } from '@/lib/flash/semanticEvidence/prePersistenceEditorialGenerationSemanticProducer'
 
@@ -64,7 +66,7 @@ describe(
   'Flash REG-001T editorial prompt quality constraints',
   () => {
     it(
-      'requires source fidelity and Romanian proofreading without changing the hard word-count contract',
+      'requires source fidelity, Romanian proofreading, and a safe preferred length buffer without changing the hard contract',
       () => {
         const prompt =
           buildFlashPrePersistenceEditorialGenerationSemanticPrompt(
@@ -99,7 +101,39 @@ describe(
         expect(
           prompt.systemPrompt,
         ).toContain(
-          'between 500 and 1000 words',
+          'MUST contain between 500 and 1000 words',
+        )
+
+        expect(
+          FLASH_EDITORIAL_PREFERRED_MIN_WORDS,
+        ).toBe(650)
+
+        expect(
+          FLASH_EDITORIAL_PREFERRED_MAX_WORDS,
+        ).toBe(800)
+
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'preferred working range of 650–800 words',
+        )
+
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'silently verify that the editorial body is not below 500 words',
+        )
+
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'never add unsupported facts merely to reach the target',
+        )
+
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'Do not pad with repetitive sentences solely to satisfy the length requirement.',
         )
       },
     )
