@@ -109,6 +109,12 @@ describe(
         expect(
           source,
         ).toContain(
+          'eventFingerprint:\n          fingerprints.eventFingerprint',
+        )
+
+        expect(
+          source,
+        ).toContain(
           'sourceFingerprint:\n          fingerprints.sourceFingerprint',
         )
 
@@ -239,13 +245,25 @@ describe(
         expect(
           stdout,
         ).toContain(
-          'this preview does not yet feed a grounded eventFingerprint into the pre-persistence dedup evaluator',
+          'checks canonical source URL reuse, grounded eventFingerprint reuse, sourceFingerprint reuse, and same-language normalized title matches',
         )
 
         expect(
           stdout,
         ).toContain(
-          'therefore final pre-persistence dedup remains pending in this increment',
+          'a grounded eventFingerprint is fed into pre-persistence dedup only when event identity is grounded',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'without a grounded eventFingerprint final pre-persistence dedup remains pending',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'sourceFingerprint reuse remains only a review signal',
         )
 
         expect(
