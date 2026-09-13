@@ -9,6 +9,12 @@ import {
   buildFlashArticleCandidateFingerprints,
 } from '@/lib/flash/ingestion/articleCandidateSourceFingerprint'
 import {
+  evaluateExplicitGroundedEventIdentity,
+} from '@/lib/flash/ingestion/explicitGroundedEventIdentity'
+import {
+  buildFlashGroundedEventFingerprint,
+} from '@/lib/flash/ingestion/groundedEventFingerprint'
+import {
   evaluateFlashArticlePrePersistenceDedupReadOnly,
 } from '@/lib/flash/ingestion/payloadArticleCandidatePrePersistenceDedupReadOnly'
 import {
@@ -68,10 +74,16 @@ Behavior:
   - extracts the REG-001K article fields
   - normalizes them into the REG-001L candidate contract
   - computes the deterministic REG-001N sourceFingerprint from the canonical URL
+  - evaluates explicit CVE / DOI: / CELEX: identifiers from title, lead, and body
+  - only one unique explicit identifier in title/lead can ground event identity
+  - body-only identifiers or multiple primary identifiers keep event identity pending/ambiguous
+  - a grounded event identity produces deterministic flash-event:v1 eventFingerprint
+  - no title/date/URL/fuzzy/embedding/model-derived event identity is created
   - checks the candidate read-only against existing FlashAI records
   - checks canonical source URL reuse, sourceFingerprint reuse, and same-language normalized title matches
   - sourceFingerprint reuse is a review signal, not an obvious-duplicate decision
-  - keeps eventFingerprint pending and therefore keeps final dedup pending
+  - this preview does not yet feed a grounded eventFingerprint into the pre-persistence dedup evaluator
+  - therefore final pre-persistence dedup remains pending in this increment
   - does NOT call Anthropic
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
@@ -348,10 +360,36 @@ async function main() {
       extracted,
     )
 
-  const fingerprints =
+  const sourceFingerprints =
     buildFlashArticleCandidateFingerprints(
       normalized,
     )
+
+  const eventIdentity =
+    evaluateExplicitGroundedEventIdentity(
+      normalized,
+    )
+
+  const groundedEventFingerprint =
+    eventIdentity.status === 'grounded' &&
+    eventIdentity.identity
+      ? buildFlashGroundedEventFingerprint(
+          eventIdentity.identity,
+        )
+      : null
+
+  const fingerprints = {
+    sourceFingerprint:
+      sourceFingerprints.sourceFingerprint,
+    eventFingerprint:
+      groundedEventFingerprint
+        ?.eventFingerprint ??
+      null,
+    eventFingerprintStatus:
+      groundedEventFingerprint
+        ?.eventFingerprintStatus ??
+      'pending',
+  }
 
   const dedup =
     await evaluateFlashArticlePrePersistenceDedupReadOnly(
@@ -383,6 +421,7 @@ async function main() {
         normalized.sourcePublicationDate,
     },
     sourceVerification,
+    eventIdentity,
     fingerprints,
     candidateCount:
       dedup.candidateCount,
