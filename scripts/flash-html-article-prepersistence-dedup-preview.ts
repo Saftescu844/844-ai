@@ -17,6 +17,9 @@ import {
 import {
   retrieveFlashSource,
 } from '@/lib/flash/runtimeEvidence/sourceRetriever'
+import {
+  evaluateFlashSourceVerification,
+} from '@/lib/flash/runtimeEvidence/sourceVerificationEvidence'
 
 function hasFlag(
   name: string,
@@ -60,6 +63,8 @@ Usage:
 Behavior:
   - reads one active source with allowIngestion=true
   - retrieves one same-host /en/news/... article
+  - runs canonical technical source verification on the registered/concrete/final URLs and retrieval result
+  - source verification confirms source identity/retrieval/content availability; it does NOT verify factual truth
   - extracts the REG-001K article fields
   - normalizes them into the REG-001L candidate contract
   - computes the deterministic REG-001N sourceFingerprint from the canonical URL
@@ -279,6 +284,27 @@ async function main() {
         articleUrl,
     })
 
+  const sourceVerification =
+    evaluateFlashSourceVerification([
+      {
+        id:
+          `source:${source.id}`,
+        registeredSourceUrl:
+          source.url,
+        concreteUrl:
+          articleUrl,
+        finalUrl:
+          retrieval.candidate
+            .finalUrl,
+        retrieved:
+          retrieval.candidate
+            .retrieved,
+        contentAvailable:
+          retrieval.candidate
+            .contentAvailable,
+      },
+    ])
+
   if (
     !retrieval.candidate
       .retrieved ||
@@ -356,6 +382,7 @@ async function main() {
       sourcePublicationDate:
         normalized.sourcePublicationDate,
     },
+    sourceVerification,
     fingerprints,
     candidateCount:
       dedup.candidateCount,
