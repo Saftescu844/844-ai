@@ -20,9 +20,16 @@ export interface FlashPrePersistenceEditorialGenerationSemanticOutput {
 type UnknownRecord =
   Record<string, unknown>
 
-function invalidOutput(): never {
+function invalidOutput(
+  reason:
+    | 'invalid_output_json'
+    | 'invalid_output_shape'
+    | 'invalid_output_language'
+    | 'invalid_output_title'
+    | 'invalid_output_paragraphs',
+): never {
   throw new FlashSemanticEvidenceProducerError(
-    'invalid_output',
+    reason,
   )
 }
 
@@ -40,18 +47,26 @@ function asRecord(
   return value as UnknownRecord
 }
 
-function hasOnlyKeys(
+function hasExactKeys(
   record: UnknownRecord,
-  allowedKeys: readonly string[],
+  requiredKeys: readonly string[],
 ): boolean {
-  const allowed =
-    new Set(allowedKeys)
+  const keys =
+    Object.keys(record)
 
-  return Object
-    .keys(record)
-    .every(
-      key => allowed.has(key),
-    )
+  if (
+    keys.length !==
+    requiredKeys.length
+  ) {
+    return false
+  }
+
+  const required =
+    new Set(requiredKeys)
+
+  return keys.every(
+    key => required.has(key),
+  )
 }
 
 export function countFlashEditorialWords(
@@ -71,11 +86,14 @@ export function countFlashEditorialWords(
  * It intentionally does not:
  * - repair JSON;
  * - accept markdown fences;
- * - accept extra fields or free-form rationale;
+ * - accept extra or missing fields;
  * - generate or infer classification;
  * - decide AUTO / REVIEW / BLOCK;
  * - convert the text into Payload Lexical rich text;
  * - write to Payload.
+ *
+ * Failure reasons are deliberately specific enough for safe live diagnosis,
+ * without returning or persisting the invalid provider payload.
  */
 export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
   raw: string,
@@ -86,7 +104,9 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
     parsed =
       JSON.parse(raw)
   } catch {
-    invalidOutput()
+    invalidOutput(
+      'invalid_output_json',
+    )
   }
 
   const root =
@@ -94,7 +114,7 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
 
   if (
     !root ||
-    !hasOnlyKeys(
+    !hasExactKeys(
       root,
       [
         'language',
@@ -103,17 +123,23 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
       ],
     )
   ) {
-    invalidOutput()
+    invalidOutput(
+      'invalid_output_shape',
+    )
   }
 
   if (root.language !== 'ro') {
-    invalidOutput()
+    invalidOutput(
+      'invalid_output_language',
+    )
   }
 
   if (
     typeof root.editorialTitle !== 'string'
   ) {
-    invalidOutput()
+    invalidOutput(
+      'invalid_output_title',
+    )
   }
 
   const editorialTitle =
@@ -125,7 +151,9 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
     editorialTitle.length >
       FLASH_EDITORIAL_MAX_TITLE_LENGTH
   ) {
-    invalidOutput()
+    invalidOutput(
+      'invalid_output_title',
+    )
   }
 
   if (
@@ -135,7 +163,9 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
     root.editorialParagraphs.length ===
       0
   ) {
-    invalidOutput()
+    invalidOutput(
+      'invalid_output_paragraphs',
+    )
   }
 
   const editorialParagraphs =
@@ -145,14 +175,18 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
           typeof paragraph !==
           'string'
         ) {
-          invalidOutput()
+          invalidOutput(
+            'invalid_output_paragraphs',
+          )
         }
 
         const normalized =
           paragraph.trim()
 
         if (!normalized) {
-          invalidOutput()
+          invalidOutput(
+            'invalid_output_paragraphs',
+          )
         }
 
         return normalized
