@@ -1,10 +1,4 @@
 import {
-  getPayload,
-} from 'payload'
-
-import config from '@payload-config'
-
-import {
   FLASH_ENGINE_STAGING_RAILWAY_TARGET,
 } from '@/lib/flash/jobs/queueFlashEngineEvaluationJob'
 
@@ -162,6 +156,28 @@ function parsePositiveInteger(
   return parsed
 }
 
+async function createPayload() {
+  const [
+    payloadModule,
+    configModule,
+  ] =
+    await Promise.all([
+      import(
+        'payload'
+      ),
+      import(
+        '@payload-config'
+      ),
+    ])
+
+  return payloadModule
+    .getPayload({
+      config:
+        configModule
+          .default,
+    })
+}
+
 async function main() {
   if (
     hasFlag(
@@ -210,9 +226,7 @@ async function main() {
       : 10
 
   const payload =
-    await getPayload({
-      config,
-    })
+    await createPayload()
 
   const result =
     await payload.find({
