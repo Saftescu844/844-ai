@@ -15,7 +15,7 @@ Un Flash trebuie să explice:
 - limitele informației;
 - ce întrebări importante deschide.
 
-Țintă editorială: **400–1000 de cuvinte**.
+Țintă editorială: **500–1000 de cuvinte**.
 
 Flash AI este separat de colecția `Articole`.
 
