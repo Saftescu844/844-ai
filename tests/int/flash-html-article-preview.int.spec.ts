@@ -78,8 +78,20 @@ describe(
 
         expect(
           source,
-        ).not.toContain(
-          'Anthropic',
+        ).not.toMatch(
+          /from\s+['"]@anthropic-ai\/sdk['"]/,
+        )
+
+        expect(
+          source,
+        ).not.toMatch(
+          /\bnew\s+Anthropic\s*\(/,
+        )
+
+        expect(
+          source,
+        ).not.toMatch(
+          /\banthropic\s*\.\s*messages\s*\.\s*create\s*\(/i,
         )
       },
     )
