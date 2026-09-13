@@ -23,6 +23,12 @@ import type {
   FlashSemanticTextExecutor,
 } from './semanticTextExecutor'
 
+export const FLASH_EDITORIAL_PREFERRED_MIN_WORDS =
+  650
+
+export const FLASH_EDITORIAL_PREFERRED_MAX_WORDS =
+  800
+
 export interface FlashPrePersistenceEditorialGenerationSemanticProducerOptions {
   executor: FlashSemanticTextExecutor
   provider: string
@@ -148,7 +154,10 @@ export function buildFlashPrePersistenceEditorialGenerationSemanticPrompt(
     '',
     'Editorial requirements:',
     `- editorialTitle must be non-empty and at most ${String(FLASH_EDITORIAL_MAX_TITLE_LENGTH)} characters.`,
-    `- editorialParagraphs together must contain between ${String(FLASH_EDITORIAL_MIN_WORDS)} and ${String(FLASH_EDITORIAL_MAX_WORDS)} words.`,
+    `- editorialParagraphs together MUST contain between ${String(FLASH_EDITORIAL_MIN_WORDS)} and ${String(FLASH_EDITORIAL_MAX_WORDS)} words.`,
+    `- Aim for a preferred working range of ${String(FLASH_EDITORIAL_PREFERRED_MIN_WORDS)}–${String(FLASH_EDITORIAL_PREFERRED_MAX_WORDS)} words so the final draft remains safely above the hard ${String(FLASH_EDITORIAL_MIN_WORDS)}-word minimum after proofreading.`,
+    `- Before returning JSON, silently verify that the editorial body is not below ${String(FLASH_EDITORIAL_MIN_WORDS)} words. If it is short, expand only by explaining relationships already supported by the supplied source; never add unsupported facts merely to reach the target.`,
+    '- Do not pad with repetitive sentences solely to satisfy the length requirement.',
     '- Write an original editorial synthesis, not a translation or reconstruction of the source article.',
     '- Paraphrase the source. Do not copy long passages and do not rely on direct quotations in this stage.',
     '- Use only facts directly supported by the supplied source material.',
