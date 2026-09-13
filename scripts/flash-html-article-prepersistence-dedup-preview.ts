@@ -6,6 +6,9 @@ import {
   normalizeFlashHtmlArticleCandidate,
 } from '@/lib/flash/ingestion/articleCandidateNormalization'
 import {
+  buildFlashArticleCandidateFingerprints,
+} from '@/lib/flash/ingestion/articleCandidateSourceFingerprint'
+import {
   evaluateFlashArticlePrePersistenceDedupReadOnly,
 } from '@/lib/flash/ingestion/payloadArticleCandidatePrePersistenceDedupReadOnly'
 import {
@@ -59,9 +62,10 @@ Behavior:
   - retrieves one same-host /en/news/... article
   - extracts the REG-001K article fields
   - normalizes them into the REG-001L candidate contract
+  - computes the deterministic REG-001N sourceFingerprint from the canonical URL
   - checks the candidate read-only against existing FlashAI records
   - checks canonical source URL reuse and same-language normalized title matches
-  - keeps final dedup pending because no eventFingerprint is generated here
+  - keeps eventFingerprint pending and therefore keeps final dedup pending
   - does NOT call Anthropic
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
@@ -317,6 +321,11 @@ async function main() {
       extracted,
     )
 
+  const fingerprints =
+    buildFlashArticleCandidateFingerprints(
+      normalized,
+    )
+
   const dedup =
     await evaluateFlashArticlePrePersistenceDedupReadOnly(
       payload,
@@ -342,6 +351,7 @@ async function main() {
       sourcePublicationDate:
         normalized.sourcePublicationDate,
     },
+    fingerprints,
     candidateCount:
       dedup.candidateCount,
     evidence:
