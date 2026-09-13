@@ -3,7 +3,7 @@ import {
 } from './semanticEvidenceProducer'
 
 export const FLASH_EDITORIAL_MIN_WORDS =
-  400
+  500
 
 export const FLASH_EDITORIAL_MAX_WORDS =
   1000
