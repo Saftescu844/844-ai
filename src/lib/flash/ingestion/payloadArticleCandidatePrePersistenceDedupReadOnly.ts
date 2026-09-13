@@ -16,6 +16,12 @@ type FlashPayloadReader =
 
 export interface FlashArticlePrePersistenceDedupReadOnlyOptions {
   /**
+   * Event fingerprint grounded înainte de persistență.
+   * Dacă este prezent, este căutat exact și independent de limbă.
+   */
+  eventFingerprint?: string | null
+
+  /**
    * Fingerprint determinist calculat înainte de persistență.
    * Dacă este prezent, este folosit doar ca semnal de review.
    */
@@ -72,6 +78,8 @@ function toPrePersistenceRecord(
     id: flash.id,
     language: flash.limba,
     title: flash.titlu,
+    eventFingerprint:
+      flash.eventFingerprint,
     sourceFingerprint:
       flash.sourceFingerprint,
     sourceUrls:
@@ -106,6 +114,11 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
   const candidateDocs =
     new Map<string, FlashAi>()
 
+  const candidateEventFingerprint =
+    normalizeFingerprint(
+      options.eventFingerprint,
+    )
+
   const candidateSourceFingerprint =
     normalizeFingerprint(
       options.sourceFingerprint,
@@ -135,6 +148,33 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
     candidateDocs,
     sourceMatches.docs,
   )
+
+  /*
+   * Semnal canonic de duplicat evident:
+   * un eventFingerprint grounded este căutat exact,
+   * independent de limbă.
+   */
+  if (candidateEventFingerprint) {
+    const eventFingerprintMatches =
+      await payload.find({
+        collection: 'flash-ai',
+        depth: 0,
+        draft: true,
+        overrideAccess: true,
+        limit: 100,
+        where: {
+          eventFingerprint: {
+            equals:
+              candidateEventFingerprint,
+          },
+        },
+      })
+
+    addUniqueDocs(
+      candidateDocs,
+      eventFingerprintMatches.docs,
+    )
+  }
 
   /*
    * Semnal determinist de review:
@@ -207,6 +247,8 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
         candidate,
         existing,
         {
+          eventFingerprint:
+            candidateEventFingerprint,
           sourceFingerprint:
             candidateSourceFingerprint,
         },

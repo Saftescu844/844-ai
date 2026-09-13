@@ -32,7 +32,7 @@ describe(
   'Flash HTML article pre-persistence dedup preview CLI',
   () => {
     it(
-      'documents a read-only extraction-to-dedup path with deterministic source fingerprinting, source verification, and without downstream writes',
+      'documents a read-only extraction-to-dedup path with source verification and grounded event identity without downstream writes',
       async () => {
         const source =
           await readFile(
@@ -85,13 +85,43 @@ describe(
         expect(
           source,
         ).toContain(
+          'evaluateExplicitGroundedEventIdentity',
+        )
+
+        expect(
+          source,
+        ).toContain(
+          'buildFlashGroundedEventFingerprint',
+        )
+
+        expect(
+          source,
+        ).toContain(
+          'eventIdentity,',
+        )
+
+        expect(
+          source,
+        ).toContain(
           'evaluateFlashArticlePrePersistenceDedupReadOnly',
         )
 
         expect(
           source,
         ).toContain(
+          'eventFingerprint:\n          fingerprints.eventFingerprint',
+        )
+
+        expect(
+          source,
+        ).toContain(
           'sourceFingerprint:\n          fingerprints.sourceFingerprint',
+        )
+
+        expect(
+          source,
+        ).toContain(
+          "eventIdentity.status === 'grounded'",
         )
 
         expect(
@@ -197,19 +227,43 @@ describe(
         expect(
           stdout,
         ).toContain(
-          'checks canonical source URL reuse, sourceFingerprint reuse, and same-language normalized title matches',
+          'evaluates explicit CVE / DOI: / CELEX: identifiers from title, lead, and body',
         )
 
         expect(
           stdout,
         ).toContain(
-          'sourceFingerprint reuse is a review signal, not an obvious-duplicate decision',
+          'only one unique explicit identifier in title/lead can ground event identity',
         )
 
         expect(
           stdout,
         ).toContain(
-          'keeps eventFingerprint pending and therefore keeps final dedup pending',
+          'no title/date/URL/fuzzy/embedding/model-derived event identity is created',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'checks canonical source URL reuse, grounded eventFingerprint reuse, sourceFingerprint reuse, and same-language normalized title matches',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'a grounded eventFingerprint is fed into pre-persistence dedup only when event identity is grounded',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'without a grounded eventFingerprint final pre-persistence dedup remains pending',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'sourceFingerprint reuse remains only a review signal',
         )
 
         expect(

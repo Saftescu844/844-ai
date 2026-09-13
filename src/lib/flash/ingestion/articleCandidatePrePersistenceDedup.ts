@@ -11,6 +11,7 @@ import type {
 
 export type FlashPrePersistenceDedupMatchReason =
   | 'canonical_source_url_match'
+  | 'event_fingerprint_match'
   | 'source_fingerprint_match'
   | 'normalized_title_match'
 
@@ -22,6 +23,7 @@ export interface FlashPrePersistenceDedupRecord {
   id?: DedupRecordID | null
   language?: FlashDedupLanguage | null
   title: string
+  eventFingerprint?: string | null
   sourceFingerprint?: string | null
   sourceUrls?: Array<
     string | null | undefined
@@ -29,6 +31,7 @@ export interface FlashPrePersistenceDedupRecord {
 }
 
 export interface FlashPrePersistenceDedupCandidateSignals {
+  eventFingerprint?: string | null
   sourceFingerprint?: string | null
 }
 
@@ -41,9 +44,10 @@ export interface FlashPrePersistenceDedupMatch {
 export interface FlashPrePersistenceDedupEvidence {
   candidateCanonicalUrl: string
   sourceDuplicateFound: boolean
+  eventFingerprintDuplicateFound: boolean
   sourceFingerprintReviewSignal: boolean
   titleReviewSignal: boolean
-  finalDedupPending: true
+  finalDedupPending: boolean
   reasons:
     FlashPrePersistenceDedupReason[]
   matches:
@@ -111,6 +115,11 @@ export function evaluateFlashArticlePrePersistenceDedup(
     )
   }
 
+  const candidateEventFingerprint =
+    normalizeFingerprint(
+      candidateSignals.eventFingerprint,
+    )
+
   const candidateSourceFingerprint =
     normalizeFingerprint(
       candidateSignals.sourceFingerprint,
@@ -125,6 +134,7 @@ export function evaluateFlashArticlePrePersistenceDedup(
     FlashPrePersistenceDedupMatch[] = []
 
   let sourceDuplicateFound = false
+  let eventFingerprintDuplicateFound = false
   let sourceFingerprintReviewSignal = false
   let titleReviewSignal = false
 
@@ -153,6 +163,23 @@ export function evaluateFlashArticlePrePersistenceDedup(
       sourceDuplicateFound = true
       matchReasons.push(
         'canonical_source_url_match',
+      )
+    }
+
+    const existingEventFingerprint =
+      normalizeFingerprint(
+        record.eventFingerprint,
+      )
+
+    if (
+      candidateEventFingerprint &&
+      existingEventFingerprint &&
+      candidateEventFingerprint ===
+        existingEventFingerprint
+    ) {
+      eventFingerprintDuplicateFound = true
+      matchReasons.push(
+        'event_fingerprint_match',
       )
     }
 
@@ -204,9 +231,13 @@ export function evaluateFlashArticlePrePersistenceDedup(
   const reasons =
     new Set<
       FlashPrePersistenceDedupReason
-    >([
+    >()
+
+  if (!candidateEventFingerprint) {
+    reasons.add(
       'missing_event_fingerprint',
-    ])
+    )
+  }
 
   for (const match of matches) {
     for (const reason of match.reasons) {
@@ -219,9 +250,11 @@ export function evaluateFlashArticlePrePersistenceDedup(
   return {
     candidateCanonicalUrl,
     sourceDuplicateFound,
+    eventFingerprintDuplicateFound,
     sourceFingerprintReviewSignal,
     titleReviewSignal,
-    finalDedupPending: true,
+    finalDedupPending:
+      candidateEventFingerprint === null,
     reasons: [
       ...reasons,
     ],

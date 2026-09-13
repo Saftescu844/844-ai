@@ -155,6 +155,73 @@ describe(
     )
 
     it(
+      'detectează eventFingerprint grounded identic independent de limbă',
+      async () => {
+        const candidate =
+          normalizedCandidate()
+
+        const eventFingerprint =
+          'grounded-event-fingerprint'
+
+        const eventMatch =
+          flash({
+            id: 33,
+            limba: 'ro',
+            eventFingerprint,
+          })
+
+        const payload =
+          payloadReader([
+            [],
+            [eventMatch],
+            [],
+          ])
+
+        const result =
+          await evaluateFlashArticlePrePersistenceDedupReadOnly(
+            payload,
+            candidate,
+            {
+              eventFingerprint,
+            },
+          )
+
+        expect(
+          result.evidence
+            .eventFingerprintDuplicateFound,
+        ).toBe(true)
+
+        expect(
+          result.evidence.reasons,
+        ).toContain(
+          'event_fingerprint_match',
+        )
+
+        expect(
+          result.evidence
+            .finalDedupPending,
+        ).toBe(false)
+
+        expect(
+          payload.find,
+        ).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({
+            collection: 'flash-ai',
+            draft: true,
+            overrideAccess: true,
+            where: {
+              eventFingerprint: {
+                equals:
+                  eventFingerprint,
+              },
+            },
+          }),
+        )
+      },
+    )
+
+    it(
       'detectează sourceFingerprint identic doar ca semnal de review',
       async () => {
         const candidate =
@@ -280,6 +347,7 @@ describe(
           candidateCount: 0,
           evidence: {
             sourceDuplicateFound: false,
+            eventFingerprintDuplicateFound: false,
             sourceFingerprintReviewSignal: false,
             titleReviewSignal: false,
             finalDedupPending: true,
