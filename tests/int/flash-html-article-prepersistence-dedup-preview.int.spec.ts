@@ -32,7 +32,7 @@ describe(
   'Flash HTML article pre-persistence dedup preview CLI',
   () => {
     it(
-      'documents a read-only extraction-to-dedup path with deterministic source fingerprinting and without downstream writes',
+      'documents a read-only extraction-to-dedup path with deterministic source fingerprinting, source verification, and without downstream writes',
       async () => {
         const source =
           await readFile(
@@ -50,6 +50,18 @@ describe(
           source,
         ).toContain(
           'retrieveFlashSource',
+        )
+
+        expect(
+          source,
+        ).toContain(
+          'evaluateFlashSourceVerification',
+        )
+
+        expect(
+          source,
+        ).toContain(
+          'sourceVerification,',
         )
 
         expect(
@@ -162,6 +174,18 @@ describe(
           stdout,
         ).toContain(
           'Flash Engine HTML article pre-persistence dedup preview',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'runs canonical technical source verification on the registered/concrete/final URLs and retrieval result',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'source verification confirms source identity/retrieval/content availability; it does NOT verify factual truth',
         )
 
         expect(
