@@ -80,10 +80,10 @@ Behavior:
   - a grounded event identity produces deterministic flash-event:v1 eventFingerprint
   - no title/date/URL/fuzzy/embedding/model-derived event identity is created
   - checks the candidate read-only against existing FlashAI records
-  - checks canonical source URL reuse, sourceFingerprint reuse, and same-language normalized title matches
-  - sourceFingerprint reuse is a review signal, not an obvious-duplicate decision
-  - this preview does not yet feed a grounded eventFingerprint into the pre-persistence dedup evaluator
-  - therefore final pre-persistence dedup remains pending in this increment
+  - checks canonical source URL reuse, grounded eventFingerprint reuse, sourceFingerprint reuse, and same-language normalized title matches
+  - a grounded eventFingerprint is fed into pre-persistence dedup only when event identity is grounded
+  - without a grounded eventFingerprint final pre-persistence dedup remains pending
+  - sourceFingerprint reuse remains only a review signal
   - does NOT call Anthropic
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
@@ -396,6 +396,8 @@ async function main() {
       payload,
       normalized,
       {
+        eventFingerprint:
+          fingerprints.eventFingerprint,
         sourceFingerprint:
           fingerprints.sourceFingerprint,
       },
