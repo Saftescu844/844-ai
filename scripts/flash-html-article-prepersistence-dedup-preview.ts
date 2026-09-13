@@ -33,8 +33,19 @@ import {
   createAnthropicFlashPrePersistenceClassificationSemanticProducer,
 } from '@/lib/flash/semanticEvidence/anthropicPrePersistenceClassificationSemanticProducer'
 import {
+  createAnthropicFlashPrePersistenceEditorialGenerationSemanticProducer,
+} from '@/lib/flash/semanticEvidence/anthropicPrePersistenceEditorialGenerationSemanticProducer'
+import {
   runFlashPrePersistenceClassificationSemanticProducer,
 } from '@/lib/flash/semanticEvidence/prePersistenceClassificationSemanticProducer'
+import {
+  countFlashEditorialWords,
+  type FlashPrePersistenceEditorialGenerationSemanticOutput,
+} from '@/lib/flash/semanticEvidence/prePersistenceEditorialGenerationSemanticOutput'
+import {
+  runFlashPrePersistenceEditorialGenerationSemanticProducer,
+  type FlashPrePersistenceEditorialGenerationRunMetadata,
+} from '@/lib/flash/semanticEvidence/prePersistenceEditorialGenerationSemanticProducer'
 
 function hasFlag(
   name: string,
@@ -96,12 +107,14 @@ Behavior:
   - sourceFingerprint reuse remains only a review signal
   - evaluates persistence readiness from source verification, dedup evidence, grounded fingerprints, and optional validated classification
   - reports source-grounded values, classification, deferred decisions, blockers, and review signals
-  - REG-001S classification is NOT requested by default
-  - with --allow-provider-requests and --model, resolves allowed pilons from the source configuration and requests bounded Anthropic classification only
+  - REG-001S classification and REG-001T editorial generation are NOT requested by default
+  - with --allow-provider-requests and --model, resolves allowed pilons from the source configuration and requests bounded Anthropic classification first
   - provider classification runs only after source verification passes and no canonical/event duplicate blocker exists
   - successful strict REG-001S classification removes classification_required from persistence readiness
-  - generated_flash_content_required still blocks FlashAI draft creation in this increment
-  - does NOT generate Flash editorial content
+  - after successful classification, requests one original Romanian REG-001T editorial draft using the same source candidate and validated classification
+  - the generated Romanian editorial must satisfy the strict 500–1000-word contract or the preview fails closed
+  - REG-001T output is preview-only and is intentionally NOT fed back into persistenceReadiness yet
+  - generated_flash_content_required therefore remains in persistence readiness until a later explicit integration increment
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
   - does NOT publish or unpublish
@@ -497,6 +510,16 @@ async function main() {
         }
       } = null
 
+  let prePersistenceEditorialGeneration:
+    | null
+    | {
+        editorial:
+          FlashPrePersistenceEditorialGenerationSemanticOutput
+        wordCount: number
+        run:
+          FlashPrePersistenceEditorialGenerationRunMetadata
+      } = null
+
   if (allowProviderRequests) {
     if (!model) {
       throw new Error(
@@ -593,7 +616,7 @@ async function main() {
         apiKey,
       })
 
-    const producer =
+    const classificationProducer =
       createAnthropicFlashPrePersistenceClassificationSemanticProducer({
         client,
         model,
@@ -601,7 +624,8 @@ async function main() {
 
     const classificationResult =
       await runFlashPrePersistenceClassificationSemanticProducer({
-        producer,
+        producer:
+          classificationProducer,
         input: {
           candidate:
             normalized,
@@ -639,6 +663,44 @@ async function main() {
         validatedClassification:
           classificationResult.classification,
       })
+
+    const editorialProducer =
+      createAnthropicFlashPrePersistenceEditorialGenerationSemanticProducer({
+        client,
+        model,
+      })
+
+    const editorialResult =
+      await runFlashPrePersistenceEditorialGenerationSemanticProducer({
+        producer:
+          editorialProducer,
+        input: {
+          candidate:
+            normalized,
+          classification:
+            classificationResult.classification,
+          runId:
+            `flash-prepersistence-editorial-ro:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
+        },
+      })
+
+    if (!editorialResult.ok) {
+      throw new Error(
+        `Pre-persistence editorial generation failed: ${editorialResult.reason}.`,
+      )
+    }
+
+    prePersistenceEditorialGeneration = {
+      editorial:
+        editorialResult.editorial,
+      wordCount:
+        countFlashEditorialWords(
+          editorialResult.editorial
+            .editorialParagraphs,
+        ),
+      run:
+        editorialResult.run,
+    }
   }
 
   console.log(
@@ -669,7 +731,33 @@ async function main() {
       dedup.evidence,
     persistenceReadiness,
     prePersistenceClassification,
+    prePersistenceEditorialGeneration:
+      prePersistenceEditorialGeneration
+        ? {
+            wordCount:
+              prePersistenceEditorialGeneration
+                .wordCount,
+            run:
+              prePersistenceEditorialGeneration
+                .run,
+          }
+        : null,
   })
+
+  if (
+    prePersistenceEditorialGeneration
+  ) {
+    console.log(
+      'FLASH_PREPERSISTENCE_EDITORIAL_GENERATION_RO',
+    )
+    console.log(
+      JSON.stringify(
+        prePersistenceEditorialGeneration,
+        null,
+        2,
+      ),
+    )
+  }
 }
 
 main()
