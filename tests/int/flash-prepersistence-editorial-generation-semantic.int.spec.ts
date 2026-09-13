@@ -283,7 +283,7 @@ describe(
     )
 
     it(
-      'returns invalid_output when the executor returns editorial text outside the strict contract',
+      'returns invalid_output_too_short when provider text is below the strict minimum',
       async () => {
         const producer =
           createFlashPrePersistenceEditorialGenerationSemanticProducer({
@@ -313,7 +313,8 @@ describe(
         expect(result).toMatchObject({
           ok: false,
           editorial: null,
-          reason: 'invalid_output',
+          reason:
+            'invalid_output_too_short',
         })
       },
     )
