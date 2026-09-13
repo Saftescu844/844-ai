@@ -21,7 +21,7 @@ describe(
   'Flash pre-persistence classification preview wiring',
   () => {
     it(
-      'keeps provider use explicit and the preview read-only',
+      'keeps provider use explicit, bridges only validated classification, and stays read-only',
       async () => {
         const source =
           await readFile(
@@ -81,6 +81,12 @@ describe(
           source,
         ).toContain(
           'prePersistenceClassification,',
+        )
+
+        expect(
+          source,
+        ).toContain(
+          'validatedClassification:\n          classificationResult.classification',
         )
 
         expect(
