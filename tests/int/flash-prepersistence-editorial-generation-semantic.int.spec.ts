@@ -122,65 +122,109 @@ describe(
     )
 
     it.each([
-      JSON.stringify({
-        language: 'en',
-        editorialTitle: 'Wrong language',
-        editorialParagraphs: [
-          words(500),
-        ],
-      }),
-      JSON.stringify({
-        language: 'ro',
-        editorialTitle:
-          'x'.repeat(
-            FLASH_EDITORIAL_MAX_TITLE_LENGTH +
-              1,
-          ),
-        editorialParagraphs: [
-          words(500),
-        ],
-      }),
-      JSON.stringify({
-        language: 'ro',
-        editorialTitle: 'Prea scurt',
-        editorialParagraphs: [
-          words(499),
-        ],
-      }),
-      JSON.stringify({
-        language: 'ro',
-        editorialTitle: 'Prea lung',
-        editorialParagraphs: [
-          words(1001),
-        ],
-      }),
-      JSON.stringify({
-        language: 'ro',
-        editorialTitle: 'Paragraf gol',
-        editorialParagraphs: [
-          words(500),
-          '   ',
-        ],
-      }),
-      JSON.stringify({
-        language: 'ro',
-        editorialTitle: 'Câmp suplimentar',
-        editorialParagraphs: [
-          words(500),
-        ],
-        rationale: 'not allowed',
-      }),
-      '```json\n{"language":"ro"}\n```',
+      {
+        raw:
+          '```json\n{"language":"ro"}\n```',
+        reason:
+          'invalid_output_json',
+      },
+      {
+        raw:
+          JSON.stringify({
+            language: 'ro',
+            editorialTitle:
+              'Câmp suplimentar',
+            editorialParagraphs: [
+              words(500),
+            ],
+            rationale:
+              'not allowed',
+          }),
+        reason:
+          'invalid_output_shape',
+      },
+      {
+        raw:
+          JSON.stringify({
+            language: 'en',
+            editorialTitle:
+              'Wrong language',
+            editorialParagraphs: [
+              words(500),
+            ],
+          }),
+        reason:
+          'invalid_output_language',
+      },
+      {
+        raw:
+          JSON.stringify({
+            language: 'ro',
+            editorialTitle:
+              'x'.repeat(
+                FLASH_EDITORIAL_MAX_TITLE_LENGTH +
+                  1,
+              ),
+            editorialParagraphs: [
+              words(500),
+            ],
+          }),
+        reason:
+          'invalid_output_title',
+      },
+      {
+        raw:
+          JSON.stringify({
+            language: 'ro',
+            editorialTitle:
+              'Paragraf gol',
+            editorialParagraphs: [
+              words(500),
+              '   ',
+            ],
+          }),
+        reason:
+          'invalid_output_paragraphs',
+      },
+      {
+        raw:
+          JSON.stringify({
+            language: 'ro',
+            editorialTitle:
+              'Prea scurt',
+            editorialParagraphs: [
+              words(499),
+            ],
+          }),
+        reason:
+          'invalid_output_too_short',
+      },
+      {
+        raw:
+          JSON.stringify({
+            language: 'ro',
+            editorialTitle:
+              'Prea lung',
+            editorialParagraphs: [
+              words(1001),
+            ],
+          }),
+        reason:
+          'invalid_output_too_long',
+      },
     ])(
-      'fails closed on malformed or out-of-contract editorial output',
-      raw => {
+      'fails closed with diagnostic reason $reason',
+      ({
+        raw,
+        reason,
+      }) => {
         expect(
           () =>
             parseFlashPrePersistenceEditorialGenerationSemanticOutput(
               raw,
             ),
         ).toThrow(
-          'invalid_output',
+          reason,
         )
       },
     )
@@ -283,7 +327,7 @@ describe(
     )
 
     it(
-      'returns invalid_output_too_short when provider text is below the strict minimum',
+      'returns the specific contract failure reason from the producer runner',
       async () => {
         const producer =
           createFlashPrePersistenceEditorialGenerationSemanticProducer({
@@ -292,7 +336,8 @@ describe(
             executor: async () =>
               JSON.stringify({
                 language: 'ro',
-                editorialTitle: 'Prea scurt',
+                editorialTitle:
+                  'Prea scurt',
                 editorialParagraphs: [
                   words(25),
                 ],
