@@ -83,11 +83,11 @@ function validEditorialRaw() {
       'Oficiul european pentru IA continuă lucrul privind regulile GPAI',
     editorialParagraphs: [
       words(
-        200,
+        250,
         'primul',
       ),
       words(
-        200,
+        250,
         'aldoilea',
       ),
     ],
@@ -98,7 +98,7 @@ describe(
   'Flash pre-persistence editorial generation semantic contract',
   () => {
     it(
-      'parses a strict Romanian editorial draft between 400 and 1000 words',
+      'parses a strict Romanian editorial draft between 500 and 1000 words',
       () => {
         const result =
           parseFlashPrePersistenceEditorialGenerationSemanticOutput(
@@ -117,7 +117,7 @@ describe(
           countFlashEditorialWords(
             result.editorialParagraphs,
           ),
-        ).toBe(400)
+        ).toBe(500)
       },
     )
 
@@ -126,7 +126,7 @@ describe(
         language: 'en',
         editorialTitle: 'Wrong language',
         editorialParagraphs: [
-          words(400),
+          words(500),
         ],
       }),
       JSON.stringify({
@@ -137,14 +137,14 @@ describe(
               1,
           ),
         editorialParagraphs: [
-          words(400),
+          words(500),
         ],
       }),
       JSON.stringify({
         language: 'ro',
         editorialTitle: 'Prea scurt',
         editorialParagraphs: [
-          words(399),
+          words(499),
         ],
       }),
       JSON.stringify({
@@ -158,7 +158,7 @@ describe(
         language: 'ro',
         editorialTitle: 'Paragraf gol',
         editorialParagraphs: [
-          words(400),
+          words(500),
           '   ',
         ],
       }),
@@ -166,7 +166,7 @@ describe(
         language: 'ro',
         editorialTitle: 'Câmp suplimentar',
         editorialParagraphs: [
-          words(400),
+          words(500),
         ],
         rationale: 'not allowed',
       }),
@@ -209,7 +209,7 @@ describe(
         expect(
           prompt.systemPrompt,
         ).toContain(
-          'between 400 and 1000 words',
+          'between 500 and 1000 words',
         )
 
         expect(
@@ -277,7 +277,7 @@ describe(
             countFlashEditorialWords(
               result.editorial.editorialParagraphs,
             ),
-          ).toBe(400)
+          ).toBe(500)
         }
       },
     )
