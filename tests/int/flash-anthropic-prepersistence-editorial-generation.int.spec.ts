@@ -11,6 +11,7 @@ import type {
 } from '@/lib/flash/ingestion/articleCandidateNormalization'
 
 import {
+  ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA,
   createAnthropicFlashPrePersistenceEditorialGenerationSemanticProducer,
   DEFAULT_ANTHROPIC_PREPERSISTENCE_EDITORIAL_MAX_TOKENS,
 } from '@/lib/flash/semanticEvidence/anthropicPrePersistenceEditorialGenerationSemanticProducer'
@@ -101,7 +102,7 @@ describe(
   'Anthropic pre-persistence editorial generation composition',
   () => {
     it(
-      'does not request at construction and delegates one bounded Romanian editorial request when run',
+      'does not request at construction and delegates one bounded structured Romanian editorial request when run',
       async () => {
         const requests:
           unknown[] = []
@@ -173,6 +174,14 @@ describe(
                 'user',
             },
           ],
+          output_config: {
+            format: {
+              type:
+                'json_schema',
+              schema:
+                ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA,
+            },
+          },
         })
 
         expect(
