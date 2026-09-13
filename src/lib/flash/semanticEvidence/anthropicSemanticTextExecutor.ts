@@ -6,6 +6,14 @@ import type {
   FlashSemanticTextExecutor,
 } from './semanticTextExecutor'
 
+export interface AnthropicSemanticJsonSchemaFormat {
+  type:
+    'json_schema'
+
+  schema:
+    Record<string, unknown>
+}
+
 export interface AnthropicSemanticMessageCreateParams {
   model:
     string
@@ -27,6 +35,11 @@ export interface AnthropicSemanticMessageCreateParams {
       content:
         string
     }>
+
+  output_config?: {
+    format:
+      AnthropicSemanticJsonSchemaFormat
+  }
 }
 
 export interface AnthropicSemanticMessageContentBlock {
@@ -73,6 +86,9 @@ export interface AnthropicSemanticTextExecutorOptions {
 
   temperature?:
     number
+
+  structuredOutputSchema?:
+    Record<string, unknown>
 }
 
 export const DEFAULT_ANTHROPIC_SEMANTIC_MAX_TOKENS =
@@ -173,6 +189,9 @@ function extractText(
 /**
  * Adaptor subțire Anthropic -> SemanticTextExecutor.
  *
+ * Poate transmite opțional un JSON Schema către output_config.format.
+ * Producerii care nu cer structured output rămân neschimbați.
+ *
  * Nu:
  * - citește ANTHROPIC_API_KEY;
  * - creează singur clientul SDK;
@@ -189,6 +208,7 @@ export function createAnthropicSemanticTextExecutor({
     DEFAULT_ANTHROPIC_SEMANTIC_MAX_TOKENS,
   temperature =
     DEFAULT_ANTHROPIC_SEMANTIC_TEMPERATURE,
+  structuredOutputSchema,
 }: AnthropicSemanticTextExecutorOptions):
   FlashSemanticTextExecutor {
   return async ({
@@ -237,6 +257,19 @@ export function createAnthropicSemanticTextExecutor({
                 userPrompt,
             },
           ],
+
+          ...(structuredOutputSchema
+            ? {
+                output_config: {
+                  format: {
+                    type:
+                      'json_schema' as const,
+                    schema:
+                      structuredOutputSchema,
+                  },
+                },
+              }
+            : {}),
         })
     } catch {
       throw new FlashSemanticEvidenceProducerError(
