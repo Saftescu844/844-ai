@@ -32,7 +32,7 @@ describe(
   'Flash HTML article pre-persistence dedup preview CLI',
   () => {
     it(
-      'documents a read-only extraction-to-dedup-to-classification-readiness path without downstream writes',
+      'documents a read-only extraction-to-dedup-to-classification-to-editorial-preview path without downstream writes',
       async () => {
         const source =
           await readFile(
@@ -42,6 +42,9 @@ describe(
 
         expect(source).toContain(
           'FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_OK',
+        )
+        expect(source).toContain(
+          'FLASH_PREPERSISTENCE_EDITORIAL_GENERATION_RO',
         )
         expect(source).toContain(
           'retrieveFlashSource',
@@ -71,6 +74,15 @@ describe(
           'evaluateFlashArticlePersistenceReadiness',
         )
         expect(source).toContain(
+          'createAnthropicFlashPrePersistenceEditorialGenerationSemanticProducer',
+        )
+        expect(source).toContain(
+          'runFlashPrePersistenceEditorialGenerationSemanticProducer',
+        )
+        expect(source).toContain(
+          'countFlashEditorialWords',
+        )
+        expect(source).toContain(
           'validatedClassification:',
         )
         expect(source).toContain(
@@ -81,6 +93,9 @@ describe(
         )
         expect(source).toContain(
           'prePersistenceClassification,',
+        )
+        expect(source).toContain(
+          'prePersistenceEditorialGeneration:',
         )
         expect(source).toContain(
           'PAYLOAD_DB_PUSH',
@@ -146,7 +161,16 @@ describe(
           'successful strict REG-001S classification removes classification_required from persistence readiness',
         )
         expect(stdout).toContain(
-          'generated_flash_content_required still blocks FlashAI draft creation in this increment',
+          'after successful classification, requests one original Romanian REG-001T editorial draft',
+        )
+        expect(stdout).toContain(
+          'strict 500–1000-word contract',
+        )
+        expect(stdout).toContain(
+          'REG-001T output is preview-only and is intentionally NOT fed back into persistenceReadiness yet',
+        )
+        expect(stdout).toContain(
+          'generated_flash_content_required therefore remains in persistence readiness',
         )
         expect(stdout).toContain(
           'does NOT create, update, or delete FlashAI',
