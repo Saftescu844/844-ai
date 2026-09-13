@@ -32,7 +32,7 @@ describe(
   'Flash HTML article pre-persistence dedup preview CLI',
   () => {
     it(
-      'documents a read-only extraction-to-dedup path without downstream writes',
+      'documents a read-only extraction-to-dedup path with deterministic source fingerprinting and without downstream writes',
       async () => {
         const source =
           await readFile(
@@ -62,6 +62,12 @@ describe(
           source,
         ).toContain(
           'normalizeFlashHtmlArticleCandidate',
+        )
+
+        expect(
+          source,
+        ).toContain(
+          'buildFlashArticleCandidateFingerprints',
         )
 
         expect(
@@ -155,7 +161,13 @@ describe(
         expect(
           stdout,
         ).toContain(
-          'keeps final dedup pending because no eventFingerprint is generated here',
+          'computes the deterministic REG-001N sourceFingerprint from the canonical URL',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'keeps eventFingerprint pending and therefore keeps final dedup pending',
         )
 
         expect(
