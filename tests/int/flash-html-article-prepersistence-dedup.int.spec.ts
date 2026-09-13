@@ -53,6 +53,8 @@ const existing = (
   language: 'en',
   title:
     'Different existing Flash',
+  eventFingerprint:
+    'different-event-fingerprint',
   sourceFingerprint:
     'different-source-fingerprint',
   sourceUrls: [
@@ -65,7 +67,7 @@ describe(
   'Flash HTML article pre-persistence dedup',
   () => {
     it(
-      'keeps final dedup pending when no pre-persistence duplicate signal exists',
+      'keeps final dedup pending when no grounded event fingerprint exists',
       () => {
         const result =
           evaluateFlashArticlePrePersistenceDedup(
@@ -79,6 +81,7 @@ describe(
           candidateCanonicalUrl:
             'https://digital-strategy.ec.europa.eu/en/news/fourth-gpai-signatory-taskforce-meeting',
           sourceDuplicateFound: false,
+          eventFingerprintDuplicateFound: false,
           sourceFingerprintReviewSignal: false,
           titleReviewSignal: false,
           finalDedupPending: true,
@@ -87,6 +90,89 @@ describe(
           ],
           matches: [],
         })
+      },
+    )
+
+    it(
+      'resolves event-level dedup when a grounded event fingerprint exists and has no match',
+      () => {
+        const result =
+          evaluateFlashArticlePrePersistenceDedup(
+            candidate(),
+            [
+              existing(),
+            ],
+            {
+              eventFingerprint:
+                'grounded-event-fingerprint',
+            },
+          )
+
+        expect(
+          result.eventFingerprintDuplicateFound,
+        ).toBe(false)
+
+        expect(
+          result.finalDedupPending,
+        ).toBe(false)
+
+        expect(
+          result.reasons,
+        ).not.toContain(
+          'missing_event_fingerprint',
+        )
+
+        expect(
+          result.matches,
+        ).toEqual([])
+      },
+    )
+
+    it(
+      'detects an equal grounded event fingerprint independently of language',
+      () => {
+        const eventFingerprint =
+          'grounded-event-fingerprint'
+
+        const result =
+          evaluateFlashArticlePrePersistenceDedup(
+            candidate(),
+            [
+              existing({
+                language: 'ro',
+                eventFingerprint:
+                  eventFingerprint.toUpperCase(),
+              }),
+            ],
+            {
+              eventFingerprint,
+            },
+          )
+
+        expect(
+          result.eventFingerprintDuplicateFound,
+        ).toBe(true)
+
+        expect(
+          result.finalDedupPending,
+        ).toBe(false)
+
+        expect(
+          result.reasons,
+        ).toContain(
+          'event_fingerprint_match',
+        )
+
+        expect(
+          result.matches,
+        ).toEqual([
+          {
+            id: 20,
+            reasons: [
+              'event_fingerprint_match',
+            ],
+          },
+        ])
       },
     )
 
