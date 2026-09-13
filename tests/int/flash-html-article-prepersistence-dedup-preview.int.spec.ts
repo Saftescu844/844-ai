@@ -32,7 +32,7 @@ describe(
   'Flash HTML article pre-persistence dedup preview CLI',
   () => {
     it(
-      'documents a read-only extraction-to-dedup path with source verification and grounded event identity without downstream writes',
+      'documents a read-only extraction-to-dedup-to-persistence-readiness path without downstream writes',
       async () => {
         const source =
           await readFile(
@@ -109,6 +109,12 @@ describe(
         expect(
           source,
         ).toContain(
+          'evaluateFlashArticlePersistenceReadiness',
+        )
+
+        expect(
+          source,
+        ).toContain(
           'eventFingerprint:\n          fingerprints.eventFingerprint',
         )
 
@@ -122,6 +128,18 @@ describe(
           source,
         ).toContain(
           "eventIdentity.status === 'grounded'",
+        )
+
+        expect(
+          source,
+        ).toContain(
+          'persistenceReadiness,',
+        )
+
+        expect(
+          source,
+        ).toContain(
+          'dedup:\n        dedup.evidence',
         )
 
         expect(
@@ -264,6 +282,24 @@ describe(
           stdout,
         ).toContain(
           'sourceFingerprint reuse remains only a review signal',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'evaluates REG-001R persistence readiness from source verification, dedup evidence, and grounded fingerprints',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'reports source-grounded values, deferred editorial/classification decisions, blockers, and review signals',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'canCreateFlashAiDraft remains false until later stages provide classification and generated editorial content',
         )
 
         expect(

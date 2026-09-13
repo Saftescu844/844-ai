@@ -6,6 +6,9 @@ import {
   normalizeFlashHtmlArticleCandidate,
 } from '@/lib/flash/ingestion/articleCandidateNormalization'
 import {
+  evaluateFlashArticlePersistenceReadiness,
+} from '@/lib/flash/ingestion/articleCandidatePersistenceReadiness'
+import {
   buildFlashArticleCandidateFingerprints,
 } from '@/lib/flash/ingestion/articleCandidateSourceFingerprint'
 import {
@@ -84,6 +87,9 @@ Behavior:
   - a grounded eventFingerprint is fed into pre-persistence dedup only when event identity is grounded
   - without a grounded eventFingerprint final pre-persistence dedup remains pending
   - sourceFingerprint reuse remains only a review signal
+  - evaluates REG-001R persistence readiness from source verification, dedup evidence, and grounded fingerprints
+  - reports source-grounded values, deferred editorial/classification decisions, blockers, and review signals
+  - REG-001R never permits FlashAI create(); canCreateFlashAiDraft remains false until later stages provide classification and generated editorial content
   - does NOT call Anthropic
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
@@ -403,6 +409,19 @@ async function main() {
       },
     )
 
+  const persistenceReadiness =
+    evaluateFlashArticlePersistenceReadiness({
+      candidate:
+        normalized,
+      sourceVerification,
+      dedup:
+        dedup.evidence,
+      sourceFingerprint:
+        fingerprints.sourceFingerprint,
+      eventFingerprint:
+        fingerprints.eventFingerprint,
+    })
+
   console.log(
     'FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_OK',
   )
@@ -429,6 +448,7 @@ async function main() {
       dedup.candidateCount,
     evidence:
       dedup.evidence,
+    persistenceReadiness,
   })
 }
 
