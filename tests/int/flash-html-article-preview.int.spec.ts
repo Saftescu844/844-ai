@@ -5,6 +5,9 @@ import {
   readFile,
 } from 'node:fs/promises'
 import {
+  resolve,
+} from 'node:path'
+import {
   promisify,
 } from 'node:util'
 
@@ -20,9 +23,9 @@ const execFileAsync =
   )
 
 const scriptPath =
-  new URL(
-    '../../scripts/flash-html-article-preview.ts',
-    import.meta.url,
+  resolve(
+    process.cwd(),
+    'scripts/flash-html-article-preview.ts',
   )
 
 describe(
