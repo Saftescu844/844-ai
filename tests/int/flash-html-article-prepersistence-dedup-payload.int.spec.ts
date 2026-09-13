@@ -155,6 +155,72 @@ describe(
     )
 
     it(
+      'detectează sourceFingerprint identic doar ca semnal de review',
+      async () => {
+        const candidate =
+          normalizedCandidate()
+
+        const sourceFingerprint =
+          '084f1199b4915a604c578316b8a4ef6fd15097952ef38a97be960e1771a663a0'
+
+        const fingerprintMatch =
+          flash({
+            id: 32,
+            sourceFingerprint,
+          })
+
+        const payload =
+          payloadReader([
+            [],
+            [fingerprintMatch],
+            [],
+          ])
+
+        const result =
+          await evaluateFlashArticlePrePersistenceDedupReadOnly(
+            payload,
+            candidate,
+            {
+              sourceFingerprint,
+            },
+          )
+
+        expect(
+          result.evidence
+            .sourceFingerprintReviewSignal,
+        ).toBe(true)
+
+        expect(
+          result.evidence.reasons,
+        ).toContain(
+          'source_fingerprint_match',
+        )
+
+        expect(
+          result.evidence
+            .finalDedupPending,
+        ).toBe(true)
+
+        expect(
+          payload.find,
+        ).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({
+            collection: 'flash-ai',
+            draft: true,
+            overrideAccess: true,
+            where: {
+              sourceFingerprint: {
+                equals:
+                  sourceFingerprint,
+              },
+            },
+          }),
+        )
+      },
+    )
+
+    it(
       'detectează titlul normalizat doar în aceeași limbă',
       async () => {
         const candidate =
@@ -214,6 +280,7 @@ describe(
           candidateCount: 0,
           evidence: {
             sourceDuplicateFound: false,
+            sourceFingerprintReviewSignal: false,
             titleReviewSignal: false,
             finalDedupPending: true,
             reasons: [
