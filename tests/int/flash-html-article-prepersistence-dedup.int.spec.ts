@@ -53,6 +53,8 @@ const existing = (
   language: 'en',
   title:
     'Different existing Flash',
+  sourceFingerprint:
+    'different-source-fingerprint',
   sourceUrls: [
     'https://example.com/news/different',
   ],
@@ -77,6 +79,7 @@ describe(
           candidateCanonicalUrl:
             'https://digital-strategy.ec.europa.eu/en/news/fourth-gpai-signatory-taskforce-meeting',
           sourceDuplicateFound: false,
+          sourceFingerprintReviewSignal: false,
           titleReviewSignal: false,
           finalDedupPending: true,
           reasons: [
@@ -116,6 +119,51 @@ describe(
               id: 20,
               reasons: [
                 'canonical_source_url_match',
+              ],
+            },
+          ])
+      },
+    )
+
+    it(
+      'raises a review signal for an equal source fingerprint',
+      () => {
+        const sourceFingerprint =
+          '084f1199b4915a604c578316b8a4ef6fd15097952ef38a97be960e1771a663a0'
+
+        const result =
+          evaluateFlashArticlePrePersistenceDedup(
+            candidate(),
+            [
+              existing({
+                sourceFingerprint:
+                  sourceFingerprint.toUpperCase(),
+              }),
+            ],
+            {
+              sourceFingerprint,
+            },
+          )
+
+        expect(
+          result.sourceDuplicateFound,
+        ).toBe(false)
+
+        expect(
+          result.sourceFingerprintReviewSignal,
+        ).toBe(true)
+
+        expect(result.reasons)
+          .toContain(
+            'source_fingerprint_match',
+          )
+
+        expect(result.matches)
+          .toEqual([
+            {
+              id: 20,
+              reasons: [
+                'source_fingerprint_match',
               ],
             },
           ])
