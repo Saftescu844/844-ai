@@ -166,11 +166,20 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
 
   if (
     wordCount <
-      FLASH_EDITORIAL_MIN_WORDS ||
-    wordCount >
-      FLASH_EDITORIAL_MAX_WORDS
+    FLASH_EDITORIAL_MIN_WORDS
   ) {
-    invalidOutput()
+    throw new FlashSemanticEvidenceProducerError(
+      'invalid_output_too_short',
+    )
+  }
+
+  if (
+    wordCount >
+    FLASH_EDITORIAL_MAX_WORDS
+  ) {
+    throw new FlashSemanticEvidenceProducerError(
+      'invalid_output_too_long',
+    )
   }
 
   return {
