@@ -11,6 +11,7 @@ import type {
 
 export type FlashPrePersistenceDedupMatchReason =
   | 'canonical_source_url_match'
+  | 'source_fingerprint_match'
   | 'normalized_title_match'
 
 export type FlashPrePersistenceDedupReason =
@@ -21,9 +22,14 @@ export interface FlashPrePersistenceDedupRecord {
   id?: DedupRecordID | null
   language?: FlashDedupLanguage | null
   title: string
+  sourceFingerprint?: string | null
   sourceUrls?: Array<
     string | null | undefined
   >
+}
+
+export interface FlashPrePersistenceDedupCandidateSignals {
+  sourceFingerprint?: string | null
 }
 
 export interface FlashPrePersistenceDedupMatch {
@@ -35,6 +41,7 @@ export interface FlashPrePersistenceDedupMatch {
 export interface FlashPrePersistenceDedupEvidence {
   candidateCanonicalUrl: string
   sourceDuplicateFound: boolean
+  sourceFingerprintReviewSignal: boolean
   titleReviewSignal: boolean
   finalDedupPending: true
   reasons:
@@ -72,11 +79,26 @@ function canonicalizeHttpUrl(
   }
 }
 
+function normalizeFingerprint(
+  value: string | null | undefined,
+): string | null {
+  const normalized =
+    value
+      ?.trim()
+      .toLowerCase()
+
+  return normalized
+    ? normalized
+    : null
+}
+
 export function evaluateFlashArticlePrePersistenceDedup(
   candidate:
     FlashNormalizedArticleCandidate,
   existing:
     FlashPrePersistenceDedupRecord[],
+  candidateSignals:
+    FlashPrePersistenceDedupCandidateSignals = {},
 ): FlashPrePersistenceDedupEvidence {
   const candidateCanonicalUrl =
     canonicalizeHttpUrl(
@@ -89,6 +111,11 @@ export function evaluateFlashArticlePrePersistenceDedup(
     )
   }
 
+  const candidateSourceFingerprint =
+    normalizeFingerprint(
+      candidateSignals.sourceFingerprint,
+    )
+
   const candidateTitle =
     normalizeDedupTitle(
       candidate.title,
@@ -98,6 +125,7 @@ export function evaluateFlashArticlePrePersistenceDedup(
     FlashPrePersistenceDedupMatch[] = []
 
   let sourceDuplicateFound = false
+  let sourceFingerprintReviewSignal = false
   let titleReviewSignal = false
 
   for (const record of existing) {
@@ -125,6 +153,23 @@ export function evaluateFlashArticlePrePersistenceDedup(
       sourceDuplicateFound = true
       matchReasons.push(
         'canonical_source_url_match',
+      )
+    }
+
+    const existingSourceFingerprint =
+      normalizeFingerprint(
+        record.sourceFingerprint,
+      )
+
+    if (
+      candidateSourceFingerprint &&
+      existingSourceFingerprint &&
+      candidateSourceFingerprint ===
+        existingSourceFingerprint
+    ) {
+      sourceFingerprintReviewSignal = true
+      matchReasons.push(
+        'source_fingerprint_match',
       )
     }
 
@@ -174,6 +219,7 @@ export function evaluateFlashArticlePrePersistenceDedup(
   return {
     candidateCanonicalUrl,
     sourceDuplicateFound,
+    sourceFingerprintReviewSignal,
     titleReviewSignal,
     finalDedupPending: true,
     reasons: [
