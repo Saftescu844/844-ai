@@ -79,6 +79,12 @@ describe(
         expect(
           source,
         ).toContain(
+          'sourceFingerprint:\n          fingerprints.sourceFingerprint',
+        )
+
+        expect(
+          source,
+        ).toContain(
           'PAYLOAD_DB_PUSH',
         )
 
@@ -162,6 +168,18 @@ describe(
           stdout,
         ).toContain(
           'computes the deterministic REG-001N sourceFingerprint from the canonical URL',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'checks canonical source URL reuse, sourceFingerprint reuse, and same-language normalized title matches',
+        )
+
+        expect(
+          stdout,
+        ).toContain(
+          'sourceFingerprint reuse is a review signal, not an obvious-duplicate decision',
         )
 
         expect(
