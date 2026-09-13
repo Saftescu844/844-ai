@@ -65,6 +65,8 @@ export type FlashSemanticEvidenceProducerFailureReason =
   | 'configuration_error'
   | 'provider_error'
   | 'invalid_output'
+  | 'invalid_output_too_short'
+  | 'invalid_output_too_long'
   | 'execution_error'
 
 export interface FlashSemanticEvidenceRunMetadata {
