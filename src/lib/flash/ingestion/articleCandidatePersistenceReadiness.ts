@@ -1,4 +1,7 @@
 import type {
+  FlashPrePersistenceClassificationSemanticOutput,
+} from '../semanticEvidence/prePersistenceClassificationSemanticOutput'
+import type {
   FlashSourceVerificationEvidence,
 } from '../runtimeEvidence/sourceVerificationEvidence'
 import type {
@@ -20,6 +23,15 @@ export type FlashPersistenceReviewSignal =
   | 'normalized_title_match'
   | 'event_identity_pending'
 
+export type FlashPersistenceDeferredDecision =
+  | 'editorial_title'
+  | 'pilon'
+  | 'flash_type'
+  | 'information_status'
+  | 'risk_level'
+  | 'health_classification'
+  | 'editorial_content'
+
 export interface FlashPersistenceSourceGroundedValues {
   sourceId: number
   sourceName: string
@@ -39,27 +51,23 @@ export interface FlashPersistenceDraftControls {
 
 export interface FlashArticlePersistenceReadiness {
   /**
-   * REG-001R intentionally stops before Payload create().
-   * A FlashAI draft must not be created until classification and
-   * original Flash editorial content are available.
+   * REG-001S still stops before Payload create().
+   * Classification may now be present, but original generated Flash
+   * editorial content is still required before a draft can be created.
    */
   canCreateFlashAiDraft: false
 
   sourceGroundedValues:
     FlashPersistenceSourceGroundedValues
 
+  classification:
+    FlashPrePersistenceClassificationSemanticOutput | null
+
   draftControls:
     FlashPersistenceDraftControls
 
-  deferredDecisions: [
-    'editorial_title',
-    'pilon',
-    'flash_type',
-    'information_status',
-    'risk_level',
-    'health_classification',
-    'editorial_content',
-  ]
+  deferredDecisions:
+    FlashPersistenceDeferredDecision[]
 
   blockers: FlashPersistenceReadinessBlocker[]
   reviewSignals: FlashPersistenceReviewSignal[]
@@ -71,6 +79,7 @@ export interface FlashArticlePersistenceReadiness {
     sourceFingerprintReviewSignal: boolean
     titleReviewSignal: boolean
     finalDedupPending: boolean
+    classificationAvailable: boolean
   }
 }
 
@@ -80,6 +89,13 @@ export interface FlashArticlePersistenceReadinessInput {
   dedup: FlashPrePersistenceDedupEvidence
   sourceFingerprint: string
   eventFingerprint?: string | null
+
+  /**
+   * Must come from the strict REG-001S semantic parser/producer path.
+   * This helper does not accept or repair raw provider output.
+   */
+  validatedClassification?:
+    FlashPrePersistenceClassificationSemanticOutput | null
 }
 
 function normalizeFingerprint(
@@ -129,11 +145,20 @@ export function evaluateFlashArticlePersistenceReadiness(
       input.eventFingerprint,
     )
 
+  const classification =
+    input.validatedClassification ??
+    null
+
   const blockers =
     new Set<FlashPersistenceReadinessBlocker>([
-      'classification_required',
       'generated_flash_content_required',
     ])
+
+  if (!classification) {
+    blockers.add(
+      'classification_required',
+    )
+  }
 
   if (
     !sourceVerification
@@ -184,6 +209,25 @@ export function evaluateFlashArticlePersistenceReadiness(
     )
   }
 
+  const deferredDecisions:
+    FlashPersistenceDeferredDecision[] = [
+      'editorial_title',
+    ]
+
+  if (!classification) {
+    deferredDecisions.push(
+      'pilon',
+      'flash_type',
+      'information_status',
+      'risk_level',
+      'health_classification',
+    )
+  }
+
+  deferredDecisions.push(
+    'editorial_content',
+  )
+
   return {
     canCreateFlashAiDraft: false,
 
@@ -204,21 +248,15 @@ export function evaluateFlashArticlePersistenceReadiness(
       eventFingerprint,
     },
 
+    classification,
+
     draftControls: {
       editorialStatus: 'draft',
       automationDecision: 'review',
       payloadStatus: 'draft',
     },
 
-    deferredDecisions: [
-      'editorial_title',
-      'pilon',
-      'flash_type',
-      'information_status',
-      'risk_level',
-      'health_classification',
-      'editorial_content',
-    ],
+    deferredDecisions,
 
     blockers: [
       ...blockers,
@@ -244,6 +282,8 @@ export function evaluateFlashArticlePersistenceReadiness(
         dedup.titleReviewSignal,
       finalDedupPending:
         dedup.finalDedupPending,
+      classificationAvailable:
+        classification !== null,
     },
   }
 }
