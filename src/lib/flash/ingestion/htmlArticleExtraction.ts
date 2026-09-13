@@ -97,6 +97,10 @@ function normalizeText(
       /\s+/g,
       ' ',
     )
+    .replace(
+      /\s+([,.;:!?])/g,
+      '$1',
+    )
     .trim()
 }
 
