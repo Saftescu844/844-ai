@@ -29,6 +29,12 @@ import {
 import {
   evaluateFlashSourceVerification,
 } from '@/lib/flash/runtimeEvidence/sourceVerificationEvidence'
+import {
+  createAnthropicFlashPrePersistenceClassificationSemanticProducer,
+} from '@/lib/flash/semanticEvidence/anthropicPrePersistenceClassificationSemanticProducer'
+import {
+  runFlashPrePersistenceClassificationSemanticProducer,
+} from '@/lib/flash/semanticEvidence/prePersistenceClassificationSemanticProducer'
 
 function hasFlag(
   name: string,
@@ -67,7 +73,8 @@ Flash Engine HTML article pre-persistence dedup preview
 Usage:
   PAYLOAD_DB_PUSH=false pnpm exec tsx scripts/flash-html-article-prepersistence-dedup-preview.ts \
     --source-id 4 \
-    --article-url https://digital-strategy.ec.europa.eu/en/news/fourth-gpai-signatory-taskforce-meeting
+    --article-url https://digital-strategy.ec.europa.eu/en/news/fourth-gpai-signatory-taskforce-meeting \
+    [--allow-provider-requests --model claude-sonnet-4-6]
 
 Behavior:
   - reads one active source with allowIngestion=true
@@ -87,10 +94,14 @@ Behavior:
   - a grounded eventFingerprint is fed into pre-persistence dedup only when event identity is grounded
   - without a grounded eventFingerprint final pre-persistence dedup remains pending
   - sourceFingerprint reuse remains only a review signal
-  - evaluates REG-001R persistence readiness from source verification, dedup evidence, and grounded fingerprints
-  - reports source-grounded values, deferred editorial/classification decisions, blockers, and review signals
-  - REG-001R never permits FlashAI create(); canCreateFlashAiDraft remains false until later stages provide classification and generated editorial content
-  - does NOT call Anthropic
+  - evaluates persistence readiness from source verification, dedup evidence, grounded fingerprints, and optional validated classification
+  - reports source-grounded values, classification, deferred decisions, blockers, and review signals
+  - REG-001S classification is NOT requested by default
+  - with --allow-provider-requests and --model, resolves allowed pilons from the source configuration and requests bounded Anthropic classification only
+  - provider classification runs only after source verification passes and no canonical/event duplicate blocker exists
+  - successful strict REG-001S classification removes classification_required from persistence readiness
+  - generated_flash_content_required still blocks FlashAI draft creation in this increment
+  - does NOT generate Flash editorial content
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
   - does NOT publish or unpublish
@@ -98,6 +109,7 @@ Behavior:
 Safety:
   - execution is restricted to the configured Railway STAGING main service
   - PAYLOAD_DB_PUSH must be exactly false
+  - ANTHROPIC_API_KEY is read only after explicit --allow-provider-requests and a non-empty --model
 `)
 }
 
@@ -243,6 +255,27 @@ async function main() {
   if (!articleUrl) {
     throw new Error(
       '--article-url is required.',
+    )
+  }
+
+  const allowProviderRequests =
+    hasFlag(
+      '--allow-provider-requests',
+    )
+
+  const model =
+    readOption(
+      '--model',
+    )
+      ?.trim() ??
+    null
+
+  if (
+    allowProviderRequests &&
+    !model
+  ) {
+    throw new Error(
+      '--model is required when --allow-provider-requests is set.',
     )
   }
 
@@ -409,7 +442,7 @@ async function main() {
       },
     )
 
-  const persistenceReadiness =
+  let persistenceReadiness =
     evaluateFlashArticlePersistenceReadiness({
       candidate:
         normalized,
@@ -421,6 +454,192 @@ async function main() {
       eventFingerprint:
         fingerprints.eventFingerprint,
     })
+
+  let prePersistenceClassification:
+    | null
+    | {
+        allowedPilons: Array<{
+          id: number
+          name: string
+        }>
+        classification: {
+          pilonId: number
+          flashType:
+            | 'announcement'
+            | 'research'
+            | 'regulation'
+            | 'product'
+            | 'business'
+            | 'incident'
+            | 'update'
+            | 'other'
+          informationStatus:
+            | 'official'
+            | 'confirmed'
+            | 'emerging'
+            | 'preliminary'
+            | 'disputed'
+            | 'unverified'
+          riskLevel:
+            | 'low'
+            | 'medium'
+            | 'high'
+          isHealthRelated: boolean
+        }
+        run: {
+          stage:
+            'prePersistenceClassification'
+          method:
+            'model'
+          runId: string
+          provider: string | null
+          model: string | null
+        }
+      } = null
+
+  if (allowProviderRequests) {
+    if (!model) {
+      throw new Error(
+        'Anthropic model is required.',
+      )
+    }
+
+    if (
+      !sourceVerification
+        .sourceVerificationPassed
+    ) {
+      throw new Error(
+        'Provider classification is blocked because source verification did not pass.',
+      )
+    }
+
+    if (
+      dedup.evidence
+        .sourceDuplicateFound ||
+      dedup.evidence
+        .eventFingerprintDuplicateFound
+    ) {
+      throw new Error(
+        'Provider classification is blocked because strong duplicate evidence exists.',
+      )
+    }
+
+    const sourcePilonIds = [
+      ...new Set(
+        (source.pilon ?? [])
+          .map(
+            pilon =>
+              typeof pilon ===
+                'number'
+                ? pilon
+                : pilon.id,
+          ),
+      ),
+    ]
+
+    if (
+      sourcePilonIds.length ===
+      0
+    ) {
+      throw new Error(
+        'Provider classification requires at least one source-configured pilon.',
+      )
+    }
+
+    const allowedPilons =
+      await Promise.all(
+        sourcePilonIds.map(
+          async pilonId => {
+            const category =
+              await payload.findByID({
+                collection:
+                  'categorii',
+                id:
+                  pilonId,
+                depth:
+                  0,
+                overrideAccess:
+                  true,
+              })
+
+            return {
+              id:
+                category.id,
+              name:
+                category.nume,
+            }
+          },
+        ),
+      )
+
+    const apiKey =
+      process.env
+        .ANTHROPIC_API_KEY
+        ?.trim()
+
+    if (!apiKey) {
+      throw new Error(
+        'ANTHROPIC_API_KEY is not configured.',
+      )
+    }
+
+    const anthropicModule =
+      await import(
+        '@anthropic-ai/sdk'
+      )
+
+    const client =
+      new anthropicModule.default({
+        apiKey,
+      })
+
+    const producer =
+      createAnthropicFlashPrePersistenceClassificationSemanticProducer({
+        client,
+        model,
+      })
+
+    const classificationResult =
+      await runFlashPrePersistenceClassificationSemanticProducer({
+        producer,
+        input: {
+          candidate:
+            normalized,
+          allowedPilons,
+          runId:
+            `flash-prepersistence-classification:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
+        },
+      })
+
+    if (!classificationResult.ok) {
+      throw new Error(
+        `Pre-persistence classification failed: ${classificationResult.reason}.`,
+      )
+    }
+
+    prePersistenceClassification = {
+      allowedPilons,
+      classification:
+        classificationResult.classification,
+      run:
+        classificationResult.run,
+    }
+
+    persistenceReadiness =
+      evaluateFlashArticlePersistenceReadiness({
+        candidate:
+          normalized,
+        sourceVerification,
+        dedup:
+          dedup.evidence,
+        sourceFingerprint:
+          fingerprints.sourceFingerprint,
+        eventFingerprint:
+          fingerprints.eventFingerprint,
+        validatedClassification:
+          classificationResult.classification,
+      })
+  }
 
   console.log(
     'FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_OK',
@@ -449,6 +668,7 @@ async function main() {
     evidence:
       dedup.evidence,
     persistenceReadiness,
+    prePersistenceClassification,
   })
 }
 

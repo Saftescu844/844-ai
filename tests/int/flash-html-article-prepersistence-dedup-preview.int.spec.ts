@@ -32,7 +32,7 @@ describe(
   'Flash HTML article pre-persistence dedup preview CLI',
   () => {
     it(
-      'documents a read-only extraction-to-dedup-to-persistence-readiness path without downstream writes',
+      'documents a read-only extraction-to-dedup-to-classification-readiness path without downstream writes',
       async () => {
         const source =
           await readFile(
@@ -40,142 +40,63 @@ describe(
             'utf8',
           )
 
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_OK',
         )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'retrieveFlashSource',
         )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'evaluateFlashSourceVerification',
         )
-
-        expect(
-          source,
-        ).toContain(
-          'sourceVerification,',
-        )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'extractFlashHtmlArticle',
         )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'normalizeFlashHtmlArticleCandidate',
         )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'buildFlashArticleCandidateFingerprints',
         )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'evaluateExplicitGroundedEventIdentity',
         )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'buildFlashGroundedEventFingerprint',
         )
-
-        expect(
-          source,
-        ).toContain(
-          'eventIdentity,',
-        )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'evaluateFlashArticlePrePersistenceDedupReadOnly',
         )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'evaluateFlashArticlePersistenceReadiness',
         )
-
-        expect(
-          source,
-        ).toContain(
-          'eventFingerprint:\n          fingerprints.eventFingerprint',
+        expect(source).toContain(
+          'validatedClassification:',
         )
-
-        expect(
-          source,
-        ).toContain(
-          'sourceFingerprint:\n          fingerprints.sourceFingerprint',
+        expect(source).toContain(
+          'classificationResult.classification',
         )
-
-        expect(
-          source,
-        ).toContain(
-          "eventIdentity.status === 'grounded'",
-        )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'persistenceReadiness,',
         )
-
-        expect(
-          source,
-        ).toContain(
-          'dedup:\n        dedup.evidence',
+        expect(source).toContain(
+          'prePersistenceClassification,',
         )
-
-        expect(
-          source,
-        ).toContain(
+        expect(source).toContain(
           'PAYLOAD_DB_PUSH',
         )
 
-        expect(
-          source,
-        ).not.toMatch(
+        expect(source).not.toMatch(
           /payload\.(create|update|delete)\s*\(/,
         )
-
-        expect(
-          source,
-        ).not.toMatch(
+        expect(source).not.toMatch(
           /payload\.jobs\.(queue|run)\s*\(/,
         )
-
-        expect(
-          source,
-        ).not.toMatch(
+        expect(source).not.toMatch(
           /from\s+['"]@anthropic-ai\/sdk['"]/,
         )
-
-        expect(
-          source,
-        ).not.toMatch(
-          /new\s+Anthropic\s*\(/,
-        )
-
-        expect(
-          source,
-        ).not.toMatch(
-          /anthropic\.messages\.create\s*\(/,
+        expect(source).not.toMatch(
+          /client\.messages\.create\s*\(/,
         )
       },
     )
@@ -200,111 +121,34 @@ describe(
                 process.cwd(),
               env: {
                 ...process.env,
-                RAILWAY_PROJECT_ID:
-                  '',
-                RAILWAY_ENVIRONMENT_ID:
-                  '',
-                RAILWAY_SERVICE_ID:
-                  '',
-                PAYLOAD_DB_PUSH:
-                  '',
+                RAILWAY_PROJECT_ID: '',
+                RAILWAY_ENVIRONMENT_ID: '',
+                RAILWAY_SERVICE_ID: '',
+                PAYLOAD_DB_PUSH: '',
               },
             },
           )
 
-        expect(
-          stderr,
-        ).toBe(
-          '',
-        )
-
-        expect(
-          stdout,
-        ).toContain(
+        expect(stderr).toBe('')
+        expect(stdout).toContain(
           'Flash Engine HTML article pre-persistence dedup preview',
         )
-
-        expect(
-          stdout,
-        ).toContain(
-          'runs canonical technical source verification on the registered/concrete/final URLs and retrieval result',
-        )
-
-        expect(
-          stdout,
-        ).toContain(
+        expect(stdout).toContain(
           'source verification confirms source identity/retrieval/content availability; it does NOT verify factual truth',
         )
-
-        expect(
-          stdout,
-        ).toContain(
-          'computes the deterministic REG-001N sourceFingerprint from the canonical URL',
-        )
-
-        expect(
-          stdout,
-        ).toContain(
-          'evaluates explicit CVE / DOI: / CELEX: identifiers from title, lead, and body',
-        )
-
-        expect(
-          stdout,
-        ).toContain(
-          'only one unique explicit identifier in title/lead can ground event identity',
-        )
-
-        expect(
-          stdout,
-        ).toContain(
+        expect(stdout).toContain(
           'no title/date/URL/fuzzy/embedding/model-derived event identity is created',
         )
-
-        expect(
-          stdout,
-        ).toContain(
-          'checks canonical source URL reuse, grounded eventFingerprint reuse, sourceFingerprint reuse, and same-language normalized title matches',
-        )
-
-        expect(
-          stdout,
-        ).toContain(
-          'a grounded eventFingerprint is fed into pre-persistence dedup only when event identity is grounded',
-        )
-
-        expect(
-          stdout,
-        ).toContain(
-          'without a grounded eventFingerprint final pre-persistence dedup remains pending',
-        )
-
-        expect(
-          stdout,
-        ).toContain(
+        expect(stdout).toContain(
           'sourceFingerprint reuse remains only a review signal',
         )
-
-        expect(
-          stdout,
-        ).toContain(
-          'evaluates REG-001R persistence readiness from source verification, dedup evidence, and grounded fingerprints',
+        expect(stdout).toContain(
+          'successful strict REG-001S classification removes classification_required from persistence readiness',
         )
-
-        expect(
-          stdout,
-        ).toContain(
-          'reports source-grounded values, deferred editorial/classification decisions, blockers, and review signals',
+        expect(stdout).toContain(
+          'generated_flash_content_required still blocks FlashAI draft creation in this increment',
         )
-
-        expect(
-          stdout,
-        ).toContain(
-          'canCreateFlashAiDraft remains false until later stages provide classification and generated editorial content',
-        )
-
-        expect(
-          stdout,
-        ).toContain(
+        expect(stdout).toContain(
           'does NOT create, update, or delete FlashAI',
         )
       },

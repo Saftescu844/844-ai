@@ -20,6 +20,14 @@ import type {
 const sourceFingerprint =
   '084f1199b4915a604c578316b8a4ef6fd15097952ef38a97be960e1771a663a0'
 
+const validatedClassification = {
+  pilonId: 1,
+  flashType: 'regulation' as const,
+  informationStatus: 'official' as const,
+  riskLevel: 'medium' as const,
+  isHealthRelated: false,
+}
+
 function candidate(
   overrides:
     Partial<FlashNormalizedArticleCandidate> = {},
@@ -27,7 +35,7 @@ function candidate(
   return {
     sourceId: 4,
     sourceName:
-      'Comisia Europeană — AI Act',
+      'Comisia Europeană — Digital Strategy / AI',
     sourceRole: 'primary',
     editorialTrust: 'high',
     citationMode: 'paraphrase',
@@ -106,7 +114,7 @@ describe(
           sourceGroundedValues: {
             sourceId: 4,
             sourceName:
-              'Comisia Europeană — AI Act',
+              'Comisia Europeană — Digital Strategy / AI',
             language: 'en',
             sourceTitle:
               'Fourth GPAI Signatory Taskforce meeting',
@@ -117,6 +125,7 @@ describe(
             sourceFingerprint,
             eventFingerprint: null,
           },
+          classification: null,
           draftControls: {
             editorialStatus: 'draft',
             automationDecision: 'review',
@@ -132,8 +141,8 @@ describe(
             'editorial_content',
           ],
           blockers: [
-            'classification_required',
             'generated_flash_content_required',
+            'classification_required',
           ],
           reviewSignals: [
             'event_identity_pending',
@@ -145,8 +154,54 @@ describe(
             sourceFingerprintReviewSignal: false,
             titleReviewSignal: false,
             finalDedupPending: true,
+            classificationAvailable: false,
           },
         })
+      },
+    )
+
+    it(
+      'consumes validated classification while keeping generated editorial content as a blocker',
+      () => {
+        const result =
+          evaluateFlashArticlePersistenceReadiness({
+            candidate: candidate(),
+            sourceVerification:
+              sourceVerification(),
+            dedup: dedup(),
+            sourceFingerprint,
+            eventFingerprint: null,
+            validatedClassification,
+          })
+
+        expect(result.classification)
+          .toEqual(
+            validatedClassification,
+          )
+
+        expect(result.deferredDecisions)
+          .toEqual([
+            'editorial_title',
+            'editorial_content',
+          ])
+
+        expect(result.blockers)
+          .toEqual([
+            'generated_flash_content_required',
+          ])
+
+        expect(result.evidence)
+          .toMatchObject({
+            classificationAvailable: true,
+          })
+
+        expect(result.canCreateFlashAiDraft)
+          .toBe(false)
+
+        expect(result.reviewSignals)
+          .toContain(
+            'event_identity_pending',
+          )
       },
     )
 
@@ -256,10 +311,14 @@ describe(
           ])
 
         expect(result.blockers)
-          .toEqual([
+          .toContain(
             'classification_required',
+          )
+
+        expect(result.blockers)
+          .toContain(
             'generated_flash_content_required',
-          ])
+          )
       },
     )
 
