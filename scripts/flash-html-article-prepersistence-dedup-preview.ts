@@ -50,6 +50,10 @@ import {
   type FlashPrePersistenceEditorialGenerationRunMetadata,
 } from '@/lib/flash/semanticEvidence/prePersistenceEditorialGenerationSemanticProducer'
 import {
+  evaluateFlashPrePersistenceEditorialQualityGate,
+  type FlashPrePersistenceEditorialQualityGateResult,
+} from '@/lib/flash/semanticEvidence/prePersistenceEditorialQualityGate'
+import {
   runFlashPrePersistenceEditorialQualityReviewSemanticProducer,
   type FlashPrePersistenceEditorialQualityReviewRunMetadata,
 } from '@/lib/flash/semanticEvidence/prePersistenceEditorialQualityReviewSemanticProducer'
@@ -121,8 +125,9 @@ Behavior:
   - after successful classification, requests one original Romanian REG-001T editorial draft using the same source candidate and validated classification
   - the generated Romanian editorial must satisfy the strict 500–1000-word contract or the preview fails closed
   - after successful generation, runs one bounded source-fidelity / Romanian QA pass against the same source and classification
-  - QA must return a strict 500–1000-word Romanian editorial and may correct language, spacing, and unsupported draft material without adding new facts
-  - REG-001T generation and QA outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet
+  - QA may return a shorter source-faithful diagnostic editorial rather than inventing or padding material to force the canonical minimum
+  - a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word and basic structural bridge requirements
+  - REG-001T generation, QA, and quality-gate outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet
   - generated_flash_content_required therefore remains in persistence readiness until a later explicit integration increment
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
@@ -539,6 +544,10 @@ async function main() {
           FlashPrePersistenceEditorialQualityReviewRunMetadata
       } = null
 
+  let prePersistenceEditorialQualityGate:
+    FlashPrePersistenceEditorialQualityGateResult | null =
+      null
+
   if (allowProviderRequests) {
     if (!model) {
       throw new Error(
@@ -760,6 +769,11 @@ async function main() {
       run:
         editorialQualityReviewResult.run,
     }
+
+    prePersistenceEditorialQualityGate =
+      evaluateFlashPrePersistenceEditorialQualityGate(
+        editorialQualityReviewResult.editorial,
+      )
   }
 
   console.log(
@@ -812,6 +826,7 @@ async function main() {
                 .run,
           }
         : null,
+    prePersistenceEditorialQualityGate,
   })
 
   if (
