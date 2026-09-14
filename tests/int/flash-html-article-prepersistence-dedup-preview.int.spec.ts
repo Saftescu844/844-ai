@@ -32,7 +32,7 @@ describe(
   'Flash HTML article pre-persistence dedup preview CLI',
   () => {
     it(
-      'documents a read-only extraction-to-dedup-to-classification-to-editorial-preview path without downstream writes',
+      'documents a read-only extraction-to-dedup-to-classification-to-editorial-to-QA preview path without downstream writes',
       async () => {
         const source =
           await readFile(
@@ -45,6 +45,9 @@ describe(
         )
         expect(source).toContain(
           'FLASH_PREPERSISTENCE_EDITORIAL_GENERATION_RO',
+        )
+        expect(source).toContain(
+          'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_RO',
         )
         expect(source).toContain(
           'retrieveFlashSource',
@@ -80,6 +83,12 @@ describe(
           'runFlashPrePersistenceEditorialGenerationSemanticProducer',
         )
         expect(source).toContain(
+          'createAnthropicFlashPrePersistenceEditorialQualityReviewSemanticProducer',
+        )
+        expect(source).toContain(
+          'runFlashPrePersistenceEditorialQualityReviewSemanticProducer',
+        )
+        expect(source).toContain(
           'countFlashEditorialWords',
         )
         expect(source).toContain(
@@ -98,7 +107,30 @@ describe(
           'prePersistenceEditorialGeneration:',
         )
         expect(source).toContain(
+          'prePersistenceEditorialQualityReview:',
+        )
+        expect(source).toContain(
           'PAYLOAD_DB_PUSH',
+        )
+
+        const generationRunIndex =
+          source.indexOf(
+            'const editorialResult =',
+          )
+        const qualityReviewRunIndex =
+          source.indexOf(
+            'const editorialQualityReviewResult =',
+          )
+
+        expect(
+          generationRunIndex,
+        ).toBeGreaterThanOrEqual(
+          0,
+        )
+        expect(
+          qualityReviewRunIndex,
+        ).toBeGreaterThan(
+          generationRunIndex,
         )
 
         expect(source).not.toMatch(
@@ -167,7 +199,13 @@ describe(
           'strict 500–1000-word contract',
         )
         expect(stdout).toContain(
-          'REG-001T output is preview-only and is intentionally NOT fed back into persistenceReadiness yet',
+          'after successful generation, runs one bounded source-fidelity / Romanian QA pass',
+        )
+        expect(stdout).toContain(
+          'QA must return a strict 500–1000-word Romanian editorial',
+        )
+        expect(stdout).toContain(
+          'REG-001T generation and QA outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet',
         )
         expect(stdout).toContain(
           'generated_flash_content_required therefore remains in persistence readiness',
