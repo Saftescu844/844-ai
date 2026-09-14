@@ -32,7 +32,7 @@ describe(
   'Flash HTML article pre-persistence dedup preview CLI',
   () => {
     it(
-      'documents a read-only extraction-to-dedup-to-classification-to-editorial-to-QA preview path without downstream writes',
+      'documents a read-only extraction-to-dedup-to-classification-to-editorial-to-QA-to-gate preview path without downstream writes',
       async () => {
         const source =
           await readFile(
@@ -89,6 +89,9 @@ describe(
           'runFlashPrePersistenceEditorialQualityReviewSemanticProducer',
         )
         expect(source).toContain(
+          'evaluateFlashPrePersistenceEditorialQualityGate',
+        )
+        expect(source).toContain(
           'countFlashEditorialWords',
         )
         expect(source).toContain(
@@ -110,6 +113,9 @@ describe(
           'prePersistenceEditorialQualityReview:',
         )
         expect(source).toContain(
+          'prePersistenceEditorialQualityGate,',
+        )
+        expect(source).toContain(
           'PAYLOAD_DB_PUSH',
         )
 
@@ -121,6 +127,10 @@ describe(
           source.indexOf(
             'const editorialQualityReviewResult =',
           )
+        const qualityGateIndex =
+          source.indexOf(
+            'prePersistenceEditorialQualityGate =',
+          )
 
         expect(
           generationRunIndex,
@@ -131,6 +141,11 @@ describe(
           qualityReviewRunIndex,
         ).toBeGreaterThan(
           generationRunIndex,
+        )
+        expect(
+          qualityGateIndex,
+        ).toBeGreaterThan(
+          qualityReviewRunIndex,
         )
 
         expect(source).not.toMatch(
@@ -202,10 +217,13 @@ describe(
           'after successful generation, runs one bounded source-fidelity / Romanian QA pass',
         )
         expect(stdout).toContain(
-          'QA must return a strict 500–1000-word Romanian editorial',
+          'QA may return a shorter source-faithful diagnostic editorial',
         )
         expect(stdout).toContain(
-          'REG-001T generation and QA outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet',
+          'a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word',
+        )
+        expect(stdout).toContain(
+          'REG-001T generation, QA, and quality-gate outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet',
         )
         expect(stdout).toContain(
           'generated_flash_content_required therefore remains in persistence readiness',
