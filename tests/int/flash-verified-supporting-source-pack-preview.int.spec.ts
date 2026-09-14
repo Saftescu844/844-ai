@@ -32,7 +32,7 @@ describe(
   'Flash verified supporting-source pack preview CLI',
   () => {
     it(
-      'documents an explicit read-only retrieval-to-verification preview without semantic or persistence actions',
+      'documents explicit read-only retrieval, verification, and bounded semantic extraction without provider or persistence actions',
       async () => {
         const source =
           await readFile(
@@ -53,10 +53,16 @@ describe(
           'evaluateFlashVerifiedSupportingSourcePack',
         )
         expect(source).toContain(
+          'extractFlashSupportingPolicySemanticMaterial',
+        )
+        expect(source).toContain(
           'FLASH_MAX_SUPPORTING_SOURCES',
         )
         expect(source).toContain(
-          'textLength:',
+          'semanticTextLength:',
+        )
+        expect(source).toContain(
+          'semanticWordCount:',
         )
 
         const retrievalIndex =
@@ -66,6 +72,10 @@ describe(
         const packIndex =
           source.indexOf(
             'const pack =',
+          )
+        const semanticIndex =
+          source.indexOf(
+            'const semanticMaterials =',
           )
 
         expect(
@@ -77,6 +87,11 @@ describe(
           packIndex,
         ).toBeGreaterThan(
           retrievalIndex,
+        )
+        expect(
+          semanticIndex,
+        ).toBeGreaterThan(
+          packIndex,
         )
 
         expect(source).not.toMatch(
@@ -131,6 +146,12 @@ describe(
         )
         expect(stdout).toContain(
           'requires one or two explicit --supporting-url values',
+        )
+        expect(stdout).toContain(
+          'extracts deterministic bounded semantic material',
+        )
+        expect(stdout).toContain(
+          'never the semantic body',
         )
         expect(stdout).toContain(
           'does NOT discover sources autonomously',
