@@ -3,6 +3,10 @@ import type {
 } from '../ingestion/articleCandidateNormalization'
 
 import type {
+  FlashSupportingPolicySemanticMaterial,
+} from '../ingestion/supportingPolicySemanticMaterial'
+
+import type {
   FlashPrePersistenceClassificationSemanticOutput,
 } from './prePersistenceClassificationSemanticOutput'
 
@@ -50,6 +54,7 @@ export interface FlashPrePersistenceEditorialGenerationSemanticProducerDescripto
 export interface FlashPrePersistenceEditorialGenerationSemanticProducerInput {
   candidate: FlashNormalizedArticleCandidate
   classification: FlashPrePersistenceClassificationSemanticOutput
+  supportingSources?: FlashSupportingPolicySemanticMaterial[]
   runId: string
 }
 
@@ -136,38 +141,58 @@ function candidatePayload(
   }
 }
 
+function supportingSourcePayload(
+  sources: FlashSupportingPolicySemanticMaterial[],
+) {
+  return sources.map(
+    source => ({
+      id: source.id,
+      sourceUrl: source.sourceUrl,
+      title: source.title,
+      semanticText: source.semanticText,
+    }),
+  )
+}
+
 /**
- * Provider-agnostic REG-001T prompt for original Romanian Flash editorial
- * generation before any Payload persistence.
+ * Provider-agnostic REG-001T/REG-001U prompt for original Romanian Flash
+ * editorial generation before any Payload persistence.
  *
- * The source candidate can be English; the generated Flash target is RO,
- * following the canonical pipeline order: generate RO, then generate EN.
+ * The primary source candidate can be English; the generated Flash target is
+ * RO, following the canonical pipeline order: generate RO, then generate EN.
+ * Optional REG-001U supporting material is already technically verified and
+ * deterministically extracted before it reaches this prompt. The primary
+ * article remains authoritative for event-specific claims.
  */
 export function buildFlashPrePersistenceEditorialGenerationSemanticPrompt(
   candidate: FlashNormalizedArticleCandidate,
   classification: FlashPrePersistenceClassificationSemanticOutput,
+  supportingSources: FlashSupportingPolicySemanticMaterial[] = [],
 ): FlashPrePersistenceEditorialGenerationSemanticPrompt {
   const systemPrompt = [
     'You generate one original Romanian Flash AI editorial draft before any Payload document is created.',
     '',
-    'The supplied source material may be in English. The target editorial language for this stage is Romanian (ro).',
+    'The supplied primary source article and optional verified supporting policy materials may be in English. The target editorial language for this stage is Romanian (ro).',
+    'The primary source article is authoritative for what happened in the specific event, meeting, announcement, date, and event-specific statements.',
+    'Supporting policy materials may be used only for directly supported background or context. Never turn supporting context into a claim that it happened at, resulted from, or was decided by the primary event unless the primary article supports that connection.',
     '',
     'Editorial requirements:',
     `- editorialTitle must be non-empty and at most ${String(FLASH_EDITORIAL_MAX_TITLE_LENGTH)} characters.`,
     `- editorialParagraphs together MUST contain between ${String(FLASH_EDITORIAL_MIN_WORDS)} and ${String(FLASH_EDITORIAL_MAX_WORDS)} words.`,
     `- Aim for a preferred working range of ${String(FLASH_EDITORIAL_PREFERRED_MIN_WORDS)}–${String(FLASH_EDITORIAL_PREFERRED_MAX_WORDS)} words so the final draft remains safely above the hard ${String(FLASH_EDITORIAL_MIN_WORDS)}-word minimum after proofreading.`,
-    `- Before returning JSON, silently verify that the editorial body is not below ${String(FLASH_EDITORIAL_MIN_WORDS)} words. If it is short, expand only by explaining relationships already supported by the supplied source; never add unsupported facts merely to reach the target.`,
+    `- Before returning JSON, silently verify that the editorial body is not below ${String(FLASH_EDITORIAL_MIN_WORDS)} words. If it is short, expand only by explaining relationships already supported by the supplied source set; never add unsupported facts merely to reach the target.`,
     '- Do not pad with repetitive sentences solely to satisfy the length requirement.',
-    '- Write an original editorial synthesis, not a translation or reconstruction of the source article.',
-    '- Paraphrase the source. Do not copy long passages and do not rely on direct quotations in this stage.',
-    '- Use only facts directly supported by the supplied source material.',
+    '- Write an original editorial synthesis, not a translation or reconstruction of the sources.',
+    '- Paraphrase the sources. Do not copy long passages and do not rely on direct quotations in this stage.',
+    '- Use only facts directly supported by the supplied primary article or verified supporting materials.',
+    '- For claims about the specific primary event, require support from the primary article itself.',
     '- Do not add background facts merely because they are generally known or plausible.',
-    '- Preserve the source level of certainty and legal force. Never strengthen could/may/consider into must/has the right to/is required unless the source says so.',
+    '- Preserve each source level of certainty and legal force. Never strengthen could/may/consider into must/has the right to/is required unless the relevant supplied source says so.',
     '- When explaining why something matters, use only cautious interpretation that follows directly from the supplied facts; do not introduce new factual claims.',
-    '- Do not invent or add descriptions of who signatories are, how models are trained, broader policy context, affected groups, or consequences unless the supplied source explicitly supports them.',
+    '- Do not invent or add descriptions of who signatories are, how models are trained, broader policy context, affected groups, or consequences unless one of the supplied sources explicitly supports them.',
     '- Do not invent names, dates, numbers, quotations, sources, citations, uncertainty, conclusions, or regulatory status.',
     '- Respect the supplied classification as bounded metadata; do not change it or infer a new classification.',
-    '- Explain what happened, why it matters, who it is relevant to, what is confirmed or uncertain when the source supports that distinction, the limits of the information, and important open questions when supported.',
+    '- Explain what happened, why it matters, who it is relevant to, what is confirmed or uncertain when the supplied sources support that distinction, the limits of the information, and important open questions when supported.',
     '- Keep tone factual, clear, neutral, and suitable for 844-ai.ro.',
     '- Use natural, proofread Romanian with correct diacritics, punctuation, and spacing between every pair of words. Never concatenate adjacent words.',
     '- Before returning JSON, silently proofread the title and every paragraph for Romanian grammar, spelling, diacritics, punctuation, and missing spaces.',
@@ -188,13 +213,17 @@ export function buildFlashPrePersistenceEditorialGenerationSemanticPrompt(
   ].join('\n')
 
   const userPrompt = [
-    'Generate the Romanian Flash editorial draft using only the supplied source article and validated classification.',
+    'Generate the Romanian Flash editorial draft using only the supplied primary article, optional verified supporting materials, and validated classification.',
     '',
     JSON.stringify(
       {
         classification,
-        article:
+        primaryArticle:
           candidatePayload(candidate),
+        supportingSources:
+          supportingSourcePayload(
+            supportingSources,
+          ),
       },
       null,
       2,
@@ -224,6 +253,7 @@ export function createFlashPrePersistenceEditorialGenerationSemanticProducer({
     async produce({
       candidate,
       classification,
+      supportingSources = [],
       runId,
     }) {
       cleanRequiredConfig(provider)
@@ -233,6 +263,7 @@ export function createFlashPrePersistenceEditorialGenerationSemanticProducer({
         buildFlashPrePersistenceEditorialGenerationSemanticPrompt(
           candidate,
           classification,
+          supportingSources,
         )
 
       const raw =
