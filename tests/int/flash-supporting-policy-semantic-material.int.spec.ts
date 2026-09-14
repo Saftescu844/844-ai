@@ -241,10 +241,10 @@ describe(
         )
 
         expect(
-          result.semanticText,
-        ).not.toMatch(
-          /bounded\s*$/,
-        )
+          result.semanticText.match(
+            /A bounded/g,
+          ) ?? [],
+        ).toHaveLength(2)
       },
     )
   },
