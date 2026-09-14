@@ -100,6 +100,42 @@ describe(
     )
 
     it(
+      'supports the EC policy layout when the page h1 is outside main content',
+      () => {
+        const result =
+          extractFlashSupportingPolicySemanticMaterial(
+            source(`
+              <html>
+                <body>
+                  <header>
+                    <h1>Signatory Taskforce of the General-Purpose AI Code of Practice</h1>
+                  </header>
+                  <main>
+                    <p>The Signatory Taskforce fosters exchanges and compliance.</p>
+                    <h2>Objectives of the Taskforce</h2>
+                    <p>The taskforce facilitates a coherent application of the code.</p>
+                    <h2>Related Content</h2>
+                  </main>
+                </body>
+              </html>
+            `),
+          )
+
+        expect(result.title).toBe(
+          'Signatory Taskforce of the General-Purpose AI Code of Practice',
+        )
+
+        expect(result.semanticText).toContain(
+          'The Signatory Taskforce fosters exchanges and compliance.',
+        )
+
+        expect(result.semanticText).toContain(
+          'Objectives of the Taskforce',
+        )
+      },
+    )
+
+    it(
       'drops a long list section instead of flooding semantic material with directory-like entries',
       () => {
         const listItems =
