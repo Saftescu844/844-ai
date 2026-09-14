@@ -17,6 +17,15 @@ export interface FlashPrePersistenceEditorialGenerationSemanticOutput {
   editorialParagraphs: string[]
 }
 
+export interface FlashEditorialSemanticOutputParseOptions {
+  /**
+   * Generation remains strict by default. A bounded downstream QA stage may
+   * disable only the word-count gate so the corrected source-faithful text can
+   * be inspected and its publication-length eligibility reported separately.
+   */
+  enforceWordCount?: boolean
+}
+
 type UnknownRecord =
   Record<string, unknown>
 
@@ -83,6 +92,12 @@ export function countFlashEditorialWords(
 /**
  * Strict parser for the REG-001T Romanian editorial generation contract.
  *
+ * Generation callers use the default strict 500–1000-word gate. A bounded
+ * editorial QA caller may explicitly disable only that gate so fidelity
+ * corrections are not forced to invent or pad content merely to satisfy the
+ * publication-length target. The caller must then report length eligibility
+ * separately and must not treat an out-of-range QA result as persistence-ready.
+ *
  * It intentionally does not:
  * - repair JSON;
  * - accept markdown fences;
@@ -97,6 +112,7 @@ export function countFlashEditorialWords(
  */
 export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
   raw: string,
+  options: FlashEditorialSemanticOutputParseOptions = {},
 ): FlashPrePersistenceEditorialGenerationSemanticOutput {
   let parsed: unknown
 
@@ -198,9 +214,14 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
       editorialParagraphs,
     )
 
+  const enforceWordCount =
+    options.enforceWordCount !==
+      false
+
   if (
+    enforceWordCount &&
     wordCount <
-    FLASH_EDITORIAL_MIN_WORDS
+      FLASH_EDITORIAL_MIN_WORDS
   ) {
     throw new FlashSemanticEvidenceProducerError(
       'invalid_output_too_short',
@@ -208,8 +229,9 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
   }
 
   if (
+    enforceWordCount &&
     wordCount >
-    FLASH_EDITORIAL_MAX_WORDS
+      FLASH_EDITORIAL_MAX_WORDS
   ) {
     throw new FlashSemanticEvidenceProducerError(
       'invalid_output_too_long',
