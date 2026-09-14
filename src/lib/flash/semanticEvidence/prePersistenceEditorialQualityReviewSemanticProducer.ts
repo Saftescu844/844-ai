@@ -7,6 +7,7 @@ import type {
 } from './prePersistenceClassificationSemanticOutput'
 
 import {
+  countFlashEditorialWords,
   FLASH_EDITORIAL_MAX_TITLE_LENGTH,
   FLASH_EDITORIAL_MAX_WORDS,
   FLASH_EDITORIAL_MIN_WORDS,
@@ -68,12 +69,16 @@ export interface FlashPrePersistenceEditorialQualityReviewRunMetadata {
 export interface FlashPrePersistenceEditorialQualityReviewProducerSuccess {
   ok: true
   editorial: FlashPrePersistenceEditorialGenerationSemanticOutput
+  wordCount: number
+  meetsEditorialWordCount: boolean
   run: FlashPrePersistenceEditorialQualityReviewRunMetadata
 }
 
 export interface FlashPrePersistenceEditorialQualityReviewProducerFailure {
   ok: false
   editorial: null
+  wordCount: null
+  meetsEditorialWordCount: false
   run: FlashPrePersistenceEditorialQualityReviewRunMetadata
   reason: FlashSemanticEvidenceProducerFailureReason
 }
@@ -152,14 +157,16 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
     'Quality-review requirements:',
     `- Return language exactly "ro".`,
     `- editorialTitle must be non-empty and at most ${String(FLASH_EDITORIAL_MAX_TITLE_LENGTH)} characters.`,
-    `- editorialParagraphs together MUST contain between ${String(FLASH_EDITORIAL_MIN_WORDS)} and ${String(FLASH_EDITORIAL_MAX_WORDS)} words.`,
+    `- The publication target is ${String(FLASH_EDITORIAL_MIN_WORDS)}–${String(FLASH_EDITORIAL_MAX_WORDS)} words, but source fidelity has priority over length.`,
     '- Correct Romanian grammar, spelling, diacritics, punctuation, and spacing.',
     '- Fix every concatenated-word or missing-space defect in the draft.',
     '- Remove claims, background, definitions, examples, consequences, conclusions, or interpretations that are not directly supported by the supplied source article.',
     '- Preserve the source level of certainty and legal force. Never strengthen could/may/consider into must/is required/has the right to unless the source says so.',
     '- Do not add any new names, dates, numbers, quotations, sources, citations, legal interpretations, policy context, technical definitions, affected groups, consequences, or open questions unless explicitly supported by the source.',
     '- You may rephrase, reorder, merge, or split sentences and paragraphs to improve clarity and Romanian quality.',
-    `- If removing unsupported material would make the editorial shorter than ${String(FLASH_EDITORIAL_MIN_WORDS)} words, expand only by clearly restating or explaining relationships already explicit in the supplied source. Do not add outside knowledge and do not pad with repetitive sentences.`,
+    `- Keep the result within ${String(FLASH_EDITORIAL_MIN_WORDS)}–${String(FLASH_EDITORIAL_MAX_WORDS)} words only when the supplied source supports that length without invention or repetitive padding.`,
+    `- If a faithful correction is shorter than ${String(FLASH_EDITORIAL_MIN_WORDS)} words, return the shorter faithful version anyway. The application will report length eligibility separately.`,
+    '- Never invent, speculate, generalize, repeat, or pad merely to reach the word-count target.',
     '- Keep the result factual, neutral, readable, and suitable for 844-ai.ro.',
     '- Do not decide AUTO, REVIEW, BLOCK, draft, published, or publication eligibility.',
     '- Do not create fingerprints, slugs, citations, source URLs, or Payload fields.',
@@ -237,6 +244,10 @@ export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer(
 
       return parseFlashPrePersistenceEditorialGenerationSemanticOutput(
         raw,
+        {
+          enforceWordCount:
+            false,
+        },
       )
     },
   }
@@ -285,6 +296,8 @@ export async function runFlashPrePersistenceEditorialQualityReviewSemanticProduc
     return {
       ok: false,
       editorial: null,
+      wordCount: null,
+      meetsEditorialWordCount: false,
       run,
       reason: 'invalid_input',
     }
@@ -297,9 +310,22 @@ export async function runFlashPrePersistenceEditorialQualityReviewSemanticProduc
         runId,
       })
 
+    const wordCount =
+      countFlashEditorialWords(
+        editorial.editorialParagraphs,
+      )
+
+    const meetsEditorialWordCount =
+      wordCount >=
+        FLASH_EDITORIAL_MIN_WORDS &&
+      wordCount <=
+        FLASH_EDITORIAL_MAX_WORDS
+
     return {
       ok: true,
       editorial,
+      wordCount,
+      meetsEditorialWordCount,
       run,
     }
   } catch (error) {
@@ -310,6 +336,8 @@ export async function runFlashPrePersistenceEditorialQualityReviewSemanticProduc
       return {
         ok: false,
         editorial: null,
+        wordCount: null,
+        meetsEditorialWordCount: false,
         run,
         reason: error.reason,
       }
@@ -318,6 +346,8 @@ export async function runFlashPrePersistenceEditorialQualityReviewSemanticProduc
     return {
       ok: false,
       editorial: null,
+      wordCount: null,
+      meetsEditorialWordCount: false,
       run,
       reason: 'execution_error',
     }
