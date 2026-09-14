@@ -88,19 +88,17 @@ const draft:
     ],
   }
 
-function validReviewedRaw(): string {
+function reviewedRaw(
+  wordCount: number,
+): string {
   return JSON.stringify({
     language: 'ro',
     editorialTitle:
       'Reuniunea GPAI și securitatea modelelor',
     editorialParagraphs: [
       words(
-        250,
-        'primul',
-      ),
-      words(
-        250,
-        'aldoilea',
+        wordCount,
+        'revizuit',
       ),
     ],
   })
@@ -137,7 +135,17 @@ describe(
         expect(
           prompt.systemPrompt,
         ).toContain(
-          'between 500 and 1000 words',
+          'source fidelity has priority over length',
+        )
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'return the shorter faithful version anyway',
+        )
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'Never invent, speculate, generalize, repeat, or pad',
         )
         expect(
           prompt.userPrompt,
@@ -153,7 +161,7 @@ describe(
     )
 
     it(
-      'accepts one corrected Romanian editorial without changing persistence state',
+      'accepts one corrected Romanian editorial within the publication word-count contract',
       async () => {
         let executions = 0
 
@@ -163,7 +171,9 @@ describe(
             model: 'test-model',
             executor: async () => {
               executions += 1
-              return validReviewedRaw()
+              return reviewedRaw(
+                500,
+              )
             },
           })
 
@@ -185,6 +195,8 @@ describe(
 
         expect(result).toMatchObject({
           ok: true,
+          wordCount: 500,
+          meetsEditorialWordCount: true,
           editorial: {
             language: 'ro',
             editorialTitle:
@@ -212,6 +224,43 @@ describe(
     )
 
     it(
+      'returns a shorter source-faithful QA result as diagnostic output without treating it as publication-length eligible',
+      async () => {
+        const producer =
+          createFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+            provider: 'test-provider',
+            model: 'test-model',
+            executor: async () =>
+              reviewedRaw(
+                420,
+              ),
+          })
+
+        const result =
+          await runFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+            producer,
+            input: {
+              candidate,
+              classification,
+              editorial:
+                draft,
+              runId:
+                'editorial-quality-review-short-test',
+            },
+          })
+
+        expect(result).toMatchObject({
+          ok: true,
+          wordCount: 420,
+          meetsEditorialWordCount: false,
+          editorial: {
+            language: 'ro',
+          },
+        })
+      },
+    )
+
+    it(
       'fails closed before provider execution when runId is empty',
       async () => {
         let executions = 0
@@ -222,7 +271,9 @@ describe(
             model: 'test-model',
             executor: async () => {
               executions += 1
-              return validReviewedRaw()
+              return reviewedRaw(
+                500,
+              )
             },
           })
 
@@ -241,6 +292,8 @@ describe(
         expect(result).toMatchObject({
           ok: false,
           editorial: null,
+          wordCount: null,
+          meetsEditorialWordCount: false,
           reason: 'invalid_input',
         })
 
