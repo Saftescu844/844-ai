@@ -3,6 +3,9 @@ import {
 } from '@/lib/flash/jobs/queueFlashEngineEvaluationJob'
 
 import {
+  extractFlashSupportingPolicySemanticMaterial,
+} from '@/lib/flash/ingestion/supportingPolicySemanticMaterial'
+import {
   FLASH_MAX_SUPPORTING_SOURCES,
   evaluateFlashVerifiedSupportingSourcePack,
 } from '@/lib/flash/ingestion/verifiedSupportingSourcePack'
@@ -100,7 +103,8 @@ Behavior:
   - supporting URLs must belong to the registered source identity
   - supporting URLs must be distinct from the primary article and each other
   - all supporting retrievals must pass technical source verification and contain text
-  - prints only technical metadata and text lengths, never the full supporting bodies
+  - after the pack passes, extracts deterministic bounded semantic material from each /en/policies/... page
+  - prints title, semantic text length, and semantic word count; never the semantic body
   - does NOT discover sources autonomously
   - does NOT call any semantic provider
   - does NOT modify persistenceReadiness
@@ -359,6 +363,16 @@ async function main() {
         ),
     })
 
+  const semanticMaterials =
+    pack.acceptableForSemanticUse
+      ? pack.sources.map(
+          supportingSource =>
+            extractFlashSupportingPolicySemanticMaterial(
+              supportingSource,
+            ),
+        )
+      : []
+
   const summary = {
     sourceId:
       source.id,
@@ -377,16 +391,18 @@ async function main() {
     verification:
       pack.verification,
     supportingSources:
-      pack.sources.map(
-        supportingSource => ({
+      semanticMaterials.map(
+        material => ({
           id:
-            supportingSource.id,
-          concreteUrl:
-            supportingSource.concreteUrl,
-          finalUrl:
-            supportingSource.finalUrl,
-          textLength:
-            supportingSource.textContent.length,
+            material.id,
+          sourceUrl:
+            material.sourceUrl,
+          title:
+            material.title,
+          semanticTextLength:
+            material.textLength,
+          semanticWordCount:
+            material.wordCount,
         }),
       ),
   }
