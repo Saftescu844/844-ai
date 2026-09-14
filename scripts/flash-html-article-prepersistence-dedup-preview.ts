@@ -36,6 +36,9 @@ import {
   createAnthropicFlashPrePersistenceEditorialGenerationSemanticProducer,
 } from '@/lib/flash/semanticEvidence/anthropicPrePersistenceEditorialGenerationSemanticProducer'
 import {
+  createAnthropicFlashPrePersistenceEditorialQualityReviewSemanticProducer,
+} from '@/lib/flash/semanticEvidence/anthropicPrePersistenceEditorialQualityReviewSemanticProducer'
+import {
   runFlashPrePersistenceClassificationSemanticProducer,
 } from '@/lib/flash/semanticEvidence/prePersistenceClassificationSemanticProducer'
 import {
@@ -46,6 +49,10 @@ import {
   runFlashPrePersistenceEditorialGenerationSemanticProducer,
   type FlashPrePersistenceEditorialGenerationRunMetadata,
 } from '@/lib/flash/semanticEvidence/prePersistenceEditorialGenerationSemanticProducer'
+import {
+  runFlashPrePersistenceEditorialQualityReviewSemanticProducer,
+  type FlashPrePersistenceEditorialQualityReviewRunMetadata,
+} from '@/lib/flash/semanticEvidence/prePersistenceEditorialQualityReviewSemanticProducer'
 
 function hasFlag(
   name: string,
@@ -107,13 +114,15 @@ Behavior:
   - sourceFingerprint reuse remains only a review signal
   - evaluates persistence readiness from source verification, dedup evidence, grounded fingerprints, and optional validated classification
   - reports source-grounded values, classification, deferred decisions, blockers, and review signals
-  - REG-001S classification and REG-001T editorial generation are NOT requested by default
+  - REG-001S classification and REG-001T editorial generation/QA are NOT requested by default
   - with --allow-provider-requests and --model, resolves allowed pilons from the source configuration and requests bounded Anthropic classification first
   - provider classification runs only after source verification passes and no canonical/event duplicate blocker exists
   - successful strict REG-001S classification removes classification_required from persistence readiness
   - after successful classification, requests one original Romanian REG-001T editorial draft using the same source candidate and validated classification
   - the generated Romanian editorial must satisfy the strict 500–1000-word contract or the preview fails closed
-  - REG-001T output is preview-only and is intentionally NOT fed back into persistenceReadiness yet
+  - after successful generation, runs one bounded source-fidelity / Romanian QA pass against the same source and classification
+  - QA must return a strict 500–1000-word Romanian editorial and may correct language, spacing, and unsupported draft material without adding new facts
+  - REG-001T generation and QA outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet
   - generated_flash_content_required therefore remains in persistence readiness until a later explicit integration increment
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
@@ -520,6 +529,16 @@ async function main() {
           FlashPrePersistenceEditorialGenerationRunMetadata
       } = null
 
+  let prePersistenceEditorialQualityReview:
+    | null
+    | {
+        editorial:
+          FlashPrePersistenceEditorialGenerationSemanticOutput
+        wordCount: number
+        run:
+          FlashPrePersistenceEditorialQualityReviewRunMetadata
+      } = null
+
   if (allowProviderRequests) {
     if (!model) {
       throw new Error(
@@ -701,6 +720,46 @@ async function main() {
       run:
         editorialResult.run,
     }
+
+    const editorialQualityReviewProducer =
+      createAnthropicFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+        client,
+        model,
+      })
+
+    const editorialQualityReviewResult =
+      await runFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+        producer:
+          editorialQualityReviewProducer,
+        input: {
+          candidate:
+            normalized,
+          classification:
+            classificationResult.classification,
+          editorial:
+            editorialResult.editorial,
+          runId:
+            `flash-prepersistence-editorial-qa-ro:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
+        },
+      })
+
+    if (!editorialQualityReviewResult.ok) {
+      throw new Error(
+        `Pre-persistence editorial quality review failed: ${editorialQualityReviewResult.reason}.`,
+      )
+    }
+
+    prePersistenceEditorialQualityReview = {
+      editorial:
+        editorialQualityReviewResult.editorial,
+      wordCount:
+        countFlashEditorialWords(
+          editorialQualityReviewResult.editorial
+            .editorialParagraphs,
+        ),
+      run:
+        editorialQualityReviewResult.run,
+    }
   }
 
   console.log(
@@ -742,6 +801,17 @@ async function main() {
                 .run,
           }
         : null,
+    prePersistenceEditorialQualityReview:
+      prePersistenceEditorialQualityReview
+        ? {
+            wordCount:
+              prePersistenceEditorialQualityReview
+                .wordCount,
+            run:
+              prePersistenceEditorialQualityReview
+                .run,
+          }
+        : null,
   })
 
   if (
@@ -753,6 +823,21 @@ async function main() {
     console.log(
       JSON.stringify(
         prePersistenceEditorialGeneration,
+        null,
+        2,
+      ),
+    )
+  }
+
+  if (
+    prePersistenceEditorialQualityReview
+  ) {
+    console.log(
+      'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_RO',
+    )
+    console.log(
+      JSON.stringify(
+        prePersistenceEditorialQualityReview,
         null,
         2,
       ),
