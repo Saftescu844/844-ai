@@ -146,6 +146,30 @@ function stripNonContentElements(
     .replace(/<(script|style|noscript|svg|template)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
 }
 
+function extractPageTitle(
+  html: string,
+): string {
+  const match =
+    /<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(
+      html,
+    )
+
+  const title =
+    match?.[1]
+      ? normalizeText(
+          match[1],
+        )
+      : ''
+
+  if (!title) {
+    throw new Error(
+      'Supporting policy page is missing an h1 title.',
+    )
+  }
+
+  return title
+}
+
 function extractMainHtml(
   html: string,
 ): string {
@@ -235,26 +259,11 @@ function extractSemanticBlocks(
 
 function buildBoundedSemanticText(
   blocks: SemanticBlock[],
-): {
-  title: string
-  semanticText: string
-} {
-  const titleBlock =
-    blocks.find(
-      block =>
-        block.kind === 'heading' &&
-        block.level === 1,
-    )
-
-  if (!titleBlock) {
-    throw new Error(
-      'Supporting policy page is missing an h1 title.',
-    )
-  }
-
+  title: string,
+): string {
   const selected:
     string[] = [
-      titleBlock.text,
+      title,
     ]
 
   let currentSectionListCount = 0
@@ -262,13 +271,13 @@ function buildBoundedSemanticText(
     number | null = null
 
   for (const block of blocks) {
-    if (block === titleBlock) {
-      continue
-    }
-
     if (
       block.kind === 'heading'
     ) {
+      if (block.level === 1) {
+        continue
+      }
+
       const normalizedHeading =
         block.text
           .toLowerCase()
@@ -374,11 +383,7 @@ function buildBoundedSemanticText(
     )
   }
 
-  return {
-    title:
-      titleBlock.text,
-    semanticText,
-  }
+  return semanticText
 }
 
 /**
@@ -387,7 +392,8 @@ function buildBoundedSemanticText(
  *
  * This stage does not discover sources, call a model, judge factual truth,
  * mutate persistence readiness, or write to Payload. It strips page chrome,
- * keeps semantic h1/h2/h3/p content plus bounded short lists, stops before
+ * reads the page h1 even when the EC layout places it outside <main>, keeps
+ * semantic h2/h3/p content plus bounded short lists from <main>, stops before
  * generic trailing sections such as Related Content, and caps the final text
  * at a block boundary before semantic-provider use.
  */
@@ -401,21 +407,27 @@ export function extractFlashSupportingPolicySemanticMaterial(
       source.concreteUrl,
     )
 
-  const mainHtml =
-    extractMainHtml(
-      stripNonContentElements(
-        source.textContent,
-      ),
+  const cleanedHtml =
+    stripNonContentElements(
+      source.textContent,
     )
 
-  const {
-    title,
-    semanticText,
-  } =
+  const title =
+    extractPageTitle(
+      cleanedHtml,
+    )
+
+  const mainHtml =
+    extractMainHtml(
+      cleanedHtml,
+    )
+
+  const semanticText =
     buildBoundedSemanticText(
       extractSemanticBlocks(
         mainHtml,
       ),
+      title,
     )
 
   return {
