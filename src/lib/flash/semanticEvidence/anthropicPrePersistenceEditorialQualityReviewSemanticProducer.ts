@@ -1,9 +1,12 @@
 import type Anthropic from '@anthropic-ai/sdk'
 
 import {
-  ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA,
   DEFAULT_ANTHROPIC_PREPERSISTENCE_EDITORIAL_MAX_TOKENS,
 } from './anthropicPrePersistenceEditorialGenerationSemanticProducer'
+
+import {
+  FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_OUTPUT_SCHEMA,
+} from './prePersistenceEditorialQualityReviewSemanticSchema'
 
 import {
   createAnthropicSemanticTextExecutor,
@@ -47,7 +50,7 @@ export function createAnthropicFlashPrePersistenceEditorialQualityReviewSemantic
       model,
       maxTokens,
       structuredOutputSchema:
-        ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA,
+        FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_OUTPUT_SCHEMA,
       ...(temperature === undefined
         ? {}
         : {

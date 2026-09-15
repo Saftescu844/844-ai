@@ -9,6 +9,10 @@ import type {
 } from '@/lib/flash/ingestion/articleCandidateNormalization'
 
 import type {
+  FlashSupportingPolicySemanticMaterial,
+} from '@/lib/flash/ingestion/supportingPolicySemanticMaterial'
+
+import type {
   FlashPrePersistenceClassificationSemanticOutput,
 } from '@/lib/flash/semanticEvidence/prePersistenceClassificationSemanticOutput'
 
@@ -62,6 +66,29 @@ const classification:
     isHealthRelated: false,
   }
 
+
+const supportingSources:
+  FlashSupportingPolicySemanticMaterial[] = [
+    {
+      id: 'gpai-code',
+      sourceUrl: 'https://example.test/gpai-code',
+      title: 'General-Purpose AI Code of Practice',
+      semanticText:
+        'The Code of Practice provides supporting policy context for general-purpose AI obligations.',
+      textLength: 91,
+      wordCount: 12,
+    },
+    {
+      id: 'signatory-taskforce',
+      sourceUrl: 'https://example.test/signatory-taskforce',
+      title: 'GPAI Signatory Taskforce',
+      semanticText:
+        'The Signatory Taskforce provides supporting context concerning implementation discussions.',
+      textLength: 90,
+      wordCount: 9,
+    },
+  ]
+
 function words(
   count: number,
   prefix: string,
@@ -95,11 +122,16 @@ function reviewedRaw(
     language: 'ro',
     editorialTitle:
       'Reuniunea GPAI și securitatea modelelor',
-    editorialParagraphs: [
-      words(
-        wordCount,
-        'revizuit',
-      ),
+    paragraphEdits: [
+      {
+        paragraphIndex:
+          0,
+        replacement:
+          words(
+            wordCount,
+            'revizuit',
+          ),
+      },
     ],
   })
 }
@@ -112,15 +144,26 @@ describe(
       () => {
         const prompt =
           buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
-            candidate,
-            classification,
-            draft,
-          )
+              candidate,
+              classification,
+              draft,
+              supportingSources,
+            )
 
         expect(
           prompt.systemPrompt,
         ).toContain(
-          'sole factual authority',
+          'primary source article remains authoritative',
+        )
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'Supporting policy materials may be used only',
+        )
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'require support from the primary article itself',
         )
         expect(
           prompt.systemPrompt,
@@ -130,7 +173,7 @@ describe(
         expect(
           prompt.systemPrompt,
         ).toContain(
-          'Remove claims, background, definitions, examples, consequences, conclusions, or interpretations',
+          'Remove or correct claims, background, definitions, examples, consequences, conclusions, or interpretations',
         )
         expect(
           prompt.systemPrompt,
@@ -139,7 +182,7 @@ describe(
         )
         expect(
           prompt.systemPrompt,
-        ).toContain(
+        ).not.toContain(
           'return the shorter faithful version anyway',
         )
         expect(
@@ -150,12 +193,44 @@ describe(
         expect(
           prompt.userPrompt,
         ).toContain(
+          '"primaryArticle"',
+        )
+        expect(
+          prompt.userPrompt,
+        ).toContain(
+          '"supportingSources"',
+        )
+        expect(
+          prompt.userPrompt,
+        ).toContain(
+          'General-Purpose AI Code of Practice',
+        )
+        expect(
+          prompt.userPrompt,
+        ).toContain(
+          'GPAI Signatory Taskforce',
+        )
+        expect(
+          prompt.userPrompt,
+        ).toContain(
           '"editorialDraft"',
         )
         expect(
           prompt.userPrompt,
         ).toContain(
           'Reuniunea GPAI șiSecuritatea modelelor',
+        )
+
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'document is created.\n\nThe supplied primary source',
+        )
+
+        expect(
+          prompt.userPrompt,
+        ).toContain(
+          'necessary.\n\n{',
         )
       },
     )
@@ -224,7 +299,49 @@ describe(
     )
 
     it(
-      'returns a shorter source-faithful QA result as diagnostic output without treating it as publication-length eligible',
+      'builds a retention-aware anti-compression QA prompt',
+      () => {
+        const prompt =
+          buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
+            candidate,
+            classification,
+            draft,
+          )
+
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'Do not summarize, condense, compress, or rewrite the draft wholesale.',
+        )
+
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'make the smallest necessary correction',
+        )
+
+        expect(
+          prompt.systemPrompt,
+        ).toContain(
+          'The reconstructed editorial must contain at least',
+        )
+
+        expect(
+          prompt.systemPrompt,
+        ).not.toContain(
+          'return the shorter faithful version anyway',
+        )
+
+        expect(
+          prompt.userPrompt,
+        ).toContain(
+          'minimumRetainedWordCount',
+        )
+      },
+    )
+
+    it(
+      'fails closed when QA copy edits violate the retention floor',
       async () => {
         const producer =
           createFlashPrePersistenceEditorialQualityReviewSemanticProducer({
@@ -250,13 +367,49 @@ describe(
           })
 
         expect(result).toMatchObject({
-          ok: true,
-          wordCount: 420,
+          ok: false,
+          editorial: null,
+          wordCount: null,
           meetsEditorialWordCount: false,
-          editorial: {
-            language: 'ro',
+          reason:
+            'invalid_output_quality_review_retention',
+          diagnostics: {
+            originalWordCount:
+              countFlashEditorialWords(
+                draft.editorialParagraphs,
+              ),
+            reviewedWordCount:
+              expect.any(Number),
+            minimumRetainedWordCount:
+              Math.max(
+                500,
+                Math.floor(
+                  countFlashEditorialWords(
+                    draft.editorialParagraphs,
+                  ) * 0.85,
+                ),
+              ),
+            paragraphCount:
+              draft.editorialParagraphs.length,
+            editedParagraphCount:
+              expect.any(Number),
           },
         })
+
+        if (
+          !result.ok &&
+          result.diagnostics
+        ) {
+          expect(
+            result.diagnostics.reviewedWordCount,
+          ).toBeLessThan(
+            result.diagnostics.minimumRetainedWordCount,
+          )
+
+          expect(
+            result.diagnostics.editedParagraphCount,
+          ).toBeGreaterThan(0)
+        }
       },
     )
 

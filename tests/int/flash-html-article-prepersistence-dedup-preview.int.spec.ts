@@ -77,13 +77,13 @@ describe(
           'evaluateFlashArticlePersistenceReadiness',
         )
         expect(source).toContain(
-          'createAnthropicFlashPrePersistenceEditorialGenerationSemanticProducer',
+          'createOpenAiFlashPrePersistenceEditorialGenerationSemanticProducer',
         )
         expect(source).toContain(
           'runFlashPrePersistenceEditorialGenerationSemanticProducer',
         )
         expect(source).toContain(
-          'createAnthropicFlashPrePersistenceEditorialQualityReviewSemanticProducer',
+          'createOpenAiFlashPrePersistenceEditorialQualityReviewSemanticProducer',
         )
         expect(source).toContain(
           'runFlashPrePersistenceEditorialQualityReviewSemanticProducer',
@@ -93,6 +93,24 @@ describe(
         )
         expect(source).toContain(
           'countFlashEditorialWords',
+        )
+        expect(source).toContain(
+          'readOptions',
+        )
+        expect(source).toContain(
+          '--supporting-url',
+        )
+        expect(source).toContain(
+          'evaluateFlashVerifiedSupportingSourcePack',
+        )
+        expect(source).toContain(
+          'extractFlashSupportingPolicySemanticMaterial',
+        )
+        expect(source).toContain(
+          'supportingPolicySemanticMaterials',
+        )
+        expect(source).toContain(
+          'supportingSourcePack,',
         )
         expect(source).toContain(
           'validatedClassification:',
@@ -115,10 +133,25 @@ describe(
         expect(source).toContain(
           'prePersistenceEditorialQualityGate,',
         )
+
+        const supportingSemanticInputMatches =
+          source.match(
+            /supportingSources:\s*supportingPolicySemanticMaterials,\s*/g,
+          ) ?? []
+
+        expect(
+          supportingSemanticInputMatches,
+        ).toHaveLength(
+          2,
+        )
         expect(source).toContain(
           'PAYLOAD_DB_PUSH',
         )
 
+        const supportingPackIndex =
+          source.indexOf(
+            'evaluateFlashVerifiedSupportingSourcePack({',
+          )
         const generationRunIndex =
           source.indexOf(
             'const editorialResult =',
@@ -133,9 +166,14 @@ describe(
           )
 
         expect(
-          generationRunIndex,
+          supportingPackIndex,
         ).toBeGreaterThanOrEqual(
           0,
+        )
+        expect(
+          generationRunIndex,
+        ).toBeGreaterThan(
+          supportingPackIndex,
         )
         expect(
           qualityReviewRunIndex,
@@ -154,11 +192,29 @@ describe(
         expect(source).not.toMatch(
           /payload\.jobs\.(queue|run)\s*\(/,
         )
-        expect(source).not.toMatch(
-          /from\s+['"]@anthropic-ai\/sdk['"]/,
+        expect(source).toContain(
+          'createOpenAiFlashPrePersistenceClassificationSemanticProducer',
+        )
+        expect(source).toContain(
+          'createOpenAiFlashPrePersistenceEditorialGenerationSemanticProducer',
+        )
+        expect(source).toContain(
+          'createOpenAiFlashPrePersistenceEditorialQualityReviewSemanticProducer',
+        )
+        expect(source).toContain(
+          'OPENAI_API_KEY',
+        )
+        expect(source).not.toContain(
+          'ANTHROPIC_API_KEY',
+        )
+        expect(source).not.toContain(
+          'createAnthropicFlashPrePersistence',
+        )
+        expect(source).toMatch(
+          /await import\(\s*['"]openai['"]\s*\)/,
         )
         expect(source).not.toMatch(
-          /client\.messages\.create\s*\(/,
+          /client\.responses\.create\s*\(/,
         )
       },
     )
@@ -206,6 +262,15 @@ describe(
         )
         expect(stdout).toContain(
           'successful strict REG-001S classification removes classification_required from persistence readiness',
+        )
+        expect(stdout).toContain(
+          'accepts zero, one, or two explicit --supporting-url values',
+        )
+        expect(stdout).toContain(
+          'zero preserves the original REG-001T primary-only path',
+        )
+        expect(stdout).toContain(
+          'requires the REG-001U verified supporting-source pack contract to pass',
         )
         expect(stdout).toContain(
           'after successful classification, requests one original Romanian REG-001T editorial draft',

@@ -77,13 +77,13 @@ describe(
         expect(
           prompt.systemPrompt,
         ).toContain(
-          'Use only facts directly supported by the supplied source material.',
+          'Use only facts directly supported by the supplied primary article or verified supporting materials.',
         )
 
         expect(
           prompt.systemPrompt,
         ).toContain(
-          'Preserve the source level of certainty and legal force.',
+          'Preserve each source level of certainty and legal force.',
         )
 
         expect(

@@ -53,6 +53,9 @@ export interface AnthropicSemanticMessageContentBlock {
 export interface AnthropicSemanticMessageResponse {
   content:
     AnthropicSemanticMessageContentBlock[]
+
+  stop_reason?:
+    string | null
 }
 
 /**
@@ -146,9 +149,35 @@ function validateTemperature(
   return value
 }
 
+function assertUsableStopReason(
+  response:
+    AnthropicSemanticMessageResponse,
+): void {
+  if (
+    response.stop_reason ===
+      'max_tokens' ||
+    response.stop_reason ===
+      'model_context_window_exceeded'
+  ) {
+    throw new FlashSemanticEvidenceProducerError(
+      'provider_output_truncated',
+    )
+  }
+
+  if (
+    response.stop_reason ===
+    'refusal'
+  ) {
+    throw new FlashSemanticEvidenceProducerError(
+      'provider_refusal',
+    )
+  }
+}
+
 function extractText(
   response:
     AnthropicSemanticMessageResponse,
+  requireSingleTextBlock = false,
 ): string {
   if (
     !response ||
@@ -161,7 +190,7 @@ function extractText(
     )
   }
 
-  const text =
+  const textBlocks =
     response.content
       .filter(
         block =>
@@ -174,6 +203,18 @@ function extractText(
         block =>
           block.text as string,
       )
+
+  if (
+    requireSingleTextBlock &&
+    textBlocks.length !== 1
+  ) {
+    throw new FlashSemanticEvidenceProducerError(
+      'provider_structured_output_multiple_text_blocks',
+    )
+  }
+
+  const text =
+    textBlocks
       .join('')
       .trim()
 
@@ -277,8 +318,42 @@ export function createAnthropicSemanticTextExecutor({
       )
     }
 
-    return extractText(
+    assertUsableStopReason(
       response,
     )
+
+    const text =
+      extractText(
+        response,
+        Boolean(
+          structuredOutputSchema,
+        ),
+      )
+
+    if (structuredOutputSchema) {
+      if (!text.startsWith('{')) {
+        throw new FlashSemanticEvidenceProducerError(
+          'provider_structured_output_non_json',
+        )
+      }
+
+      if (!text.endsWith('}')) {
+        throw new FlashSemanticEvidenceProducerError(
+          'provider_structured_output_incomplete_json',
+        )
+      }
+
+      try {
+        JSON.parse(
+          text,
+        )
+      } catch {
+        throw new FlashSemanticEvidenceProducerError(
+          'provider_structured_output_invalid_json',
+        )
+      }
+    }
+
+    return text
   }
 }

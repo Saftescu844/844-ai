@@ -12,35 +12,15 @@ import {
   createFlashPrePersistenceEditorialGenerationSemanticProducer,
 } from './prePersistenceEditorialGenerationSemanticProducer'
 
+import {
+  FLASH_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA,
+} from './prePersistenceEditorialGenerationSemanticSchema'
+
 export const DEFAULT_ANTHROPIC_PREPERSISTENCE_EDITORIAL_MAX_TOKENS =
   4096
 
-export const ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA:
-  Record<string, unknown> = {
-    type: 'object',
-    properties: {
-      language: {
-        type: 'string',
-        const: 'ro',
-      },
-      editorialTitle: {
-        type: 'string',
-      },
-      editorialParagraphs: {
-        type: 'array',
-        minItems: 1,
-        items: {
-          type: 'string',
-        },
-      },
-    },
-    required: [
-      'language',
-      'editorialTitle',
-      'editorialParagraphs',
-    ],
-    additionalProperties: false,
-  }
+export const ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA =
+  FLASH_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA
 
 export interface AnthropicPrePersistenceEditorialGenerationSemanticProducerOptions {
   client: Anthropic

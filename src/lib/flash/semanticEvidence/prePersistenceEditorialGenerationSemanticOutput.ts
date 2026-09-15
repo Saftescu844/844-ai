@@ -78,6 +78,14 @@ function hasExactKeys(
   )
 }
 
+function containsEditorialLetter(
+  value: string,
+): boolean {
+  return /[A-Za-zĂÂÎȘȚăâîșț]/u.test(
+    value,
+  )
+}
+
 export function countFlashEditorialWords(
   paragraphs: readonly string[],
 ): number {
@@ -199,7 +207,12 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
         const normalized =
           paragraph.trim()
 
-        if (!normalized) {
+        if (
+          !normalized ||
+          !containsEditorialLetter(
+            normalized,
+          )
+        ) {
           invalidOutput(
             'invalid_output_paragraphs',
           )

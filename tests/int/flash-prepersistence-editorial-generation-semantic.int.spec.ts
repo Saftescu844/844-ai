@@ -191,6 +191,20 @@ describe(
           JSON.stringify({
             language: 'ro',
             editorialTitle:
+              'Punctuație fără text',
+            editorialParagraphs: [
+              words(500),
+              ',',
+            ],
+          }),
+        reason:
+          'invalid_output_paragraphs',
+      },
+      {
+        raw:
+          JSON.stringify({
+            language: 'ro',
+            editorialTitle:
               'Prea scurt',
             editorialParagraphs: [
               words(499),

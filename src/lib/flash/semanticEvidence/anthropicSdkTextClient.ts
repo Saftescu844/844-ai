@@ -54,6 +54,9 @@ export function createAnthropicSdkTextClient(
           })
 
         return {
+          stop_reason:
+            response.stop_reason,
+
           content:
             response.content.map(
               block => {

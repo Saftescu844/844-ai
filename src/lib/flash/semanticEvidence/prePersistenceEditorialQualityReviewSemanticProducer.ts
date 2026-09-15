@@ -3,6 +3,10 @@ import type {
 } from '../ingestion/articleCandidateNormalization'
 
 import type {
+  FlashSupportingPolicySemanticMaterial,
+} from '../ingestion/supportingPolicySemanticMaterial'
+
+import type {
   FlashPrePersistenceClassificationSemanticOutput,
 } from './prePersistenceClassificationSemanticOutput'
 
@@ -11,9 +15,16 @@ import {
   FLASH_EDITORIAL_MAX_TITLE_LENGTH,
   FLASH_EDITORIAL_MAX_WORDS,
   FLASH_EDITORIAL_MIN_WORDS,
-  parseFlashPrePersistenceEditorialGenerationSemanticOutput,
   type FlashPrePersistenceEditorialGenerationSemanticOutput,
 } from './prePersistenceEditorialGenerationSemanticOutput'
+
+import {
+  applyFlashPrePersistenceEditorialQualityReviewCopyEdit,
+  FLASH_QA_MIN_RETAINED_WORD_RATIO,
+  parseFlashPrePersistenceEditorialQualityReviewSemanticOutput,
+  FlashPrePersistenceEditorialQualityReviewRetentionError,
+  type FlashPrePersistenceEditorialQualityReviewRetentionDiagnostics,
+} from './prePersistenceEditorialQualityReviewSemanticOutput'
 
 import {
   FlashSemanticEvidenceProducerError,
@@ -46,6 +57,7 @@ export interface FlashPrePersistenceEditorialQualityReviewSemanticProducerInput 
   candidate: FlashNormalizedArticleCandidate
   classification: FlashPrePersistenceClassificationSemanticOutput
   editorial: FlashPrePersistenceEditorialGenerationSemanticOutput
+  supportingSources?: FlashSupportingPolicySemanticMaterial[]
   runId: string
 }
 
@@ -81,6 +93,8 @@ export interface FlashPrePersistenceEditorialQualityReviewProducerFailure {
   meetsEditorialWordCount: false
   run: FlashPrePersistenceEditorialQualityReviewRunMetadata
   reason: FlashSemanticEvidenceProducerFailureReason
+  diagnostics?:
+    FlashPrePersistenceEditorialQualityReviewRetentionDiagnostics
 }
 
 export type FlashPrePersistenceEditorialQualityReviewProducerResult =
@@ -136,6 +150,19 @@ function candidatePayload(
   }
 }
 
+function supportingSourcePayload(
+  sources: FlashSupportingPolicySemanticMaterial[],
+) {
+  return sources.map(
+    source => ({
+      id: source.id,
+      sourceUrl: source.sourceUrl,
+      title: source.title,
+      semanticText: source.semanticText,
+    }),
+  )
+}
+
 /**
  * REG-001T bounded editorial QA pass.
  *
@@ -147,25 +174,52 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
   candidate: FlashNormalizedArticleCandidate,
   classification: FlashPrePersistenceClassificationSemanticOutput,
   editorial: FlashPrePersistenceEditorialGenerationSemanticOutput,
+  supportingSources: FlashSupportingPolicySemanticMaterial[] = [],
 ): FlashPrePersistenceEditorialQualityReviewSemanticPrompt {
+  const originalWordCount =
+    countFlashEditorialWords(
+      editorial.editorialParagraphs,
+    )
+
+  const minimumRetainedWordCount =
+    Math.max(
+      FLASH_EDITORIAL_MIN_WORDS,
+      Math.floor(
+        originalWordCount *
+          FLASH_QA_MIN_RETAINED_WORD_RATIO,
+      ),
+    )
+
   const systemPrompt = [
-    'You review and correct one existing Romanian Flash AI editorial draft before any Payload document is created.',
+    'You review and minimally correct one existing Romanian Flash AI editorial draft before any Payload document is created.',
     '',
-    'The supplied source article is the sole factual authority for the reviewed editorial.',
+    'The supplied primary source article and optional verified supporting policy materials are the factual source set for this review.',
+    'The primary source article remains authoritative for what happened in the specific event, meeting, announcement, date, and event-specific statements.',
+    'Supporting policy materials may be used only for directly supported background or context. Never turn supporting context into a claim that it happened at, resulted from, or was decided by the primary event unless the primary article supports that connection.',
     'The supplied classification is bounded metadata only. It is not factual evidence and must not be used to add claims.',
     '',
-    'Quality-review requirements:',
+    'Controlled copy-edit requirements:',
     `- Return language exactly "ro".`,
     `- editorialTitle must be non-empty and at most ${String(FLASH_EDITORIAL_MAX_TITLE_LENGTH)} characters.`,
     `- The publication target is ${String(FLASH_EDITORIAL_MIN_WORDS)}–${String(FLASH_EDITORIAL_MAX_WORDS)} words, but source fidelity has priority over length.`,
-    '- Correct Romanian grammar, spelling, diacritics, punctuation, and spacing.',
+    '- Correct Romanian grammar, spelling, diacritics, punctuation, and spacing only where correction is needed.',
     '- Fix every concatenated-word or missing-space defect in the draft.',
-    '- Remove claims, background, definitions, examples, consequences, conclusions, or interpretations that are not directly supported by the supplied source article.',
+    '- Remove or correct claims, background, definitions, examples, consequences, conclusions, or interpretations that are not directly supported by the supplied primary article or verified supporting materials.',
+    '- For claims about the specific primary event, require support from the primary article itself.',
     '- Preserve the source level of certainty and legal force. Never strengthen could/may/consider into must/is required/has the right to unless the source says so.',
-    '- Do not add any new names, dates, numbers, quotations, sources, citations, legal interpretations, policy context, technical definitions, affected groups, consequences, or open questions unless explicitly supported by the source.',
-    '- You may rephrase, reorder, merge, or split sentences and paragraphs to improve clarity and Romanian quality.',
-    `- Keep the result within ${String(FLASH_EDITORIAL_MIN_WORDS)}–${String(FLASH_EDITORIAL_MAX_WORDS)} words only when the supplied source supports that length without invention or repetitive padding.`,
-    `- If a faithful correction is shorter than ${String(FLASH_EDITORIAL_MIN_WORDS)} words, return the shorter faithful version anyway. The application will report length eligibility separately.`,
+    '- Do not add any new names, dates, numbers, quotations, sources, citations, legal interpretations, policy context, technical definitions, affected groups, consequences, or open questions unless explicitly supported by the supplied source set.',
+    '- Preserve paragraph count and paragraph order. Do not delete, insert, reorder, split, or merge paragraphs.',
+    '- paragraphIndex is zero-based and refers to editorialDraft.editorialParagraphs.',
+    '- Return an edit only for a paragraph that actually needs correction. Omit unchanged paragraphs from paragraphEdits.',
+    '- Each replacement must be the complete corrected replacement text for exactly that one paragraph.',
+    '- The draft already passed the generation word-count contract. Preserving valid source-supported content is the default.',
+    '- Do not summarize, condense, compress, or rewrite the draft wholesale.',
+    '- Preserve every source-supported factual detail, explanation, distinction, and useful context already present in the draft.',
+    '- Return an edit only when correction is actually necessary; unchanged paragraphs must be omitted from paragraphEdits.',
+    '- For an edited paragraph, make the smallest necessary correction and preserve unaffected wording.',
+    `- The reconstructed editorial must contain at least ${String(minimumRetainedWordCount)} words. The supplied draft contains ${String(originalWordCount)} words.`,
+    `- The minimum retained-word ratio is ${String(FLASH_QA_MIN_RETAINED_WORD_RATIO)}. Do not intentionally return edits that make the reconstructed editorial shorter than the stated minimumRetainedWordCount.`,
+    '- If source fidelity genuinely requires removing enough unsupported material that the retention floor cannot be satisfied, remove only what is unsupported and do not invent, repeat, generalize, or pad. The application will fail closed and a later stage may regenerate the draft.',
     '- Never invent, speculate, generalize, repeat, or pad merely to reach the word-count target.',
     '- Keep the result factual, neutral, readable, and suitable for 844-ai.ro.',
     '- Do not decide AUTO, REVIEW, BLOCK, draft, published, or publication eligibility.',
@@ -177,17 +231,27 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
     'Do not use markdown fences or add commentary.',
     '',
     'Exact JSON shape:',
-    '{"language":"ro","editorialTitle":"...","editorialParagraphs":["...","..."]}',
+    '{"language":"ro","editorialTitle":"...","paragraphEdits":[{"paragraphIndex":0,"replacement":"..."}]}',
   ].join('\n')
 
   const userPrompt = [
-    'Review the Romanian editorial against the supplied source. Return only the corrected source-faithful editorial.',
+    'Review the Romanian editorial against the supplied source set. Return only the minimal controlled copy edits that are necessary.',
     '',
     JSON.stringify(
       {
         classification,
-        article:
+        primaryArticle:
           candidatePayload(candidate),
+        supportingSources:
+          supportingSourcePayload(
+            supportingSources,
+          ),
+        qualityReviewConstraints: {
+          originalWordCount,
+          minimumRetainedWordCount,
+          minRetainedWordRatio:
+            FLASH_QA_MIN_RETAINED_WORD_RATIO,
+        },
         editorialDraft:
           editorial,
       },
@@ -221,6 +285,7 @@ export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer(
       candidate,
       classification,
       editorial,
+      supportingSources = [],
       runId,
     }) {
       cleanRequiredConfig(provider)
@@ -231,6 +296,7 @@ export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer(
           candidate,
           classification,
           editorial,
+          supportingSources,
         )
 
       const raw =
@@ -242,13 +308,15 @@ export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer(
             prompt.userPrompt,
         })
 
-      return parseFlashPrePersistenceEditorialGenerationSemanticOutput(
-        raw,
-        {
-          enforceWordCount:
-            false,
-        },
-      )
+      const review =
+        parseFlashPrePersistenceEditorialQualityReviewSemanticOutput(
+          raw,
+        )
+
+      return applyFlashPrePersistenceEditorialQualityReviewCopyEdit({
+        editorial,
+        review,
+      })
     },
   }
 }
@@ -329,6 +397,22 @@ export async function runFlashPrePersistenceEditorialQualityReviewSemanticProduc
       run,
     }
   } catch (error) {
+    if (
+      error instanceof
+        FlashPrePersistenceEditorialQualityReviewRetentionError
+    ) {
+      return {
+        ok: false,
+        editorial: null,
+        wordCount: null,
+        meetsEditorialWordCount: false,
+        run,
+        reason: error.reason,
+        diagnostics:
+          error.diagnostics,
+      }
+    }
+
     if (
       error instanceof
         FlashSemanticEvidenceProducerError

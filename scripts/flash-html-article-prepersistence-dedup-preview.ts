@@ -24,20 +24,28 @@ import {
   extractFlashHtmlArticle,
 } from '@/lib/flash/ingestion/htmlArticleExtraction'
 import {
+  extractFlashSupportingPolicySemanticMaterial,
+  type FlashSupportingPolicySemanticMaterial,
+} from '@/lib/flash/ingestion/supportingPolicySemanticMaterial'
+import {
+  FLASH_MAX_SUPPORTING_SOURCES,
+  evaluateFlashVerifiedSupportingSourcePack,
+} from '@/lib/flash/ingestion/verifiedSupportingSourcePack'
+import {
   retrieveFlashSource,
 } from '@/lib/flash/runtimeEvidence/sourceRetriever'
 import {
   evaluateFlashSourceVerification,
 } from '@/lib/flash/runtimeEvidence/sourceVerificationEvidence'
 import {
-  createAnthropicFlashPrePersistenceClassificationSemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicPrePersistenceClassificationSemanticProducer'
+  createOpenAiFlashPrePersistenceClassificationSemanticProducer,
+} from '@/lib/flash/semanticEvidence/openAiPrePersistenceClassificationSemanticProducer'
 import {
-  createAnthropicFlashPrePersistenceEditorialGenerationSemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicPrePersistenceEditorialGenerationSemanticProducer'
+  createOpenAiFlashPrePersistenceEditorialGenerationSemanticProducer,
+} from '@/lib/flash/semanticEvidence/openAiPrePersistenceEditorialGenerationSemanticProducer'
 import {
-  createAnthropicFlashPrePersistenceEditorialQualityReviewSemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicPrePersistenceEditorialQualityReviewSemanticProducer'
+  createOpenAiFlashPrePersistenceEditorialQualityReviewSemanticProducer,
+} from '@/lib/flash/semanticEvidence/openAiPrePersistenceEditorialQualityReviewSemanticProducer'
 import {
   runFlashPrePersistenceClassificationSemanticProducer,
 } from '@/lib/flash/semanticEvidence/prePersistenceClassificationSemanticProducer'
@@ -88,6 +96,46 @@ function readOption(
   ] ?? null
 }
 
+function readOptions(
+  name: string,
+): string[] {
+  const values:
+    string[] = []
+
+  for (
+    let index = 0;
+    index < process.argv.length;
+    index += 1
+  ) {
+    if (
+      process.argv[index] !==
+      name
+    ) {
+      continue
+    }
+
+    const value =
+      process.argv[
+        index + 1
+      ]
+
+    if (
+      !value ||
+      value.startsWith(
+        '--',
+      )
+    ) {
+      continue
+    }
+
+    values.push(
+      value,
+    )
+  }
+
+  return values
+}
+
 function printHelp(): void {
   console.log(`
 Flash Engine HTML article pre-persistence dedup preview
@@ -96,7 +144,9 @@ Usage:
   PAYLOAD_DB_PUSH=false pnpm exec tsx scripts/flash-html-article-prepersistence-dedup-preview.ts \
     --source-id 4 \
     --article-url https://digital-strategy.ec.europa.eu/en/news/fourth-gpai-signatory-taskforce-meeting \
-    [--allow-provider-requests --model claude-sonnet-4-6]
+    [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/contents-code-gpai] \
+    [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/signatory-taskforce-gpai-code-practice] \
+    [--allow-provider-requests --model gpt-5.6-terra]
 
 Behavior:
   - reads one active source with allowIngestion=true
@@ -119,12 +169,15 @@ Behavior:
   - evaluates persistence readiness from source verification, dedup evidence, grounded fingerprints, and optional validated classification
   - reports source-grounded values, classification, deferred decisions, blockers, and review signals
   - REG-001S classification and REG-001T editorial generation/QA are NOT requested by default
-  - with --allow-provider-requests and --model, resolves allowed pilons from the source configuration and requests bounded Anthropic classification first
+  - with --allow-provider-requests and --model, resolves allowed pilons from the source configuration and requests bounded OpenAI classification first
   - provider classification runs only after source verification passes and no canonical/event duplicate blocker exists
   - successful strict REG-001S classification removes classification_required from persistence readiness
-  - after successful classification, requests one original Romanian REG-001T editorial draft using the same source candidate and validated classification
+  - accepts zero, one, or two explicit --supporting-url values; zero preserves the original REG-001T primary-only path
+  - when supporting URLs are supplied, retrieves them through the canonical retriever and requires the REG-001U verified supporting-source pack contract to pass
+  - deterministically extracts bounded supporting policy semantic material only after the supporting pack passes
+  - after successful classification, requests one original Romanian REG-001T editorial draft using the same primary source candidate, validated classification, and optional verified supporting materials
   - the generated Romanian editorial must satisfy the strict 500–1000-word contract or the preview fails closed
-  - after successful generation, runs one bounded source-fidelity / Romanian QA pass against the same source and classification
+  - after successful generation, runs one bounded source-fidelity / Romanian QA pass against the same primary + supporting source set and classification
   - QA may return a shorter source-faithful diagnostic editorial rather than inventing or padding material to force the canonical minimum
   - a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word and basic structural bridge requirements
   - REG-001T generation, QA, and quality-gate outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet
@@ -136,7 +189,7 @@ Behavior:
 Safety:
   - execution is restricted to the configured Railway STAGING main service
   - PAYLOAD_DB_PUSH must be exactly false
-  - ANTHROPIC_API_KEY is read only after explicit --allow-provider-requests and a non-empty --model
+  - OPENAI_API_KEY is read only after explicit --allow-provider-requests and a non-empty --model
 `)
 }
 
@@ -285,6 +338,25 @@ async function main() {
     )
   }
 
+  const supportingUrls =
+    readOptions(
+      '--supporting-url',
+    )
+      .map(
+        value =>
+          value.trim(),
+      )
+      .filter(Boolean)
+
+  if (
+    supportingUrls.length >
+      FLASH_MAX_SUPPORTING_SOURCES
+  ) {
+    throw new Error(
+      `Provide at most ${String(FLASH_MAX_SUPPORTING_SOURCES)} --supporting-url values.`,
+    )
+  }
+
   const allowProviderRequests =
     hasFlag(
       '--allow-provider-requests',
@@ -426,6 +498,99 @@ async function main() {
       extracted,
     )
 
+  let supportingPolicySemanticMaterials:
+    FlashSupportingPolicySemanticMaterial[] = []
+
+  let supportingSourcePack:
+    | null
+    | {
+        requestedUrls: string[]
+        acceptableForSemanticUse: boolean
+        reasons: string[]
+        supportingSources: Array<{
+          id: string
+          sourceUrl: string
+          title: string
+          semanticTextLength: number
+          semanticWordCount: number
+        }>
+      } = null
+
+  if (
+    supportingUrls.length >
+    0
+  ) {
+    const supportingRetrievals =
+      await Promise.all(
+        supportingUrls.map(
+          (
+            supportingUrl,
+            index,
+          ) =>
+            retrieveFlashSource({
+              id:
+                `flash-html-prepersistence-supporting:${String(source.id)}:${String(index + 1)}`,
+              registeredSourceUrl:
+                source.url,
+              concreteUrl:
+                supportingUrl,
+            }),
+        ),
+      )
+
+    const pack =
+      evaluateFlashVerifiedSupportingSourcePack({
+        primaryCanonicalUrl:
+          normalized.canonicalUrl,
+        supportingSources:
+          supportingRetrievals.map(
+            supportingRetrieval => ({
+              ...supportingRetrieval.candidate,
+              textContent:
+                supportingRetrieval.textContent,
+            }),
+          ),
+      })
+
+    if (!pack.acceptableForSemanticUse) {
+      throw new Error(
+        `Supporting-source pack is not acceptable: ${pack.reasons.join(', ') || 'unknown_reason'}.`,
+      )
+    }
+
+    supportingPolicySemanticMaterials =
+      pack.sources.map(
+        supportingSource =>
+          extractFlashSupportingPolicySemanticMaterial(
+            supportingSource,
+          ),
+      )
+
+    supportingSourcePack = {
+      requestedUrls:
+        supportingUrls,
+      acceptableForSemanticUse:
+        pack.acceptableForSemanticUse,
+      reasons:
+        pack.reasons,
+      supportingSources:
+        supportingPolicySemanticMaterials.map(
+          material => ({
+            id:
+              material.id,
+            sourceUrl:
+              material.sourceUrl,
+            title:
+              material.title,
+            semanticTextLength:
+              material.textLength,
+            semanticWordCount:
+              material.wordCount,
+          }),
+        ),
+    }
+  }
+
   const sourceFingerprints =
     buildFlashArticleCandidateFingerprints(
       normalized,
@@ -551,7 +716,7 @@ async function main() {
   if (allowProviderRequests) {
     if (!model) {
       throw new Error(
-        'Anthropic model is required.',
+        'OpenAI model is required.',
       )
     }
 
@@ -625,27 +790,30 @@ async function main() {
 
     const apiKey =
       process.env
-        .ANTHROPIC_API_KEY
+        .OPENAI_API_KEY
         ?.trim()
 
     if (!apiKey) {
       throw new Error(
-        'ANTHROPIC_API_KEY is not configured.',
+        'OPENAI_API_KEY is not configured.',
       )
     }
 
-    const anthropicModule =
+    const openAiModule =
       await import(
-        '@anthropic-ai/sdk'
+        'openai'
       )
 
+    const OpenAI =
+      openAiModule.default
+
     const client =
-      new anthropicModule.default({
+      new OpenAI({
         apiKey,
       })
 
     const classificationProducer =
-      createAnthropicFlashPrePersistenceClassificationSemanticProducer({
+      createOpenAiFlashPrePersistenceClassificationSemanticProducer({
         client,
         model,
       })
@@ -693,7 +861,7 @@ async function main() {
       })
 
     const editorialProducer =
-      createAnthropicFlashPrePersistenceEditorialGenerationSemanticProducer({
+      createOpenAiFlashPrePersistenceEditorialGenerationSemanticProducer({
         client,
         model,
       })
@@ -707,6 +875,8 @@ async function main() {
             normalized,
           classification:
             classificationResult.classification,
+          supportingSources:
+            supportingPolicySemanticMaterials,
           runId:
             `flash-prepersistence-editorial-ro:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
         },
@@ -731,7 +901,7 @@ async function main() {
     }
 
     const editorialQualityReviewProducer =
-      createAnthropicFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+      createOpenAiFlashPrePersistenceEditorialQualityReviewSemanticProducer({
         client,
         model,
       })
@@ -747,14 +917,25 @@ async function main() {
             classificationResult.classification,
           editorial:
             editorialResult.editorial,
+          supportingSources:
+            supportingPolicySemanticMaterials,
           runId:
             `flash-prepersistence-editorial-qa-ro:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
         },
       })
 
     if (!editorialQualityReviewResult.ok) {
+      const diagnostics =
+        editorialQualityReviewResult
+          .diagnostics
+
+      const diagnosticSuffix =
+        diagnostics
+          ? ` Diagnostics: ${JSON.stringify(diagnostics)}.`
+          : ''
+
       throw new Error(
-        `Pre-persistence editorial quality review failed: ${editorialQualityReviewResult.reason}.`,
+        `Pre-persistence editorial quality review failed: ${editorialQualityReviewResult.reason}.${diagnosticSuffix}`,
       )
     }
 
@@ -803,6 +984,7 @@ async function main() {
     evidence:
       dedup.evidence,
     persistenceReadiness,
+    supportingSourcePack,
     prePersistenceClassification,
     prePersistenceEditorialGeneration:
       prePersistenceEditorialGeneration
