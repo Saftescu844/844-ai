@@ -9,6 +9,7 @@ export type FlashPrePersistenceEditorialQualityGateReason =
   | 'below_minimum_word_count'
   | 'above_maximum_word_count'
   | 'punctuation_only_paragraph'
+  | 'lexical_spacing_defect'
 
 export interface FlashPrePersistenceEditorialQualityGateResult {
   acceptableForPersistenceBridge: boolean
@@ -22,6 +23,43 @@ function isPunctuationOnlyParagraph(
   return /^[\p{P}\p{S}\s]+$/u.test(
     paragraph,
   )
+}
+
+const KNOWN_CONCATENATED_WORDS = new Set<string>([
+  'concentratasupra',
+  'monitorizareade',
+  'apreciereariscurilor',
+  'săia',
+  'reuniunedesfășurată',
+])
+
+function hasLexicalSpacingDefect(
+  value: string,
+): boolean {
+  const normalized =
+    value.normalize(
+      'NFC',
+    )
+
+  if (
+    /(?:\p{Ll}{3,}\.\p{Lu}|[!?]\p{Lu})/u.test(
+      normalized,
+    )
+  ) {
+    return true
+  }
+
+  return normalized
+    .toLowerCase()
+    .split(
+      /[^\p{L}]+/u,
+    )
+    .some(
+      token =>
+        KNOWN_CONCATENATED_WORDS.has(
+          token,
+        ),
+    )
 }
 
 /**
@@ -73,6 +111,22 @@ export function evaluateFlashPrePersistenceEditorialQualityGate(
   ) {
     reasons.add(
       'punctuation_only_paragraph',
+    )
+  }
+
+  if (
+    [
+      editorial.editorialTitle,
+      ...editorial.editorialParagraphs,
+    ].some(
+      value =>
+        hasLexicalSpacingDefect(
+          value,
+        ),
+    )
+  ) {
+    reasons.add(
+      'lexical_spacing_defect',
     )
   }
 
