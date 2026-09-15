@@ -196,7 +196,7 @@ export const FlashAI: CollectionConfig = {
       }),
       admin: {
         description:
-          'Țintă editorială Flash: aproximativ 400–1000 de cuvinte.',
+          'Țintă editorială Flash: aproximativ 500–1000 de cuvinte.',
       },
     },
     {

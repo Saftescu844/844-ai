@@ -32,7 +32,7 @@ describe(
   'Flash HTML article pre-persistence dedup preview CLI',
   () => {
     it(
-      'documents a read-only extraction-to-dedup-to-classification-readiness path without downstream writes',
+      'documents a read-only extraction-to-dedup-to-classification-to-editorial-to-QA-to-gate preview path without downstream writes',
       async () => {
         const source =
           await readFile(
@@ -42,6 +42,12 @@ describe(
 
         expect(source).toContain(
           'FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_OK',
+        )
+        expect(source).toContain(
+          'FLASH_PREPERSISTENCE_EDITORIAL_GENERATION_RO',
+        )
+        expect(source).toContain(
+          'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_RO',
         )
         expect(source).toContain(
           'retrieveFlashSource',
@@ -71,6 +77,42 @@ describe(
           'evaluateFlashArticlePersistenceReadiness',
         )
         expect(source).toContain(
+          'createOpenAiFlashPrePersistenceEditorialGenerationSemanticProducer',
+        )
+        expect(source).toContain(
+          'runFlashPrePersistenceEditorialGenerationSemanticProducer',
+        )
+        expect(source).toContain(
+          'createOpenAiFlashPrePersistenceEditorialQualityReviewSemanticProducer',
+        )
+        expect(source).toContain(
+          'runFlashPrePersistenceEditorialQualityReviewSemanticProducer',
+        )
+        expect(source).toContain(
+          'evaluateFlashPrePersistenceEditorialQualityGate',
+        )
+        expect(source).toContain(
+          'countFlashEditorialWords',
+        )
+        expect(source).toContain(
+          'readOptions',
+        )
+        expect(source).toContain(
+          '--supporting-url',
+        )
+        expect(source).toContain(
+          'evaluateFlashVerifiedSupportingSourcePack',
+        )
+        expect(source).toContain(
+          'extractFlashSupportingPolicySemanticMaterial',
+        )
+        expect(source).toContain(
+          'supportingPolicySemanticMaterials',
+        )
+        expect(source).toContain(
+          'supportingSourcePack,',
+        )
+        expect(source).toContain(
           'validatedClassification:',
         )
         expect(source).toContain(
@@ -83,7 +125,65 @@ describe(
           'prePersistenceClassification,',
         )
         expect(source).toContain(
+          'prePersistenceEditorialGeneration:',
+        )
+        expect(source).toContain(
+          'prePersistenceEditorialQualityReview:',
+        )
+        expect(source).toContain(
+          'prePersistenceEditorialQualityGate,',
+        )
+
+        const supportingSemanticInputMatches =
+          source.match(
+            /supportingSources:\s*supportingPolicySemanticMaterials,\s*/g,
+          ) ?? []
+
+        expect(
+          supportingSemanticInputMatches,
+        ).toHaveLength(
+          2,
+        )
+        expect(source).toContain(
           'PAYLOAD_DB_PUSH',
+        )
+
+        const supportingPackIndex =
+          source.indexOf(
+            'evaluateFlashVerifiedSupportingSourcePack({',
+          )
+        const generationRunIndex =
+          source.indexOf(
+            'const editorialResult =',
+          )
+        const qualityReviewRunIndex =
+          source.indexOf(
+            'const editorialQualityReviewResult =',
+          )
+        const qualityGateIndex =
+          source.indexOf(
+            'prePersistenceEditorialQualityGate =',
+          )
+
+        expect(
+          supportingPackIndex,
+        ).toBeGreaterThanOrEqual(
+          0,
+        )
+        expect(
+          generationRunIndex,
+        ).toBeGreaterThan(
+          supportingPackIndex,
+        )
+        expect(
+          qualityReviewRunIndex,
+        ).toBeGreaterThan(
+          generationRunIndex,
+        )
+        expect(
+          qualityGateIndex,
+        ).toBeGreaterThan(
+          qualityReviewRunIndex,
         )
 
         expect(source).not.toMatch(
@@ -92,11 +192,29 @@ describe(
         expect(source).not.toMatch(
           /payload\.jobs\.(queue|run)\s*\(/,
         )
-        expect(source).not.toMatch(
-          /from\s+['"]@anthropic-ai\/sdk['"]/,
+        expect(source).toContain(
+          'createOpenAiFlashPrePersistenceClassificationSemanticProducer',
+        )
+        expect(source).toContain(
+          'createOpenAiFlashPrePersistenceEditorialGenerationSemanticProducer',
+        )
+        expect(source).toContain(
+          'createOpenAiFlashPrePersistenceEditorialQualityReviewSemanticProducer',
+        )
+        expect(source).toContain(
+          'OPENAI_API_KEY',
+        )
+        expect(source).not.toContain(
+          'ANTHROPIC_API_KEY',
+        )
+        expect(source).not.toContain(
+          'createAnthropicFlashPrePersistence',
+        )
+        expect(source).toMatch(
+          /await import\(\s*['"]openai['"]\s*\)/,
         )
         expect(source).not.toMatch(
-          /client\.messages\.create\s*\(/,
+          /client\.responses\.create\s*\(/,
         )
       },
     )
@@ -146,7 +264,34 @@ describe(
           'successful strict REG-001S classification removes classification_required from persistence readiness',
         )
         expect(stdout).toContain(
-          'generated_flash_content_required still blocks FlashAI draft creation in this increment',
+          'accepts zero, one, or two explicit --supporting-url values',
+        )
+        expect(stdout).toContain(
+          'zero preserves the original REG-001T primary-only path',
+        )
+        expect(stdout).toContain(
+          'requires the REG-001U verified supporting-source pack contract to pass',
+        )
+        expect(stdout).toContain(
+          'after successful classification, requests one original Romanian REG-001T editorial draft',
+        )
+        expect(stdout).toContain(
+          'strict 500–1000-word contract',
+        )
+        expect(stdout).toContain(
+          'after successful generation, runs one bounded source-fidelity / Romanian QA pass',
+        )
+        expect(stdout).toContain(
+          'QA may return a shorter source-faithful diagnostic editorial',
+        )
+        expect(stdout).toContain(
+          'a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word',
+        )
+        expect(stdout).toContain(
+          'REG-001T generation, QA, and quality-gate outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet',
+        )
+        expect(stdout).toContain(
+          'generated_flash_content_required therefore remains in persistence readiness',
         )
         expect(stdout).toContain(
           'does NOT create, update, or delete FlashAI',

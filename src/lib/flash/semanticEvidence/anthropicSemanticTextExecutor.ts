@@ -6,6 +6,14 @@ import type {
   FlashSemanticTextExecutor,
 } from './semanticTextExecutor'
 
+export interface AnthropicSemanticJsonSchemaFormat {
+  type:
+    'json_schema'
+
+  schema:
+    Record<string, unknown>
+}
+
 export interface AnthropicSemanticMessageCreateParams {
   model:
     string
@@ -27,6 +35,11 @@ export interface AnthropicSemanticMessageCreateParams {
       content:
         string
     }>
+
+  output_config?: {
+    format:
+      AnthropicSemanticJsonSchemaFormat
+  }
 }
 
 export interface AnthropicSemanticMessageContentBlock {
@@ -40,6 +53,9 @@ export interface AnthropicSemanticMessageContentBlock {
 export interface AnthropicSemanticMessageResponse {
   content:
     AnthropicSemanticMessageContentBlock[]
+
+  stop_reason?:
+    string | null
 }
 
 /**
@@ -73,6 +89,9 @@ export interface AnthropicSemanticTextExecutorOptions {
 
   temperature?:
     number
+
+  structuredOutputSchema?:
+    Record<string, unknown>
 }
 
 export const DEFAULT_ANTHROPIC_SEMANTIC_MAX_TOKENS =
@@ -130,9 +149,35 @@ function validateTemperature(
   return value
 }
 
+function assertUsableStopReason(
+  response:
+    AnthropicSemanticMessageResponse,
+): void {
+  if (
+    response.stop_reason ===
+      'max_tokens' ||
+    response.stop_reason ===
+      'model_context_window_exceeded'
+  ) {
+    throw new FlashSemanticEvidenceProducerError(
+      'provider_output_truncated',
+    )
+  }
+
+  if (
+    response.stop_reason ===
+    'refusal'
+  ) {
+    throw new FlashSemanticEvidenceProducerError(
+      'provider_refusal',
+    )
+  }
+}
+
 function extractText(
   response:
     AnthropicSemanticMessageResponse,
+  requireSingleTextBlock = false,
 ): string {
   if (
     !response ||
@@ -145,7 +190,7 @@ function extractText(
     )
   }
 
-  const text =
+  const textBlocks =
     response.content
       .filter(
         block =>
@@ -158,6 +203,18 @@ function extractText(
         block =>
           block.text as string,
       )
+
+  if (
+    requireSingleTextBlock &&
+    textBlocks.length !== 1
+  ) {
+    throw new FlashSemanticEvidenceProducerError(
+      'provider_structured_output_multiple_text_blocks',
+    )
+  }
+
+  const text =
+    textBlocks
       .join('')
       .trim()
 
@@ -172,6 +229,9 @@ function extractText(
 
 /**
  * Adaptor subțire Anthropic -> SemanticTextExecutor.
+ *
+ * Poate transmite opțional un JSON Schema către output_config.format.
+ * Producerii care nu cer structured output rămân neschimbați.
  *
  * Nu:
  * - citește ANTHROPIC_API_KEY;
@@ -189,6 +249,7 @@ export function createAnthropicSemanticTextExecutor({
     DEFAULT_ANTHROPIC_SEMANTIC_MAX_TOKENS,
   temperature =
     DEFAULT_ANTHROPIC_SEMANTIC_TEMPERATURE,
+  structuredOutputSchema,
 }: AnthropicSemanticTextExecutorOptions):
   FlashSemanticTextExecutor {
   return async ({
@@ -237,6 +298,19 @@ export function createAnthropicSemanticTextExecutor({
                 userPrompt,
             },
           ],
+
+          ...(structuredOutputSchema
+            ? {
+                output_config: {
+                  format: {
+                    type:
+                      'json_schema' as const,
+                    schema:
+                      structuredOutputSchema,
+                  },
+                },
+              }
+            : {}),
         })
     } catch {
       throw new FlashSemanticEvidenceProducerError(
@@ -244,8 +318,42 @@ export function createAnthropicSemanticTextExecutor({
       )
     }
 
-    return extractText(
+    assertUsableStopReason(
       response,
     )
+
+    const text =
+      extractText(
+        response,
+        Boolean(
+          structuredOutputSchema,
+        ),
+      )
+
+    if (structuredOutputSchema) {
+      if (!text.startsWith('{')) {
+        throw new FlashSemanticEvidenceProducerError(
+          'provider_structured_output_non_json',
+        )
+      }
+
+      if (!text.endsWith('}')) {
+        throw new FlashSemanticEvidenceProducerError(
+          'provider_structured_output_incomplete_json',
+        )
+      }
+
+      try {
+        JSON.parse(
+          text,
+        )
+      } catch {
+        throw new FlashSemanticEvidenceProducerError(
+          'provider_structured_output_invalid_json',
+        )
+      }
+    }
+
+    return text
   }
 }

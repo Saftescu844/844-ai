@@ -44,9 +44,19 @@ export function createAnthropicSdkTextClient(
 
             messages:
               params.messages,
+
+            ...(params.output_config
+              ? {
+                  output_config:
+                    params.output_config,
+                }
+              : {}),
           })
 
         return {
+          stop_reason:
+            response.stop_reason,
+
           content:
             response.content.map(
               block => {
