@@ -112,6 +112,75 @@ describe(
     )
 
     it(
+      'blocks empirically confirmed concatenated-word defects',
+      () => {
+        for (const defect of [
+          'concentratasupra',
+          'monitorizareade',
+          'apreciereariscurilor',
+          'săia',
+          'reuniunedesfășurată',
+        ]) {
+          const result =
+            evaluateFlashPrePersistenceEditorialQualityGate(
+              editorial([
+                words(499, 'cuvant') + ' ' + defect,
+              ]),
+            )
+
+          expect(result).toEqual({
+            acceptableForPersistenceBridge:
+              false,
+            wordCount: 500,
+            reasons: [
+              'lexical_spacing_defect',
+            ],
+          })
+        }
+      },
+    )
+
+    it(
+      'blocks a missing space after sentence punctuation',
+      () => {
+        const result =
+          evaluateFlashPrePersistenceEditorialQualityGate(
+            editorial([
+              words(499, 'cuvant') + ' furnizorilor.Pentru',
+            ]),
+          )
+
+        expect(result).toEqual({
+          acceptableForPersistenceBridge:
+            false,
+          wordCount: 500,
+          reasons: [
+            'lexical_spacing_defect',
+          ],
+        })
+      },
+    )
+
+    it(
+      'does not flag legitimate dotted tokens as spacing defects',
+      () => {
+        const result =
+          evaluateFlashPrePersistenceEditorialQualityGate(
+            editorial([
+              words(497, 'cuvant') + ' robots.txt 3.5 S.U.A.',
+            ]),
+          )
+
+        expect(result).toEqual({
+          acceptableForPersistenceBridge:
+            true,
+          wordCount: 500,
+          reasons: [],
+        })
+      },
+    )
+
+    it(
       'blocks an editorial above the canonical maximum',
       () => {
         const result =
