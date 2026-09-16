@@ -1,4 +1,8 @@
 import {
+  buildVerifiedFlashEditorialLexicalContent,
+} from '@/lib/flash/editorialContentLexical'
+
+import {
   FLASH_ENGINE_STAGING_RAILWAY_TARGET,
 } from '@/lib/flash/jobs/queueFlashEngineEvaluationJob'
 
@@ -180,6 +184,7 @@ Behavior:
   - after successful generation, runs one bounded source-fidelity / Romanian QA pass against the same primary + supporting source set and classification
   - QA may return a shorter source-faithful diagnostic editorial rather than inventing or padding material to force the canonical minimum
   - a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word and basic structural bridge requirements
+  - only when that gate passes, deterministically builds a verified Lexical preview from the reviewed final editorial and checks exact paragraph round-trip
   - REG-001T generation, QA, and quality-gate outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet
   - generated_flash_content_required therefore remains in persistence readiness until a later explicit integration increment
   - does NOT create, update, or delete FlashAI
@@ -713,6 +718,12 @@ async function main() {
     FlashPrePersistenceEditorialQualityGateResult | null =
       null
 
+  let prePersistenceEditorialLexicalContent:
+    ReturnType<
+      typeof buildVerifiedFlashEditorialLexicalContent
+    > | null =
+      null
+
   if (allowProviderRequests) {
     if (!model) {
       throw new Error(
@@ -955,6 +966,17 @@ async function main() {
       evaluateFlashPrePersistenceEditorialQualityGate(
         editorialQualityReviewResult.editorial,
       )
+
+    if (
+      prePersistenceEditorialQualityGate
+        .acceptableForPersistenceBridge
+    ) {
+      prePersistenceEditorialLexicalContent =
+        buildVerifiedFlashEditorialLexicalContent(
+          editorialQualityReviewResult.editorial
+            .editorialParagraphs,
+        )
+    }
   }
 
   console.log(
@@ -1035,6 +1057,31 @@ async function main() {
     console.log(
       JSON.stringify(
         prePersistenceEditorialQualityReview,
+        null,
+        2,
+      ),
+    )
+  }
+
+  if (
+    prePersistenceEditorialQualityReview &&
+    prePersistenceEditorialLexicalContent
+  ) {
+    console.log(
+      'FLASH_PREPERSISTENCE_EDITORIAL_LEXICAL_RO',
+    )
+    console.log(
+      JSON.stringify(
+        {
+          editorialTitle:
+            prePersistenceEditorialQualityReview
+              .editorial.editorialTitle,
+          paragraphCount:
+            prePersistenceEditorialQualityReview
+              .editorial.editorialParagraphs.length,
+          content:
+            prePersistenceEditorialLexicalContent,
+        },
         null,
         2,
       ),
