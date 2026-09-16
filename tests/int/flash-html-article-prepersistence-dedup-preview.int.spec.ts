@@ -50,6 +50,9 @@ describe(
           'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_RO',
         )
         expect(source).toContain(
+          'FLASH_PREPERSISTENCE_EDITORIAL_LEXICAL_RO',
+        )
+        expect(source).toContain(
           'retrieveFlashSource',
         )
         expect(source).toContain(
@@ -90,6 +93,9 @@ describe(
         )
         expect(source).toContain(
           'evaluateFlashPrePersistenceEditorialQualityGate',
+        )
+        expect(source).toContain(
+          'buildVerifiedFlashEditorialLexicalContent',
         )
         expect(source).toContain(
           'countFlashEditorialWords',
@@ -164,6 +170,10 @@ describe(
           source.indexOf(
             'prePersistenceEditorialQualityGate =',
           )
+        const lexicalBuildIndex =
+          source.indexOf(
+            'prePersistenceEditorialLexicalContent =',
+          )
 
         expect(
           supportingPackIndex,
@@ -184,6 +194,14 @@ describe(
           qualityGateIndex,
         ).toBeGreaterThan(
           qualityReviewRunIndex,
+        )
+        expect(
+          lexicalBuildIndex,
+        ).toBeGreaterThan(
+          qualityGateIndex,
+        )
+        expect(source).toContain(
+          '.acceptableForPersistenceBridge',
         )
 
         expect(source).not.toMatch(
@@ -286,6 +304,9 @@ describe(
         )
         expect(stdout).toContain(
           'a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word',
+        )
+        expect(stdout).toContain(
+          'only when that gate passes, deterministically builds a verified Lexical preview',
         )
         expect(stdout).toContain(
           'REG-001T generation, QA, and quality-gate outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet',
