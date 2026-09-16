@@ -15,9 +15,12 @@ import {
 } from '@/lib/flash/semanticEvidence/anthropicPrePersistenceEditorialQualityReviewSemanticProducer'
 
 import {
-  ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA,
   DEFAULT_ANTHROPIC_PREPERSISTENCE_EDITORIAL_MAX_TOKENS,
 } from '@/lib/flash/semanticEvidence/anthropicPrePersistenceEditorialGenerationSemanticProducer'
+
+import {
+  FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_OUTPUT_SCHEMA,
+} from '@/lib/flash/semanticEvidence/prePersistenceEditorialQualityReviewSemanticSchema'
 
 import type {
   FlashPrePersistenceClassificationSemanticOutput,
@@ -102,16 +105,7 @@ function validReviewedRaw(): string {
     language: 'ro',
     editorialTitle:
       'Reuniunea GPAI',
-    editorialParagraphs: [
-      words(
-        250,
-        'primul',
-      ),
-      words(
-        250,
-        'aldoilea',
-      ),
-    ],
+    paragraphEdits: [],
   })
 }
 
@@ -185,7 +179,7 @@ describe(
               type:
                 'json_schema',
               schema:
-                ANTHROPIC_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA,
+                FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_OUTPUT_SCHEMA,
             },
           },
           messages: [

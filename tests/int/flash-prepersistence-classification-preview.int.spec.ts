@@ -44,19 +44,19 @@ describe(
         expect(
           source,
         ).toContain(
-          'ANTHROPIC_API_KEY',
+          'OPENAI_API_KEY',
         )
 
         expect(
           source,
         ).toContain(
-          "await import(\n        '@anthropic-ai/sdk'",
+          "await import(\n        'openai'",
         )
 
         expect(
           source,
         ).toContain(
-          'createAnthropicFlashPrePersistenceClassificationSemanticProducer',
+          'createOpenAiFlashPrePersistenceClassificationSemanticProducer',
         )
 
         expect(
@@ -116,7 +116,7 @@ describe(
         expect(
           source,
         ).not.toMatch(
-          /client\.messages\.create\s*\(/,
+          /client\.responses\.create\s*\(/,
         )
       },
     )
