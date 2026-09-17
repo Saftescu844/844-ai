@@ -1,6 +1,19 @@
 import type {
+  FlashAi,
+} from '@/payload-types'
+
+import {
+  extractFlashEditorialParagraphs,
+} from '../editorialContentLexical'
+import type {
   FlashPrePersistenceClassificationSemanticOutput,
 } from '../semanticEvidence/prePersistenceClassificationSemanticOutput'
+import type {
+  FlashPrePersistenceEditorialGenerationSemanticOutput,
+} from '../semanticEvidence/prePersistenceEditorialGenerationSemanticOutput'
+import {
+  evaluateFlashPrePersistenceEditorialQualityGate,
+} from '../semanticEvidence/prePersistenceEditorialQualityGate'
 import type {
   FlashSourceVerificationEvidence,
 } from '../runtimeEvidence/sourceVerificationEvidence'
@@ -49,13 +62,19 @@ export interface FlashPersistenceDraftControls {
   payloadStatus: 'draft'
 }
 
+export interface FlashPersistenceVerifiedEditorial {
+  editorialTitle: string
+  lexicalContent: FlashAi['continut']
+}
+
 export interface FlashArticlePersistenceReadiness {
   /**
-   * REG-001S still stops before Payload create().
-   * Classification may now be present, but original generated Flash
-   * editorial content is still required before a draft can be created.
+   * Eligibility only. This helper never calls Payload create().
    */
-  canCreateFlashAiDraft: false
+  canCreateFlashAiDraft: boolean
+
+  verifiedEditorial:
+    FlashPersistenceVerifiedEditorial | null
 
   sourceGroundedValues:
     FlashPersistenceSourceGroundedValues
@@ -96,6 +115,12 @@ export interface FlashArticlePersistenceReadinessInput {
    */
   validatedClassification?:
     FlashPrePersistenceClassificationSemanticOutput | null
+
+  verifiedEditorial?: {
+    editorial:
+      FlashPrePersistenceEditorialGenerationSemanticOutput
+    lexicalContent: FlashAi['continut']
+  } | null
 }
 
 function normalizeFingerprint(
@@ -149,10 +174,74 @@ export function evaluateFlashArticlePersistenceReadiness(
     input.validatedClassification ??
     null
 
+  const verifiedEditorialInput =
+    input.verifiedEditorial ??
+    null
+
+  let verifiedEditorial:
+    FlashPersistenceVerifiedEditorial | null =
+      null
+
+  if (verifiedEditorialInput) {
+    const qualityGate =
+      evaluateFlashPrePersistenceEditorialQualityGate(
+        verifiedEditorialInput.editorial,
+      )
+
+    if (
+      !qualityGate
+        .acceptableForPersistenceBridge
+    ) {
+      throw new Error(
+        'Flash persistence readiness requires a quality-gated final editorial.',
+      )
+    }
+
+    const lexicalParagraphs =
+      extractFlashEditorialParagraphs(
+        verifiedEditorialInput
+          .lexicalContent,
+      )
+
+    const editorialParagraphs =
+      verifiedEditorialInput.editorial
+        .editorialParagraphs
+
+    if (
+      lexicalParagraphs.length !==
+        editorialParagraphs.length ||
+      lexicalParagraphs.some(
+        (
+          paragraph,
+          index,
+        ) =>
+          paragraph !==
+          editorialParagraphs[index],
+      )
+    ) {
+      throw new Error(
+        'Flash persistence readiness verified Lexical content does not match final editorial.',
+      )
+    }
+
+    verifiedEditorial = {
+      editorialTitle:
+        verifiedEditorialInput.editorial
+          .editorialTitle,
+      lexicalContent:
+        verifiedEditorialInput
+          .lexicalContent,
+    }
+  }
+
   const blockers =
-    new Set<FlashPersistenceReadinessBlocker>([
+    new Set<FlashPersistenceReadinessBlocker>()
+
+  if (!verifiedEditorial) {
+    blockers.add(
       'generated_flash_content_required',
-    ])
+    )
+  }
 
   if (!classification) {
     blockers.add(
@@ -210,9 +299,13 @@ export function evaluateFlashArticlePersistenceReadiness(
   }
 
   const deferredDecisions:
-    FlashPersistenceDeferredDecision[] = [
+    FlashPersistenceDeferredDecision[] = []
+
+  if (!verifiedEditorial) {
+    deferredDecisions.push(
       'editorial_title',
-    ]
+    )
+  }
 
   if (!classification) {
     deferredDecisions.push(
@@ -224,12 +317,17 @@ export function evaluateFlashArticlePersistenceReadiness(
     )
   }
 
-  deferredDecisions.push(
-    'editorial_content',
-  )
+  if (!verifiedEditorial) {
+    deferredDecisions.push(
+      'editorial_content',
+    )
+  }
 
   return {
-    canCreateFlashAiDraft: false,
+    canCreateFlashAiDraft:
+      blockers.size === 0,
+
+    verifiedEditorial,
 
     sourceGroundedValues: {
       sourceId:

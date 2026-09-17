@@ -139,6 +139,9 @@ describe(
         expect(source).toContain(
           'prePersistenceEditorialQualityGate,',
         )
+        expect(source).toContain(
+          'verifiedEditorial: {',
+        )
 
         const supportingSemanticInputMatches =
           source.match(
@@ -174,6 +177,10 @@ describe(
           source.indexOf(
             'prePersistenceEditorialLexicalContent =',
           )
+        const readinessBridgeIndex =
+          source.indexOf(
+            'verifiedEditorial: {',
+          )
 
         expect(
           supportingPackIndex,
@@ -199,6 +206,11 @@ describe(
           lexicalBuildIndex,
         ).toBeGreaterThan(
           qualityGateIndex,
+        )
+        expect(
+          readinessBridgeIndex,
+        ).toBeGreaterThan(
+          lexicalBuildIndex,
         )
         expect(source).toContain(
           '.acceptableForPersistenceBridge',
@@ -309,10 +321,10 @@ describe(
           'only when that gate passes, deterministically builds a verified Lexical preview',
         )
         expect(stdout).toContain(
-          'REG-001T generation, QA, and quality-gate outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet',
+          'after quality gate PASS and verified Lexical round-trip, the final QA editorial is fed into persistenceReadiness',
         )
         expect(stdout).toContain(
-          'generated_flash_content_required therefore remains in persistence readiness',
+          'generated_flash_content_required is removed only when verified final editorial content is supplied',
         )
         expect(stdout).toContain(
           'does NOT create, update, or delete FlashAI',
