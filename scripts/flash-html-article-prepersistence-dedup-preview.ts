@@ -185,8 +185,8 @@ Behavior:
   - QA may return a shorter source-faithful diagnostic editorial rather than inventing or padding material to force the canonical minimum
   - a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word and basic structural bridge requirements
   - only when that gate passes, deterministically builds a verified Lexical preview from the reviewed final editorial and checks exact paragraph round-trip
-  - REG-001T generation, QA, and quality-gate outputs are preview-only and are intentionally NOT fed back into persistenceReadiness yet
-  - generated_flash_content_required therefore remains in persistence readiness until a later explicit integration increment
+  - after quality gate PASS and verified Lexical round-trip, the final QA editorial is fed into persistenceReadiness
+  - generated_flash_content_required is removed only when verified final editorial content is supplied
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
   - does NOT publish or unpublish
@@ -976,6 +976,27 @@ async function main() {
           editorialQualityReviewResult.editorial
             .editorialParagraphs,
         )
+
+      persistenceReadiness =
+        evaluateFlashArticlePersistenceReadiness({
+          candidate:
+            normalized,
+          sourceVerification,
+          dedup:
+            dedup.evidence,
+          sourceFingerprint:
+            fingerprints.sourceFingerprint,
+          eventFingerprint:
+            fingerprints.eventFingerprint,
+          validatedClassification:
+            classificationResult.classification,
+          verifiedEditorial: {
+            editorial:
+              editorialQualityReviewResult.editorial,
+            lexicalContent:
+              prePersistenceEditorialLexicalContent,
+          },
+        })
     }
   }
 

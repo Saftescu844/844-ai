@@ -5,6 +5,10 @@ import {
 } from 'vitest'
 
 import {
+  buildVerifiedFlashEditorialLexicalContent,
+} from '@/lib/flash/editorialContentLexical'
+
+import {
   evaluateFlashArticlePersistenceReadiness,
 } from '@/lib/flash/ingestion/articleCandidatePersistenceReadiness'
 import type {
@@ -111,6 +115,7 @@ describe(
 
         expect(result).toEqual({
           canCreateFlashAiDraft: false,
+          verifiedEditorial: null,
           sourceGroundedValues: {
             sourceId: 4,
             sourceName:
@@ -202,6 +207,150 @@ describe(
           .toContain(
             'event_identity_pending',
           )
+      },
+    )
+
+    it(
+      'accepts a quality-gated verified final editorial and marks the draft eligible',
+      () => {
+        const editorial = {
+          language:
+            'ro' as const,
+          editorialTitle:
+            'Titlu editorial verificat',
+          editorialParagraphs: [
+            Array.from(
+              { length: 500 },
+              () => 'cuvânt',
+            ).join(' '),
+          ],
+        }
+
+        const lexicalContent =
+          buildVerifiedFlashEditorialLexicalContent(
+            editorial.editorialParagraphs,
+          )
+
+        const result =
+          evaluateFlashArticlePersistenceReadiness({
+            candidate: candidate(),
+            sourceVerification:
+              sourceVerification(),
+            dedup: dedup(),
+            sourceFingerprint,
+            eventFingerprint: null,
+            validatedClassification,
+            verifiedEditorial: {
+              editorial,
+              lexicalContent,
+            },
+          })
+
+        expect(result.blockers)
+          .not.toContain(
+            'generated_flash_content_required',
+          )
+
+        expect(result.deferredDecisions)
+          .not.toContain(
+            'editorial_title',
+          )
+
+        expect(result.deferredDecisions)
+          .not.toContain(
+            'editorial_content',
+          )
+
+        expect(result.verifiedEditorial)
+          .toEqual({
+            editorialTitle:
+              editorial.editorialTitle,
+            lexicalContent,
+          })
+
+        expect(result.canCreateFlashAiDraft)
+          .toBe(true)
+      },
+    )
+
+    it(
+      'fails closed when supplied final editorial does not pass the deterministic quality gate',
+      () => {
+        const editorial = {
+          language:
+            'ro' as const,
+          editorialTitle:
+            'Titlu editorial verificat',
+          editorialParagraphs: [
+            'Text prea scurt.',
+          ],
+        }
+
+        expect(
+          () =>
+            evaluateFlashArticlePersistenceReadiness({
+              candidate: candidate(),
+              sourceVerification:
+                sourceVerification(),
+              dedup: dedup(),
+              sourceFingerprint,
+              validatedClassification,
+              verifiedEditorial: {
+                editorial,
+                lexicalContent:
+                  buildVerifiedFlashEditorialLexicalContent(
+                    editorial.editorialParagraphs,
+                  ),
+              },
+            }),
+        ).toThrow(
+          'Flash persistence readiness requires a quality-gated final editorial.',
+        )
+      },
+    )
+
+    it(
+      'fails closed when verified Lexical content does not exactly match the final editorial',
+      () => {
+        const editorial = {
+          language:
+            'ro' as const,
+          editorialTitle:
+            'Titlu editorial verificat',
+          editorialParagraphs: [
+            Array.from(
+              { length: 500 },
+              () => 'cuvânt',
+            ).join(' '),
+          ],
+        }
+
+        const differentLexicalContent =
+          buildVerifiedFlashEditorialLexicalContent([
+            Array.from(
+              { length: 500 },
+              () => 'altcuvânt',
+            ).join(' '),
+          ])
+
+        expect(
+          () =>
+            evaluateFlashArticlePersistenceReadiness({
+              candidate: candidate(),
+              sourceVerification:
+                sourceVerification(),
+              dedup: dedup(),
+              sourceFingerprint,
+              validatedClassification,
+              verifiedEditorial: {
+                editorial,
+                lexicalContent:
+                  differentLexicalContent,
+              },
+            }),
+        ).toThrow(
+          'Flash persistence readiness verified Lexical content does not match final editorial.',
+        )
       },
     )
 
