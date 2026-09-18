@@ -107,6 +107,12 @@ describe(
           '--supporting-url',
         )
         expect(source).toContain(
+          '--confirmed-event-id',
+        )
+        expect(source).toContain(
+          'confirmedBodyIdentity',
+        )
+        expect(source).toContain(
           'evaluateFlashVerifiedSupportingSourcePack',
         )
         expect(source).toContain(
@@ -286,6 +292,12 @@ describe(
         )
         expect(stdout).toContain(
           'no title/date/URL/fuzzy/embedding/model-derived event identity is created',
+        )
+        expect(stdout).toContain(
+          '--confirmed-event-id',
+        )
+        expect(stdout).toContain(
+          'exactly one body-only identifier',
         )
         expect(stdout).toContain(
           'sourceFingerprint reuse remains only a review signal',
