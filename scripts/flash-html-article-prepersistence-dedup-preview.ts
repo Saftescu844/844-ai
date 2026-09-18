@@ -20,6 +20,7 @@ import {
 } from '@/lib/flash/ingestion/articleCandidateSourceFingerprint'
 import {
   evaluateExplicitGroundedEventIdentity,
+  type FlashExplicitEventIdentityAuthority,
 } from '@/lib/flash/ingestion/explicitGroundedEventIdentity'
 import {
   buildFlashGroundedEventFingerprint,
@@ -143,6 +144,78 @@ function readOptions(
   return values
 }
 
+function parseConfirmedBodyIdentity(
+  value: string | null,
+):
+  | {
+      authority:
+        FlashExplicitEventIdentityAuthority
+      stableId: string
+    }
+  | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  const separatorIndex =
+    value.indexOf(
+      ':',
+    )
+
+  if (
+    separatorIndex <= 0 ||
+    separatorIndex ===
+      value.length - 1
+  ) {
+    throw new Error(
+      '--confirmed-event-id must use authority:stable-id format.',
+    )
+  }
+
+  const rawAuthority =
+    value
+      .slice(
+        0,
+        separatorIndex,
+      )
+      .trim()
+      .toLowerCase()
+
+  const stableId =
+    value
+      .slice(
+        separatorIndex + 1,
+      )
+      .trim()
+
+  let authority:
+    FlashExplicitEventIdentityAuthority
+
+  if (
+    rawAuthority === 'cve' ||
+    rawAuthority === 'doi' ||
+    rawAuthority === 'eur-lex-celex'
+  ) {
+    authority =
+      rawAuthority
+  } else {
+    throw new Error(
+      '--confirmed-event-id authority must be cve, doi, or eur-lex-celex.',
+    )
+  }
+
+  if (!stableId) {
+    throw new Error(
+      '--confirmed-event-id stable ID must not be empty.',
+    )
+  }
+
+  return {
+    authority,
+    stableId,
+  }
+}
+
 function printHelp(): void {
   console.log(`
 Flash Engine HTML article pre-persistence dedup preview
@@ -153,6 +226,7 @@ Usage:
     --article-url https://digital-strategy.ec.europa.eu/en/news/fourth-gpai-signatory-taskforce-meeting \
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/contents-code-gpai] \
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/signatory-taskforce-gpai-code-practice] \
+    [--confirmed-event-id doi:10.1038/s41587-019-0105-3] \
     [--allow-provider-requests --model gpt-5.6-terra] \
     [--handoff-output ./tmp/flash-ai-staging-handoff.json]
 
@@ -167,6 +241,8 @@ Behavior:
   - evaluates explicit CVE / DOI: / CELEX: identifiers from title, lead, and body
   - only one unique explicit identifier in title/lead can ground event identity
   - body-only identifiers or multiple primary identifiers keep event identity pending/ambiguous
+  - optional --confirmed-event-id may ground exactly one body-only identifier when the operator confirms that exact extracted authority + stable ID
+  - confirmation fails closed when the extracted body identity is absent, non-unique, or does not exactly match
   - a grounded event identity produces deterministic flash-event:v1 eventFingerprint
   - no title/date/URL/fuzzy/embedding/model-derived event identity is created
   - checks the candidate read-only against existing FlashAI records
@@ -386,6 +462,13 @@ async function main() {
     )
       ?.trim() ??
     null
+
+  const confirmedBodyIdentity =
+    parseConfirmedBodyIdentity(
+      readOption(
+        '--confirmed-event-id',
+      ),
+    )
 
   if (
     allowProviderRequests &&
@@ -617,6 +700,9 @@ async function main() {
   const eventIdentity =
     evaluateExplicitGroundedEventIdentity(
       normalized,
+      {
+        confirmedBodyIdentity,
+      },
     )
 
   const groundedEventFingerprint =
