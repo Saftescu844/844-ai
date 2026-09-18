@@ -191,6 +191,90 @@ describe(
     )
 
     it(
+      'grounds one body-only identifier when the operator confirms that exact extracted identity',
+      () => {
+        const result =
+          evaluateExplicitGroundedEventIdentity(
+            candidate({
+              bodyText:
+                'Research result DOI: 10.1234/ABC.Def.',
+            }),
+            {
+              confirmedBodyIdentity: {
+                authority:
+                  'doi',
+                stableId:
+                  '10.1234/abc.def',
+              },
+            },
+          )
+
+        expect(result).toMatchObject({
+          status:
+            'grounded',
+          reason:
+            'operator_confirmed_body_identifier',
+          identity: {
+            authority:
+              'doi',
+            stableId:
+              '10.1234/abc.def',
+          },
+        })
+      },
+    )
+
+    it(
+      'fails closed when operator confirmation does not match the unique body-only identifier',
+      () => {
+        expect(
+          () =>
+            evaluateExplicitGroundedEventIdentity(
+              candidate({
+                bodyText:
+                  'Research result DOI: 10.1234/ABC.Def.',
+              }),
+              {
+                confirmedBodyIdentity: {
+                  authority:
+                    'doi',
+                  stableId:
+                    '10.9999/not-the-source-identifier',
+                },
+              },
+            ),
+        ).toThrow(
+          'Flash explicit event identity confirmation does not match the unique body-only identifier.',
+        )
+      },
+    )
+
+    it(
+      'fails closed when operator confirmation tries to choose among multiple body-only identifiers',
+      () => {
+        expect(
+          () =>
+            evaluateExplicitGroundedEventIdentity(
+              candidate({
+                bodyText:
+                  'References CVE-2026-12345 and CVE-2026-54321.',
+              }),
+              {
+                confirmedBodyIdentity: {
+                  authority:
+                    'cve',
+                  stableId:
+                    'CVE-2026-12345',
+                },
+              },
+            ),
+        ).toThrow(
+          'Flash explicit event identity confirmation requires exactly one body-only identifier.',
+        )
+      },
+    )
+
+    it(
       'marks multiple different primary identifiers as ambiguous',
       () => {
         const result =

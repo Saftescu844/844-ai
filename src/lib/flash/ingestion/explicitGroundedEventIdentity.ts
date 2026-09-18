@@ -31,6 +31,7 @@ export type FlashExplicitEventIdentityStatus =
 
 export type FlashExplicitEventIdentityReason =
   | 'single_explicit_primary_identifier'
+  | 'operator_confirmed_body_identifier'
   | 'no_explicit_identifier'
   | 'body_only_identifier'
   | 'multiple_explicit_primary_identifiers'
@@ -44,6 +45,14 @@ export interface FlashExplicitEventIdentityEvaluation {
     FlashGroundedEventIdentity | null
   candidates:
     FlashExplicitEventIdentityCandidate[]
+}
+
+export interface FlashExplicitEventIdentityOptions {
+  confirmedBodyIdentity?: {
+    authority:
+      FlashExplicitEventIdentityAuthority
+    stableId: string
+  }
 }
 
 function normalizeStableId(
@@ -193,6 +202,8 @@ function collectFromField(
 export function evaluateExplicitGroundedEventIdentity(
   candidate:
     FlashNormalizedArticleCandidate,
+  options:
+    FlashExplicitEventIdentityOptions = {},
 ): FlashExplicitEventIdentityEvaluation {
   const collected =
     new Map<
@@ -255,6 +266,65 @@ export function evaluateExplicitGroundedEventIdentity(
         'multiple_explicit_primary_identifiers',
       identity:
         null,
+      candidates,
+    }
+  }
+
+  if (options.confirmedBodyIdentity) {
+    if (
+      candidates.length !==
+      1
+    ) {
+      throw new Error(
+        'Flash explicit event identity confirmation requires exactly one body-only identifier.',
+      )
+    }
+
+    const [bodyCandidate] =
+      candidates
+
+    if (
+      bodyCandidate.sourceField !==
+      'body'
+    ) {
+      throw new Error(
+        'Flash explicit event identity confirmation requires exactly one body-only identifier.',
+      )
+    }
+
+    const confirmedAuthority =
+      options.confirmedBodyIdentity
+        .authority
+
+    const confirmedStableId =
+      normalizeStableId(
+        confirmedAuthority,
+        options.confirmedBodyIdentity
+          .stableId,
+      )
+
+    if (
+      confirmedAuthority !==
+        bodyCandidate.authority ||
+      confirmedStableId !==
+        bodyCandidate.stableId
+    ) {
+      throw new Error(
+        'Flash explicit event identity confirmation does not match the unique body-only identifier.',
+      )
+    }
+
+    return {
+      status:
+        'grounded',
+      reason:
+        'operator_confirmed_body_identifier',
+      identity: {
+        authority:
+          bodyCandidate.authority,
+        stableId:
+          bodyCandidate.stableId,
+      },
       candidates,
     }
   }
