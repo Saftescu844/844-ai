@@ -263,6 +263,7 @@ Behavior:
   - the generated Romanian editorial must satisfy the strict 500–1000-word contract or the preview fails closed
   - after successful generation, runs one bounded source-fidelity / Romanian QA pass against the same primary + supporting source set and classification
   - QA may return a shorter source-faithful diagnostic editorial rather than inventing or padding material to force the canonical minimum
+  - QA retention-floor breaches are reported as structured fail-closed diagnostics; source-material sufficiency remains undetermined
   - a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word and basic structural bridge requirements
   - only when that gate passes, deterministically builds a verified Lexical preview from the reviewed final editorial and checks exact paragraph round-trip
   - after quality gate PASS and verified Lexical round-trip, the final QA editorial is fed into persistenceReadiness
@@ -1038,6 +1039,40 @@ async function main() {
       const diagnostics =
         editorialQualityReviewResult
           .diagnostics
+
+      if (
+        editorialQualityReviewResult.reason ===
+          'invalid_output_quality_review_retention' &&
+        diagnostics
+      ) {
+        const retentionDiagnostic = {
+          code:
+            'editorial_quality_review_retention_floor_breach',
+          disposition:
+            'fail_closed',
+          sourceMaterialSufficiency:
+            'undetermined',
+          providerReason:
+            editorialQualityReviewResult.reason,
+          diagnostics,
+        } as const
+
+        console.error(
+          'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_DIAGNOSTIC',
+        )
+
+        console.error(
+          JSON.stringify(
+            retentionDiagnostic,
+            null,
+            2,
+          ),
+        )
+
+        throw new Error(
+          `Pre-persistence editorial quality review failed closed: ${retentionDiagnostic.code}.`,
+        )
+      }
 
       const diagnosticSuffix =
         diagnostics

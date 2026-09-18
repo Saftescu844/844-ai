@@ -113,6 +113,18 @@ describe(
           'confirmedBodyIdentity',
         )
         expect(source).toContain(
+          'editorial_quality_review_retention_floor_breach',
+        )
+        expect(source).toContain(
+          'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_DIAGNOSTIC',
+        )
+        expect(source).toContain(
+          'sourceMaterialSufficiency',
+        )
+        expect(source).toContain(
+          "'undetermined'",
+        )
+        expect(source).toContain(
           'evaluateFlashVerifiedSupportingSourcePack',
         )
         expect(source).toContain(
@@ -325,6 +337,9 @@ describe(
         )
         expect(stdout).toContain(
           'QA may return a shorter source-faithful diagnostic editorial',
+        )
+        expect(stdout).toContain(
+          'source-material sufficiency remains undetermined',
         )
         expect(stdout).toContain(
           'a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word',
