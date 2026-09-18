@@ -13,6 +13,9 @@ import {
   evaluateFlashArticlePersistenceReadiness,
 } from '@/lib/flash/ingestion/articleCandidatePersistenceReadiness'
 import {
+  writeFlashAiStagingHandoffArtifactOnce,
+} from '@/lib/flash/ingestion/flashAiStagingHandoffFile'
+import {
   buildFlashArticleCandidateFingerprints,
 } from '@/lib/flash/ingestion/articleCandidateSourceFingerprint'
 import {
@@ -150,7 +153,8 @@ Usage:
     --article-url https://digital-strategy.ec.europa.eu/en/news/fourth-gpai-signatory-taskforce-meeting \
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/contents-code-gpai] \
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/signatory-taskforce-gpai-code-practice] \
-    [--allow-provider-requests --model gpt-5.6-terra]
+    [--allow-provider-requests --model gpt-5.6-terra] \
+    [--handoff-output ./tmp/flash-ai-staging-handoff.json]
 
 Behavior:
   - reads one active source with allowIngestion=true
@@ -187,6 +191,8 @@ Behavior:
   - only when that gate passes, deterministically builds a verified Lexical preview from the reviewed final editorial and checks exact paragraph round-trip
   - after quality gate PASS and verified Lexical round-trip, the final QA editorial is fed into persistenceReadiness
   - generated_flash_content_required is removed only when verified final editorial content is supplied
+  - optional --handoff-output writes one projection-free candidate + persistenceReadiness artifact
+  - handoff export is fail-closed and refuses overwrite
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
   - does NOT publish or unpublish
@@ -370,6 +376,13 @@ async function main() {
   const model =
     readOption(
       '--model',
+    )
+      ?.trim() ??
+    null
+
+  const handoffOutput =
+    readOption(
+      '--handoff-output',
     )
       ?.trim() ??
     null
@@ -998,6 +1011,32 @@ async function main() {
           },
         })
     }
+  }
+
+  if (handoffOutput) {
+    await writeFlashAiStagingHandoffArtifactOnce({
+      outputPath:
+        handoffOutput,
+      candidate:
+        normalized,
+      readiness:
+        persistenceReadiness,
+    })
+
+    console.log(
+      'FLASH_AI_STAGING_HANDOFF_WRITTEN',
+    )
+
+    console.log({
+      outputPath:
+        handoffOutput,
+      canonicalUrl:
+        normalized.canonicalUrl,
+      eventFingerprint:
+        persistenceReadiness
+          .sourceGroundedValues
+          .eventFingerprint,
+    })
   }
 
   console.log(
