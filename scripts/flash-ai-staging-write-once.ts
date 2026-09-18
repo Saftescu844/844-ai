@@ -6,13 +6,13 @@ import type {
   Payload,
 } from 'payload'
 
-import type {
-  FlashNormalizedArticleCandidate,
-} from '@/lib/flash/ingestion/articleCandidateNormalization'
+import {
+  buildFlashAiStagingWriteInputFromHandoffValue,
+} from '@/lib/flash/ingestion/flashAiStagingWriteHandoff'
 
 import type {
-  FlashAiDraftProjection,
-} from '@/lib/flash/ingestion/articleCandidateFlashAiDraftProjection'
+  FlashAiStagingWriteInput,
+} from '@/lib/flash/ingestion/flashAiStagingWriteInput'
 
 import {
   runFlashAiStagingWriteCli,
@@ -21,14 +21,6 @@ import {
 import {
   createFlashAiDraftWithFinalDedupGuard,
 } from '@/lib/flash/ingestion/payloadFlashAiFinalDedupWriter'
-
-interface StagingWriteInput {
-  candidate:
-    FlashNormalizedArticleCandidate
-
-  projection:
-    FlashAiDraftProjection
-}
 
 function argument(
   name: string,
@@ -70,7 +62,7 @@ function hasWriteFlag(): boolean {
 }
 
 async function loadInput(): Promise<
-  StagingWriteInput
+  FlashAiStagingWriteInput
 > {
   const inputFile =
     argument(
@@ -92,48 +84,11 @@ async function loadInput(): Promise<
   const parsed =
     JSON.parse(
       raw,
-    ) as Partial<StagingWriteInput>
+    ) as unknown
 
-  if (
-    !parsed.candidate ||
-    !parsed.projection
-  ) {
-    throw new Error(
-      'FlashAI STAGING write input requires candidate and projection.',
-    )
-  }
-
-  if (
-    typeof parsed
-      .candidate
-      .canonicalUrl !==
-      'string' ||
-    !parsed
-      .candidate
-      .canonicalUrl
-      .trim()
-  ) {
-    throw new Error(
-      'FlashAI STAGING write input requires candidate canonicalUrl.',
-    )
-  }
-
-  if (
-    typeof parsed
-      .projection
-      .eventFingerprint !==
-      'string' ||
-    !parsed
-      .projection
-      .eventFingerprint
-      .trim()
-  ) {
-    throw new Error(
-      'FlashAI STAGING write input requires grounded eventFingerprint.',
-    )
-  }
-
-  return parsed as StagingWriteInput
+  return buildFlashAiStagingWriteInputFromHandoffValue(
+    parsed,
+  )
 }
 
 async function main(): Promise<void> {
