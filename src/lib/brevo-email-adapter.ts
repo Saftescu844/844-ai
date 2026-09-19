@@ -1,6 +1,5 @@
 import type {
   EmailAdapter,
-  SendEmailOptions,
 } from 'payload'
 
 const BREVO_ENDPOINT =
@@ -95,11 +94,15 @@ function messageText(
     : undefined
 }
 
+type BrevoMessage = {
+  html?: unknown
+  subject?: unknown
+  text?: unknown
+  to?: unknown
+}
+
 export async function sendBrevoEmail(
-  message: Pick<
-    SendEmailOptions,
-    'html' | 'subject' | 'text' | 'to'
-  >,
+  message: BrevoMessage,
 ): Promise<void> {
   const apiKey =
     process.env.BREVO_API_KEY || ''
