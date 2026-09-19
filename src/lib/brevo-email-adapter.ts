@@ -101,9 +101,24 @@ type BrevoMessage = {
   to?: unknown
 }
 
+function normalizeBrevoMessage(
+  value: unknown,
+): BrevoMessage {
+  if (
+    !value ||
+    typeof value !== 'object'
+  ) {
+    return {}
+  }
+
+  return value as BrevoMessage
+}
+
 export async function sendBrevoEmail(
-  message: BrevoMessage,
+  message: unknown,
 ): Promise<void> {
+  const normalized =
+    normalizeBrevoMessage(message)
   const apiKey =
     process.env.BREVO_API_KEY || ''
 
@@ -114,7 +129,7 @@ export async function sendBrevoEmail(
   }
 
   const to =
-    brevoRecipients(message.to)
+    brevoRecipients(normalized.to)
 
   if (to.length === 0) {
     throw new Error(
@@ -123,8 +138,8 @@ export async function sendBrevoEmail(
   }
 
   const subject =
-    typeof message.subject === 'string'
-      ? message.subject
+    typeof normalized.subject === 'string'
+      ? normalized.subject
       : ''
 
   if (!subject) {
@@ -134,9 +149,9 @@ export async function sendBrevoEmail(
   }
 
   const htmlContent =
-    messageText(message.html)
+    messageText(normalized.html)
   const textContent =
-    messageText(message.text)
+    messageText(normalized.text)
 
   const resp = await fetch(
     BREVO_ENDPOINT,
