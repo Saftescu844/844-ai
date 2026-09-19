@@ -74,6 +74,77 @@ const enforceFlashPublicationRBAC: CollectionBeforeOperationHook<'flash-ai'> = (
   }
 }
 
+const protectFlashCommentDependencies: CollectionBeforeOperationHook<'flash-ai'> = async ({
+  args,
+  operation,
+  req,
+}) => {
+  if (
+    operation !== 'delete' &&
+    operation !== 'deleteByID'
+  ) {
+    return
+  }
+
+  if (req.user?.rol !== 'admin') {
+    return
+  }
+
+  let targetIDs: Array<number | string> = []
+
+  if (
+    'id' in args &&
+    (
+      typeof args.id === 'string' ||
+      typeof args.id === 'number'
+    )
+  ) {
+    targetIDs = [args.id]
+  } else if (
+    'where' in args &&
+    args.where
+  ) {
+    const targets =
+      await req.payload.find({
+        collection: 'flash-ai',
+        depth: 0,
+        overrideAccess: true,
+        pagination: false,
+        req,
+        where: args.where,
+      })
+
+    targetIDs =
+      targets.docs.map(
+        (doc) => doc.id,
+      )
+  }
+
+  if (targetIDs.length === 0) {
+    return
+  }
+
+  const {
+    totalDocs: dependentComments,
+  } = await req.payload.count({
+    collection: 'comentarii',
+    overrideAccess: true,
+    req,
+    where: {
+      flash: {
+        in: targetIDs,
+      },
+    },
+  })
+
+  if (dependentComments > 0) {
+    throw new APIError(
+      'Flash-ul nu poate fi șters cât timp există comentarii asociate.',
+      409,
+    )
+  }
+}
+
 export const FlashAI: CollectionConfig = {
   slug: 'flash-ai',
   labels: {
@@ -429,6 +500,7 @@ export const FlashAI: CollectionConfig = {
   hooks: {
     beforeOperation: [
       enforceFlashPublicationRBAC,
+      protectFlashCommentDependencies,
     ],
     beforeValidate: [
       ({ data, originalDoc }) => {

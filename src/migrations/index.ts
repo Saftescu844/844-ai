@@ -13,6 +13,7 @@ import * as migration_20260902_105310 from './20260902_105310';
 import * as migration_20260902_120037 from './20260902_120037';
 import * as migration_20260909_074122_reg001d_flash_engine_runs from './20260909_074122_reg001d_flash_engine_runs';
 import * as migration_20260910_090156_reg001d_flash_engine_job_slug from './20260910_090156_reg001d_flash_engine_job_slug';
+import * as migration_20260919_111358_u14_7h_flash_ai_comments from './20260919_111358_u14_7h_flash_ai_comments';
 
 export const migrations = [
   {
@@ -88,6 +89,11 @@ export const migrations = [
   {
     up: migration_20260910_090156_reg001d_flash_engine_job_slug.up,
     down: migration_20260910_090156_reg001d_flash_engine_job_slug.down,
-    name: '20260910_090156_reg001d_flash_engine_job_slug'
+    name: '20260910_090156_reg001d_flash_engine_job_slug',
+  },
+  {
+    up: migration_20260919_111358_u14_7h_flash_ai_comments.up,
+    down: migration_20260919_111358_u14_7h_flash_ai_comments.down,
+    name: '20260919_111358_u14_7h_flash_ai_comments'
   },
 ];

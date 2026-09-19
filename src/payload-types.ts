@@ -741,7 +741,7 @@ export interface FlashAi {
   flashType: 'announcement' | 'research' | 'regulation' | 'product' | 'business' | 'incident' | 'update' | 'other';
   excerpt?: string | null;
   /**
-   * Țintă editorială Flash: aproximativ 400–1000 de cuvinte.
+   * Țintă editorială Flash: aproximativ 500–1000 de cuvinte.
    */
   continut: {
     root: {
@@ -909,13 +909,20 @@ export interface Comentarii {
   id: number;
   continut: string;
   autor: number | Useri;
-  articol: number | Articole;
+  /**
+   * Țintă comentariu pentru conținut editorial clasic. Se setează articol SAU Flash AI, niciodată ambele.
+   */
+  articol?: (number | null) | Articole;
+  /**
+   * Țintă comentariu pentru Flash AI. Se setează Flash AI SAU articol, niciodată ambele.
+   */
+  flash?: (number | null) | FlashAi;
   /**
    * Moderare din ziua 1 — comentariile apar public doar după aprobare.
    */
   status: 'asteptare' | 'aprobat' | 'respins';
   /**
-   * Pentru thread-uri (răspuns la alt comentariu).
+   * Pentru thread-uri. Părintele trebuie să aparțină aceleiași ținte (articol sau Flash AI).
    */
   raspunsLa?: (number | null) | Comentarii;
   updatedAt: string;
@@ -1721,6 +1728,7 @@ export interface ComentariiSelect<T extends boolean = true> {
   continut?: T;
   autor?: T;
   articol?: T;
+  flash?: T;
   status?: T;
   raspunsLa?: T;
   updatedAt?: T;
