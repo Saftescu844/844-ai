@@ -1,9 +1,58 @@
 import { APIError, type CollectionBeforeOperationHook, type CollectionConfig } from 'payload'
+import {
+  accountLanguage,
+  passwordResetHTML,
+  passwordResetSubject,
+} from '@/lib/password-recovery-email'
+import { claimPasswordRecoveryAttempt } from '@/lib/password-recovery-rate-limit'
 
 // ============================================================
 //  USERI — autentificare + nivel abonament (pentru Stripe)
 //  Colecția auth a platformei. Suportă comunitatea și conținutul premium.
 // ============================================================
+const limitPasswordRecovery: CollectionBeforeOperationHook<'useri'> = async ({
+  operation,
+  req,
+}) => {
+  if (operation !== 'forgotPassword') {
+    return
+  }
+
+  let allowed = false
+
+  try {
+    allowed =
+      await claimPasswordRecoveryAttempt(
+        (sql, values) =>
+          req.payload.db.pool.query(
+            sql,
+            [...values],
+          ),
+        req.headers,
+        process.env.PAYLOAD_SECRET || '',
+      )
+  } catch (error) {
+    req.payload.logger.error({
+      err: error,
+      msg: '[password-recovery] rate limit indisponibil',
+    })
+
+    throw new APIError(
+      'Serviciul de recuperare a parolei este temporar indisponibil.',
+      503,
+    )
+  }
+
+  if (!allowed) {
+    throw new APIError(
+      'Prea multe cereri de recuperare. Încearcă din nou mai târziu.',
+      429,
+      undefined,
+      true,
+    )
+  }
+}
+
 const protectLastAdminInvariant: CollectionBeforeOperationHook<'useri'> = async ({
   args,
   operation,
@@ -159,6 +208,18 @@ export const Useri: CollectionConfig = {
   labels: { singular: 'User', plural: 'Useri' },
   auth: {
     verify: true, // verificare email la înregistrare
+    forgotPassword: {
+      expiration: 60 * 60 * 1000,
+      generateEmailSubject: ({ user }) =>
+        passwordResetSubject(
+          accountLanguage(user),
+        ),
+      generateEmailHTML: ({ token, user }) =>
+        passwordResetHTML(
+          token,
+          accountLanguage(user),
+        ),
+    },
     maxLoginAttempts: 5,
     lockTime: 600000, // 10 min
   },
@@ -168,7 +229,11 @@ export const Useri: CollectionConfig = {
     group: 'Comunitate',
   },
   hooks: {
-    beforeOperation: [protectLastAdminInvariant, protectUserCommentDependencies],
+    beforeOperation: [
+      limitPasswordRecovery,
+      protectLastAdminInvariant,
+      protectUserCommentDependencies,
+    ],
   },
   access: {
     admin: ({ req: { user } }) => user?.rol === 'admin' || user?.rol === 'editor',
