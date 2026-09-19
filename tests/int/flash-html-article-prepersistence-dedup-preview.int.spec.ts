@@ -119,6 +119,15 @@ describe(
           'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_DIAGNOSTIC',
         )
         expect(source).toContain(
+          'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_DIAGNOSTIC_WRITTEN',
+        )
+        expect(source).toContain(
+          '--qa-retention-diagnostic-output',
+        )
+        expect(source).toContain(
+          'writeFlashPrePersistenceEditorialQualityReviewRetentionDiagnosticOnce',
+        )
+        expect(source).toContain(
           'sourceMaterialSufficiency',
         )
         expect(source).toContain(
@@ -340,6 +349,12 @@ describe(
         )
         expect(stdout).toContain(
           'source-material sufficiency remains undetermined',
+        )
+        expect(stdout).toContain(
+          '--qa-retention-diagnostic-output',
+        )
+        expect(stdout).toContain(
+          'contains no raw provider output',
         )
         expect(stdout).toContain(
           'a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word',

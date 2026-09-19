@@ -37,10 +37,24 @@ export class FlashPrePersistenceEditorialQualityReviewRetentionError
   readonly diagnostics:
     FlashPrePersistenceEditorialQualityReviewRetentionDiagnostics
 
-  constructor(
+  readonly review:
+    FlashPrePersistenceEditorialQualityReviewSemanticOutput
+
+  readonly reviewedEditorial:
+    FlashPrePersistenceEditorialGenerationSemanticOutput
+
+  constructor({
+    diagnostics,
+    review,
+    reviewedEditorial,
+  }: {
     diagnostics:
-      FlashPrePersistenceEditorialQualityReviewRetentionDiagnostics,
-  ) {
+      FlashPrePersistenceEditorialQualityReviewRetentionDiagnostics
+    review:
+      FlashPrePersistenceEditorialQualityReviewSemanticOutput
+    reviewedEditorial:
+      FlashPrePersistenceEditorialGenerationSemanticOutput
+  }) {
     super(
       'invalid_output_quality_review_retention',
     )
@@ -50,6 +64,12 @@ export class FlashPrePersistenceEditorialQualityReviewRetentionError
 
     this.diagnostics =
       diagnostics
+
+    this.review =
+      review
+
+    this.reviewedEditorial =
+      reviewedEditorial
   }
 }
 
@@ -327,25 +347,32 @@ export function applyFlashPrePersistenceEditorialQualityReviewCopyEdit({
       ),
     )
 
+  const reviewedEditorial:
+    FlashPrePersistenceEditorialGenerationSemanticOutput = {
+      language: 'ro',
+      editorialTitle:
+        review.editorialTitle,
+      editorialParagraphs,
+    }
+
   if (
     reviewedWordCount <
     minimumRetainedWordCount
   ) {
     throw new FlashPrePersistenceEditorialQualityReviewRetentionError({
-      originalWordCount,
-      reviewedWordCount,
-      minimumRetainedWordCount,
-      paragraphCount:
-        editorial.editorialParagraphs.length,
-      editedParagraphCount:
-        review.paragraphEdits.length,
+      diagnostics: {
+        originalWordCount,
+        reviewedWordCount,
+        minimumRetainedWordCount,
+        paragraphCount:
+          editorial.editorialParagraphs.length,
+        editedParagraphCount:
+          review.paragraphEdits.length,
+      },
+      review,
+      reviewedEditorial,
     })
   }
 
-  return {
-    language: 'ro',
-    editorialTitle:
-      review.editorialTitle,
-    editorialParagraphs,
-  }
+  return reviewedEditorial
 }

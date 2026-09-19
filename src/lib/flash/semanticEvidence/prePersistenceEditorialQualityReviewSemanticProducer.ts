@@ -24,6 +24,7 @@ import {
   parseFlashPrePersistenceEditorialQualityReviewSemanticOutput,
   FlashPrePersistenceEditorialQualityReviewRetentionError,
   type FlashPrePersistenceEditorialQualityReviewRetentionDiagnostics,
+  type FlashPrePersistenceEditorialQualityReviewSemanticOutput,
 } from './prePersistenceEditorialQualityReviewSemanticOutput'
 
 import {
@@ -95,6 +96,12 @@ export interface FlashPrePersistenceEditorialQualityReviewProducerFailure {
   reason: FlashSemanticEvidenceProducerFailureReason
   diagnostics?:
     FlashPrePersistenceEditorialQualityReviewRetentionDiagnostics
+
+  review?:
+    FlashPrePersistenceEditorialQualityReviewSemanticOutput
+
+  reviewedEditorial?:
+    FlashPrePersistenceEditorialGenerationSemanticOutput
 }
 
 export type FlashPrePersistenceEditorialQualityReviewProducerResult =
@@ -410,6 +417,10 @@ export async function runFlashPrePersistenceEditorialQualityReviewSemanticProduc
         reason: error.reason,
         diagnostics:
           error.diagnostics,
+        review:
+          error.review,
+        reviewedEditorial:
+          error.reviewedEditorial,
       }
     }
 

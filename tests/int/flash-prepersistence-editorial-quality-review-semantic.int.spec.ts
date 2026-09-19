@@ -394,6 +394,29 @@ describe(
             editedParagraphCount:
               expect.any(Number),
           },
+          review: {
+            language:
+              'ro',
+            editorialTitle:
+              'Reuniunea GPAI și securitatea modelelor',
+            paragraphEdits: [
+              {
+                paragraphIndex:
+                  0,
+                replacement:
+                  expect.any(String),
+              },
+            ],
+          },
+          reviewedEditorial: {
+            language:
+              'ro',
+            editorialTitle:
+              'Reuniunea GPAI și securitatea modelelor',
+            editorialParagraphs: [
+              expect.any(String),
+            ],
+          },
         })
 
         if (
@@ -409,6 +432,17 @@ describe(
           expect(
             result.diagnostics.editedParagraphCount,
           ).toBeGreaterThan(0)
+
+          expect(
+            result.reviewedEditorial
+              ? countFlashEditorialWords(
+                  result.reviewedEditorial
+                    .editorialParagraphs,
+                )
+              : null,
+          ).toBe(
+            420,
+          )
         }
       },
     )
