@@ -1129,6 +1129,24 @@ export default function CommentsSection({
                     ? 'Autentifică-te'
                     : 'Sign in'}
               </button>
+
+              <p
+                style={{
+                  margin: '12px 0 0',
+                  fontSize: 13,
+                }}
+              >
+                <a
+                  href={`/${ro ? 'ro' : 'en'}/recuperare-parola`}
+                  style={{
+                    color: '#185FA5',
+                  }}
+                >
+                  {ro
+                    ? 'Ai uitat parola?'
+                    : 'Forgot your password?'}
+                </a>
+              </p>
             </form>
           ) : registerSent ? (
             <div
