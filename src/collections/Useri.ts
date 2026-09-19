@@ -210,14 +210,14 @@ export const Useri: CollectionConfig = {
     verify: true, // verificare email la înregistrare
     forgotPassword: {
       expiration: 60 * 60 * 1000,
-      generateEmailSubject: ({ user }) =>
+      generateEmailSubject: (args) =>
         passwordResetSubject(
-          accountLanguage(user),
+          accountLanguage(args?.user),
         ),
-      generateEmailHTML: ({ token, user }) =>
+      generateEmailHTML: (args) =>
         passwordResetHTML(
-          token,
-          accountLanguage(user),
+          args?.token || '',
+          accountLanguage(args?.user),
         ),
     },
     maxLoginAttempts: 5,
