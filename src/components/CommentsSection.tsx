@@ -1,7 +1,10 @@
 'use client'
 
-import {
+import type {
   FormEvent,
+  ReactNode,
+} from 'react'
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -457,7 +460,7 @@ export default function CommentsSection({
     comentariu: PublicComment,
     depth = 0,
     path = new Set<string>(),
-  ): React.ReactNode {
+  ): ReactNode {
     const id = String(comentariu.id)
 
     if (path.has(id)) {
