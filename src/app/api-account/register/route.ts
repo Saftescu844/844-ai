@@ -1,6 +1,7 @@
 import { trimiteConfirmareCont } from '@/lib/account-email'
 import { payloadClient } from '@/lib/payload'
 import { parsePublicAccountInput } from '@/lib/public-account'
+import { claimPublicRegistrationAttempt } from '@/lib/public-registration-rate-limit'
 
 function raspunsPublic(): Response {
   return Response.json(
@@ -64,6 +65,26 @@ export async function POST(req: Request) {
     payload = await payloadClient()
   } catch (eroare) {
     console.error('[account-register] Payload indisponibil:', eroare)
+    return raspunsPublic()
+  }
+
+  try {
+    const allowed =
+      await claimPublicRegistrationAttempt(
+        (sql, values) =>
+          payload.db.pool.query(
+            sql,
+            [...values],
+          ),
+        req.headers,
+        process.env.PAYLOAD_SECRET || '',
+      )
+
+    if (!allowed) {
+      return raspunsPublic()
+    }
+  } catch (eroare) {
+    console.error('[account-register] rate limit indisponibil:', eroare)
     return raspunsPublic()
   }
 
