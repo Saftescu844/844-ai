@@ -1,4 +1,4 @@
-import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri } from '@/lib/payload'
+import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri, getFlashAiPilon } from '@/lib/payload'
 import { notFound } from 'next/navigation'
 
 const PILONI: Record<string, { ro: string; en: string }> = {
@@ -24,6 +24,42 @@ function CardArticol({ a, lang }: { a: any; lang: string }) {
       {a.excerpt && <p style={{ fontSize: 13, color: '#666', lineHeight: 1.5, margin: 0 }}>{a.excerpt.length > 110 ? a.excerpt.slice(0, 110) + '…' : a.excerpt}</p>}
     </a>
   )
+}
+
+function etichetaFlash(flashType: string, lang: string) {
+  const labels: Record<string, { ro: string; en: string }> = {
+    announcement: { ro: 'Anunț', en: 'Announcement' },
+    research: { ro: 'Cercetare', en: 'Research' },
+    regulation: { ro: 'Reglementare', en: 'Regulation' },
+    product: { ro: 'Produs / instrument', en: 'Product / tool' },
+    business: { ro: 'Afaceri', en: 'Business' },
+    incident: { ro: 'Incident', en: 'Incident' },
+    update: { ro: 'Actualizare', en: 'Update' },
+    other: { ro: 'Altele', en: 'Other' },
+  }
+
+  const label = labels[flashType]?.[lang === 'en' ? 'en' : 'ro']
+    ?? (lang === 'ro' ? 'Flash' : 'Flash')
+
+  return `Flash AI · ${label}`
+}
+
+function CardFlash({ flash, lang }: { flash: any; lang: string }) {
+  return (
+    <a href={`/${lang}/flash/${flash.slug}`} style={{ textDecoration: 'none', color: 'inherit', border: '1px solid #e5e5e5', borderRadius: 8, padding: 14, display: 'block' }}>
+      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#7A4E00' }}>
+        {etichetaFlash(flash.flashType, lang)}
+      </span>
+      <h2 style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3, margin: '6px 0' }}>{flash.titlu}</h2>
+      {flash.excerpt && <p style={{ fontSize: 13, color: '#666', lineHeight: 1.5, margin: 0 }}>{flash.excerpt.length > 110 ? flash.excerpt.slice(0, 110) + '…' : flash.excerpt}</p>}
+    </a>
+  )
+}
+
+function timestamp(value: unknown): number {
+  if (typeof value !== 'string') return 0
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 export default async function PaginaPilon(props: { params: Promise<{ lang: string; pilon: string }>; searchParams: Promise<{ sub?: string }> }) {
@@ -190,7 +226,54 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
     )
   }
 
-  // ceilalți piloni: doar articole
+  // ȘTIRI AI: articole + Flash AI, într-un singur flux cronologic.
+  if (pilon === 'stiri') {
+    const [
+      { docs: articole },
+      { docs: flashuri },
+    ] = await Promise.all([
+      getArticolePilon(lang, pilon),
+      getFlashAiPilon(lang, pilon),
+    ])
+
+    const noutati = [
+      ...articole.map((item: any) => ({
+        kind: 'article' as const,
+        item,
+      })),
+      ...flashuri.map((item: any) => ({
+        kind: 'flash' as const,
+        item,
+      })),
+    ].sort(
+      (a, b) =>
+        timestamp(b.item.publishedAt) -
+        timestamp(a.item.publishedAt),
+    )
+
+    const gol = lang === 'ro'
+      ? 'Încă nu este conținut publicat în această secțiune.'
+      : 'No published content in this section yet.'
+
+    return (
+      <div style={{ padding: '0.5rem 0' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 0, marginBottom: 24 }}>{titluPilon}</h1>
+        {noutati.length === 0 ? (
+          <p style={{ color: '#888' }}>{gol}</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 18 }}>
+            {noutati.map(({ kind, item }: any) =>
+              kind === 'flash'
+                ? <CardFlash key={`flash-${item.id}`} flash={item} lang={lang} />
+                : <CardArticol key={`article-${item.id}`} a={item} lang={lang} />,
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Ceilalți piloni generici: articole.
   const { docs: articole } = await getArticolePilon(lang, pilon)
   const gol = lang === 'ro' ? 'Încă nu sunt articole în această secțiune.' : 'No articles in this section yet.'
   return (
