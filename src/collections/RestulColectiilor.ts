@@ -1,5 +1,6 @@
-import type { CollectionConfig, Where } from 'payload'
+import { APIError, type CollectionConfig, type Where } from 'payload'
 import { lexicalEditor, UploadFeature } from '@payloadcms/richtext-lexical'
+import { commentTargetWhere, resolveCommentTarget } from '@/lib/comments/comment-target'
 
 // ============================================================
 //  CATEGORII — cei 5 piloni de conținut
@@ -47,7 +48,7 @@ export const Comentarii: CollectionConfig = {
   labels: { singular: 'Comentariu', plural: 'Comentarii' },
   admin: {
     useAsTitle: 'continut',
-    defaultColumns: ['continut', 'autor', 'articol', 'status'],
+    defaultColumns: ['continut', 'autor', 'articol', 'flash', 'status'],
     group: 'Comunitate',
   },
   access: {
@@ -61,10 +62,26 @@ export const Comentarii: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [
-      ({ data, req, operation }) => {
+      ({ data, originalDoc, req, operation }) => {
+        if (!data) {
+          return data
+        }
+
+        const target =
+          resolveCommentTarget(
+            data as Record<string, unknown>,
+            originalDoc as Record<string, unknown> | null,
+          )
+
+        if (!target) {
+          throw new APIError(
+            'Comentariul trebuie asociat exact unui articol sau unui Flash AI.',
+            400,
+          )
+        }
+
         if (
           operation !== 'create' ||
-          !data ||
           !req.user ||
           req.user.rol === 'admin'
         ) {
@@ -95,7 +112,6 @@ export const Comentarii: CollectionConfig = {
       name: 'articol',
       type: 'relationship',
       relationTo: 'articole',
-      required: true,
       index: true,
       filterOptions: ({ user }) => {
         if (user?.rol === 'admin') {
@@ -107,6 +123,31 @@ export const Comentarii: CollectionConfig = {
             equals: 'published',
           },
         }
+      },
+      admin: {
+        description:
+          'Țintă comentariu pentru conținut editorial clasic. Se setează articol SAU Flash AI, niciodată ambele.',
+      },
+    },
+    {
+      name: 'flash',
+      type: 'relationship',
+      relationTo: 'flash-ai',
+      index: true,
+      filterOptions: ({ user }) => {
+        if (user?.rol === 'admin') {
+          return true
+        }
+
+        return {
+          _status: {
+            equals: 'published',
+          },
+        }
+      },
+      admin: {
+        description:
+          'Țintă comentariu pentru Flash AI. Se setează Flash AI SAU articol, niciodată ambele.',
       },
     },
     {
@@ -131,30 +172,25 @@ export const Comentarii: CollectionConfig = {
       type: 'relationship',
       relationTo: 'comentarii',
       filterOptions: ({ data, user }): boolean | Where => {
-        const articol =
-          typeof data?.articol === 'object' && data.articol !== null
-            ? data.articol.id
-            : data?.articol
+        const target =
+          resolveCommentTarget(
+            data as Record<string, unknown> | null,
+          )
 
-        if (typeof articol !== 'string' && typeof articol !== 'number') {
+        if (!target) {
           return false
         }
 
+        const targetWhere =
+          commentTargetWhere(target) as Where
+
         if (user?.rol === 'admin') {
-          return {
-            articol: {
-              equals: articol,
-            },
-          }
+          return targetWhere
         }
 
         return {
           and: [
-            {
-              articol: {
-                equals: articol,
-              },
-            },
+            targetWhere,
             {
               status: {
                 equals: 'aprobat',
@@ -163,7 +199,10 @@ export const Comentarii: CollectionConfig = {
           ],
         }
       },
-      admin: { description: 'Pentru thread-uri (răspuns la alt comentariu).' },
+      admin: {
+        description:
+          'Pentru thread-uri. Părintele trebuie să aparțină aceleiași ținte (articol sau Flash AI).',
+      },
     },
   ],
 }
