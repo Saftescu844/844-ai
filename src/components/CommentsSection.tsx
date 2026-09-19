@@ -112,9 +112,6 @@ export default function CommentsSection({
     useState('')
 
   const loadComments = useCallback(async () => {
-    setComentariiLoading(true)
-    setComentariiError(false)
-
     try {
       const resp = await fetch(
         `/api-comments?tip=${encodeURIComponent(targetType)}&id=${encodeURIComponent(String(targetId))}`,
@@ -627,7 +624,11 @@ export default function CommentsSection({
           {' '}
           <button
             type="button"
-            onClick={() => void loadComments()}
+            onClick={() => {
+              setComentariiLoading(true)
+              setComentariiError(false)
+              void loadComments()
+            }}
             style={{
               border: 0,
               background: 'transparent',
