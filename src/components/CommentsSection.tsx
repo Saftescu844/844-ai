@@ -59,6 +59,69 @@ function formatDate(
   ).format(date)
 }
 
+
+async function fetchPublicComments(
+  targetType: TargetType,
+  targetId: number | string,
+): Promise<PublicComment[]> {
+  const resp = await fetch(
+    `/api-comments?tip=${encodeURIComponent(targetType)}&id=${encodeURIComponent(String(targetId))}`,
+    {
+      cache: 'no-store',
+    },
+  )
+
+  if (!resp.ok) {
+    throw new Error('comments')
+  }
+
+  const date: unknown = await resp.json()
+
+  if (
+    !date ||
+    typeof date !== 'object' ||
+    !Array.isArray(
+      (date as { comentarii?: unknown }).comentarii,
+    )
+  ) {
+    throw new Error('comments')
+  }
+
+  return (
+    date as {
+      comentarii: PublicComment[]
+    }
+  ).comentarii
+}
+
+async function fetchCurrentUser(): Promise<PublicUser | null> {
+  const resp = await fetch('/api/useri/me', {
+    cache: 'no-store',
+    credentials: 'include',
+  })
+
+  if (!resp.ok) {
+    return null
+  }
+
+  const date: unknown = await resp.json()
+
+  if (
+    date &&
+    typeof date === 'object' &&
+    (date as { user?: unknown }).user &&
+    typeof (date as { user?: unknown }).user === 'object'
+  ) {
+    return (
+      date as {
+        user: PublicUser
+      }
+    ).user
+  }
+
+  return null
+}
+
 export default function CommentsSection({
   targetType,
   targetId,
@@ -113,33 +176,14 @@ export default function CommentsSection({
 
   const loadComments = useCallback(async () => {
     try {
-      const resp = await fetch(
-        `/api-comments?tip=${encodeURIComponent(targetType)}&id=${encodeURIComponent(String(targetId))}`,
-        {
-          cache: 'no-store',
-        },
-      )
-
-      if (!resp.ok) {
-        throw new Error('comments')
-      }
-
-      const date: unknown = await resp.json()
-
-      if (
-        !date ||
-        typeof date !== 'object' ||
-        !Array.isArray(
-          (date as { comentarii?: unknown }).comentarii,
+      const items =
+        await fetchPublicComments(
+          targetType,
+          targetId,
         )
-      ) {
-        throw new Error('comments')
-      }
 
-      setComentarii(
-        (date as { comentarii: PublicComment[] })
-          .comentarii,
-      )
+      setComentarii(items)
+      setComentariiError(false)
     } catch {
       setComentariiError(true)
     } finally {
@@ -149,30 +193,9 @@ export default function CommentsSection({
 
   const loadMe = useCallback(async () => {
     try {
-      const resp = await fetch('/api/useri/me', {
-        cache: 'no-store',
-        credentials: 'include',
-      })
-
-      if (!resp.ok) {
-        setUser(null)
-        return
-      }
-
-      const date: unknown = await resp.json()
-
-      if (
-        date &&
-        typeof date === 'object' &&
-        (date as { user?: unknown }).user &&
-        typeof (date as { user?: unknown }).user === 'object'
-      ) {
-        setUser(
-          (date as { user: PublicUser }).user,
-        )
-      } else {
-        setUser(null)
-      }
+      setUser(
+        await fetchCurrentUser(),
+      )
     } catch {
       setUser(null)
     } finally {
@@ -181,9 +204,50 @@ export default function CommentsSection({
   }, [])
 
   useEffect(() => {
-    void loadComments()
-    void loadMe()
-  }, [loadComments, loadMe])
+    let active = true
+
+    void fetchPublicComments(
+      targetType,
+      targetId,
+    )
+      .then((items) => {
+        if (!active) return
+
+        setComentarii(items)
+        setComentariiError(false)
+      })
+      .catch(() => {
+        if (!active) return
+
+        setComentariiError(true)
+      })
+      .finally(() => {
+        if (!active) return
+
+        setComentariiLoading(false)
+      })
+
+    void fetchCurrentUser()
+      .then((currentUser) => {
+        if (!active) return
+
+        setUser(currentUser)
+      })
+      .catch(() => {
+        if (!active) return
+
+        setUser(null)
+      })
+      .finally(() => {
+        if (!active) return
+
+        setAuthChecked(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [targetId, targetType])
 
   const byParent = useMemo(() => {
     const map = new Map<string, PublicComment[]>()
