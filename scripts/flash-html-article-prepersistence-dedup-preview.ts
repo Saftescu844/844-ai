@@ -73,6 +73,9 @@ import {
   runFlashPrePersistenceEditorialQualityReviewSemanticProducer,
   type FlashPrePersistenceEditorialQualityReviewRunMetadata,
 } from '@/lib/flash/semanticEvidence/prePersistenceEditorialQualityReviewSemanticProducer'
+import {
+  writeFlashPrePersistenceEditorialQualityReviewRetentionDiagnosticOnce,
+} from '@/lib/flash/semanticEvidence/prePersistenceEditorialQualityReviewRetentionDiagnosticFile'
 
 function hasFlag(
   name: string,
@@ -228,6 +231,7 @@ Usage:
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/signatory-taskforce-gpai-code-practice] \
     [--confirmed-event-id doi:10.1038/s41587-019-0105-3] \
     [--allow-provider-requests --model gpt-5.6-terra] \
+    [--qa-retention-diagnostic-output ./tmp/flash-ai-qa-retention-diagnostic.json] \
     [--handoff-output ./tmp/flash-ai-staging-handoff.json]
 
 Behavior:
@@ -264,6 +268,8 @@ Behavior:
   - after successful generation, runs one bounded source-fidelity / Romanian QA pass against the same primary + supporting source set and classification
   - QA may return a shorter source-faithful diagnostic editorial rather than inventing or padding material to force the canonical minimum
   - QA retention-floor breaches are reported as structured fail-closed diagnostics; source-material sufficiency remains undetermined
+  - optional --qa-retention-diagnostic-output writes only parsed/validated original + reviewed QA material when that retention breach occurs
+  - the QA retention diagnostic is local-only, is not a persistence handoff, contains no raw provider output, and refuses overwrite
   - a deterministic post-QA gate reports whether the reviewed editorial satisfies the canonical 500–1000-word and basic structural bridge requirements
   - only when that gate passes, deterministically builds a verified Lexical preview from the reviewed final editorial and checks exact paragraph round-trip
   - after quality gate PASS and verified Lexical round-trip, the final QA editorial is fed into persistenceReadiness
@@ -464,12 +470,28 @@ async function main() {
       ?.trim() ??
     null
 
+  const qaRetentionDiagnosticOutput =
+    readOption(
+      '--qa-retention-diagnostic-output',
+    )
+      ?.trim() ??
+    null
+
   const confirmedBodyIdentity =
     parseConfirmedBodyIdentity(
       readOption(
         '--confirmed-event-id',
       ),
     )
+
+  if (
+    qaRetentionDiagnosticOutput &&
+    !allowProviderRequests
+  ) {
+    throw new Error(
+      '--qa-retention-diagnostic-output requires --allow-provider-requests.',
+    )
+  }
 
   if (
     allowProviderRequests &&
@@ -1068,6 +1090,60 @@ async function main() {
             2,
           ),
         )
+
+        if (
+          qaRetentionDiagnosticOutput
+        ) {
+          const review =
+            editorialQualityReviewResult
+              .review
+
+          const reviewedEditorial =
+            editorialQualityReviewResult
+              .reviewedEditorial
+
+          if (
+            !review ||
+            !reviewedEditorial
+          ) {
+            throw new Error(
+              'QA retention diagnostic export requires validated review material.',
+            )
+          }
+
+          await writeFlashPrePersistenceEditorialQualityReviewRetentionDiagnosticOnce({
+            outputPath:
+              qaRetentionDiagnosticOutput,
+            candidate:
+              normalized,
+            sourceFingerprint:
+              fingerprints.sourceFingerprint,
+            eventFingerprint:
+              fingerprints.eventFingerprint,
+            qualityReviewRun:
+              editorialQualityReviewResult.run,
+            diagnostics,
+            originalEditorial:
+              editorialResult.editorial,
+            review,
+            reviewedEditorial,
+          })
+
+          console.error(
+            'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_DIAGNOSTIC_WRITTEN',
+          )
+
+          console.error(
+            JSON.stringify(
+              {
+                outputPath:
+                  qaRetentionDiagnosticOutput,
+              },
+              null,
+              2,
+            ),
+          )
+        }
 
         throw new Error(
           `Pre-persistence editorial quality review failed closed: ${retentionDiagnostic.code}.`,
