@@ -1,6 +1,6 @@
 import { APIError, type CollectionConfig, type Where } from 'payload'
 import { lexicalEditor, UploadFeature } from '@payloadcms/richtext-lexical'
-import { commentTargetWhere, resolveCommentTarget } from '@/lib/comments/comment-target'
+import { applyCommentCreateDefaults, commentTargetWhere, resolveCommentTarget } from '@/lib/comments/comment-target'
 
 // ============================================================
 //  CATEGORII — cei 5 piloni de conținut
@@ -82,17 +82,18 @@ export const Comentarii: CollectionConfig = {
 
         if (
           operation !== 'create' ||
-          !req.user ||
-          req.user.rol === 'admin'
+          !req.user
         ) {
           return data
         }
 
-        return {
-          ...data,
-          autor: req.user.id,
-          status: 'asteptare',
-        }
+        return applyCommentCreateDefaults(
+          data as Record<string, unknown>,
+          {
+            id: req.user.id,
+            rol: req.user.rol,
+          },
+        )
       },
     ],
   },
