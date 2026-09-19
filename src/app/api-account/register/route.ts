@@ -1,12 +1,6 @@
 import { trimiteConfirmareCont } from '@/lib/account-email'
 import { payloadClient } from '@/lib/payload'
-
-type LimbaCont = 'ro' | 'en'
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PASSWORD_MIN = 10
-const PASSWORD_MAX = 128
-const NUME_MAX = 80
+import { parsePublicAccountInput } from '@/lib/public-account'
 
 function raspunsPublic(): Response {
   return Response.json(
@@ -40,45 +34,29 @@ function raspunsInvalid(camp: string): Response {
 }
 
 export async function POST(req: Request) {
-  let email = ''
-  let parola = ''
-  let nume = ''
-  let limba: LimbaCont = 'ro'
+  let body: unknown
 
   try {
-    const body: unknown = await req.json()
-
-    if (!body || typeof body !== 'object') {
-      return raspunsInvalid('cerere')
-    }
-
-    const date = body as Record<string, unknown>
-
-    email = String(date.email ?? '')
-      .trim()
-      .toLowerCase()
-
-    parola = String(date.parola ?? '')
-    nume = String(date.nume ?? '').trim()
-    limba = date.limba === 'en' ? 'en' : 'ro'
+    body = await req.json()
   } catch {
     return raspunsInvalid('cerere')
   }
 
-  if (!EMAIL_REGEX.test(email) || email.length > 254) {
-    return raspunsInvalid('email')
+  const validare =
+    parsePublicAccountInput(body)
+
+  if (!validare.ok) {
+    return raspunsInvalid(
+      validare.camp,
+    )
   }
 
-  if (
-    parola.length < PASSWORD_MIN ||
-    parola.length > PASSWORD_MAX
-  ) {
-    return raspunsInvalid('parola')
-  }
-
-  if (nume.length < 2 || nume.length > NUME_MAX) {
-    return raspunsInvalid('nume')
-  }
+  const {
+    email,
+    parola,
+    nume,
+    limba,
+  } = validare.value
 
   let payload
 
