@@ -3,6 +3,7 @@ import { RichText } from '@payloadcms/richtext-lexical/react'
 import { notFound } from 'next/navigation'
 
 import ArticleDates from '@/components/ArticleDates'
+import CommentsSection from '@/components/CommentsSection'
 import NewsletterForm from '@/components/NewsletterForm'
 import { getCachedSiteSettings, getFlashAiBySlug } from '@/lib/payload'
 import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
@@ -311,6 +312,12 @@ export default async function PaginaFlash(props: {
           )}
         </div>
       )}
+
+      <CommentsSection
+        targetType="flash"
+        targetId={flash.id}
+        lang={lang}
+      />
 
       {siteSettings?.newsletter?.enabled !== false && (
         <div style={{ marginTop: 32 }}>
