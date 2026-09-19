@@ -12,6 +12,10 @@ import {
   publicRelationshipId,
   serializePublicComment,
 } from '../../src/lib/public-comments'
+import {
+  claimPublicRegistrationAttempt,
+  publicRegistrationRateLimitKey,
+} from '../../src/lib/public-registration-rate-limit'
 
 describe('U14.7I public account contract', () => {
   it('normalizes a valid registration payload', () => {
@@ -171,5 +175,114 @@ describe('U14.7I public comments serialization', () => {
     expect(
       JSON.stringify(result),
     ).not.toContain('complet')
+  })
+})
+
+
+describe('U14.7I public registration rate limit', () => {
+  it('hashes the client IP without storing it in the key', () => {
+    const headers =
+      new Headers({
+        'x-forwarded-for':
+          '203.0.113.10, 10.0.0.1',
+      })
+
+    const key =
+      publicRegistrationRateLimitKey(
+        headers,
+        'test-secret',
+      )
+
+    expect(key).toMatch(
+      /^public-register:[a-f0-9]{64}$/,
+    )
+    expect(key).not.toContain(
+      '203.0.113.10',
+    )
+
+    expect(
+      publicRegistrationRateLimitKey(
+        headers,
+        'test-secret',
+      ),
+    ).toBe(key)
+  })
+
+  it('does not create a shared global bucket when client IP is unavailable', () => {
+    expect(
+      publicRegistrationRateLimitKey(
+        new Headers(),
+        'test-secret',
+      ),
+    ).toBeNull()
+  })
+
+  it('allows attempts through the configured maximum', async () => {
+    const headers =
+      new Headers({
+        'x-real-ip': '203.0.113.20',
+      })
+
+    const allowed =
+      await claimPublicRegistrationAttempt(
+        async () => ({
+          rows: [
+            {
+              count: 5,
+            },
+          ],
+        }),
+        headers,
+        'test-secret',
+        1000,
+      )
+
+    expect(allowed).toBe(true)
+  })
+
+  it('blocks attempts above the configured maximum', async () => {
+    const headers =
+      new Headers({
+        'x-real-ip': '203.0.113.20',
+      })
+
+    const allowed =
+      await claimPublicRegistrationAttempt(
+        async () => ({
+          rows: [
+            {
+              count: 6,
+            },
+          ],
+        }),
+        headers,
+        'test-secret',
+        1000,
+      )
+
+    expect(allowed).toBe(false)
+  })
+
+  it('fails closed when the rate-limit counter is malformed', async () => {
+    const headers =
+      new Headers({
+        'x-real-ip': '203.0.113.20',
+      })
+
+    const allowed =
+      await claimPublicRegistrationAttempt(
+        async () => ({
+          rows: [
+            {
+              count: 'invalid',
+            },
+          ],
+        }),
+        headers,
+        'test-secret',
+        1000,
+      )
+
+    expect(allowed).toBe(false)
   })
 })
