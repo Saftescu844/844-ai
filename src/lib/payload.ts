@@ -47,6 +47,55 @@ export async function getArticol(slug: string, limba: string) {
   return r.docs[0] || null
 }
 
+
+export async function getFlashAi(limba: string, optiuni: { limit?: number } = {}) {
+  if (!LIMBI_VALIDE.includes(limba)) return { docs: [] as any[] }
+  const payload = await payloadClient()
+  return await payload.find({
+    collection: 'flash-ai',
+    where: { and: [ { limba: { equals: limba } }, { _status: { equals: 'published' } } ] },
+    limit: optiuni.limit || 12,
+    sort: '-publishedAt',
+    depth: 2,
+  })
+}
+
+export async function getFlashAiPilon(limba: string, pilonSlug: string) {
+  if (!LIMBI_VALIDE.includes(limba)) return { docs: [] as any[] }
+  const payload = await payloadClient()
+  return await payload.find({
+    collection: 'flash-ai',
+    where: {
+      and: [
+        { limba: { equals: limba } },
+        { _status: { equals: 'published' } },
+        { 'pilon.slug': { equals: pilonSlug } },
+      ],
+    },
+    limit: 24,
+    sort: '-publishedAt',
+    depth: 2,
+  })
+}
+
+export async function getFlashAiBySlug(slug: string, limba: string) {
+  if (!LIMBI_VALIDE.includes(limba)) return null
+  const payload = await payloadClient()
+  const r = await payload.find({
+    collection: 'flash-ai',
+    where: {
+      and: [
+        { slug: { equals: slug } },
+        { limba: { equals: limba } },
+        { _status: { equals: 'published' } },
+      ],
+    },
+    limit: 1,
+    depth: 2,
+  })
+  return r.docs[0] || null
+}
+
 const LIMBI_VALIDE2 = ['ro', 'en']
 
 export async function getTooluri(limba: string) {
