@@ -2,6 +2,7 @@ import { RichText } from '@payloadcms/richtext-lexical/react'
 
 import ArticleAttribution from '@/components/ArticleAttribution'
 import ArticleDates from '@/components/ArticleDates'
+import CommentsSection from '@/components/CommentsSection'
 import NewsletterForm from '@/components/NewsletterForm'
 import type { PublicArticleAttribution } from '@/lib/article-attribution'
 import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
@@ -367,6 +368,12 @@ export default function ArticleView({
           </p>
         </div>
       )}
+
+      <CommentsSection
+        targetType="articol"
+        targetId={articol.id}
+        lang={lang}
+      />
 
       {newsletterSettings?.enabled !== false && (
         <div style={{ marginTop: 32 }}>
