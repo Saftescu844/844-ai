@@ -110,3 +110,26 @@ export function commentTargetWhere(
         },
       }
 }
+
+
+export function applyCommentCreateDefaults(
+  data: Record<string, unknown>,
+  user: {
+    id: number | string
+    rol?: unknown
+  },
+): Record<string, unknown> {
+  if (user.rol === 'admin') {
+    return {
+      ...data,
+      autor: data.autor ?? user.id,
+      status: data.status ?? 'asteptare',
+    }
+  }
+
+  return {
+    ...data,
+    autor: user.id,
+    status: 'asteptare',
+  }
+}
