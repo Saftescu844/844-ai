@@ -27,11 +27,14 @@ import {
 import { SiteSettings } from './globals/SiteSettings'
 import { searchInfrastructurePlugin } from './search/searchPlugin'
 import { EvaluateFlashEngineTask } from './lib/flash/jobs/evaluateFlashEngineTask'
+import { brevoEmailAdapter } from './lib/brevo-email-adapter'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 export default buildConfig({
+  email: brevoEmailAdapter(),
+
   plugins: [
     searchInfrastructurePlugin,
     s3Storage({
