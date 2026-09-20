@@ -31,7 +31,7 @@ export interface AnthropicPrePersistenceEditorialGenerationSemanticProducerOptio
 
 /**
  * Composes the Anthropic SDK with the provider-agnostic
- * REG-001T pre-persistence Romanian editorial generator.
+ * REG-001T pre-persistence bilingual editorial generator.
  *
  * The higher default token ceiling is deliberate: a validated Flash
  * editorial may contain 500–1000 Romanian words plus strict JSON framing.
@@ -48,7 +48,6 @@ export interface AnthropicPrePersistenceEditorialGenerationSemanticProducerOptio
  * - execute a request at construction time;
  * - write to Payload;
  * - decide AUTO / REVIEW / BLOCK;
- * - generate the EN version.
  *
  * A provider request is made only when the returned producer
  * is explicitly executed by the caller.
