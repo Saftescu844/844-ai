@@ -138,7 +138,8 @@ export async function evaluateFlashDedupByIdReadOnly(
 
   /*
    * Semnal puternic:
-   * eventFingerprint se caută independent de limbă.
+   * eventFingerprint blochează doar un Flash
+   * din aceeași limbă editorială.
    */
   if (eventFingerprint) {
     const matches =
@@ -149,9 +150,18 @@ export async function evaluateFlashDedupByIdReadOnly(
         overrideAccess: true,
         limit: 100,
         where: {
-          eventFingerprint: {
-            equals: eventFingerprint,
-          },
+          and: [
+            {
+              eventFingerprint: {
+                equals: eventFingerprint,
+              },
+            },
+            {
+              limba: {
+                equals: candidate.limba,
+              },
+            },
+          ],
         },
       })
 
@@ -175,9 +185,18 @@ export async function evaluateFlashDedupByIdReadOnly(
         overrideAccess: true,
         limit: 100,
         where: {
-          sourceFingerprint: {
-            equals: sourceFingerprint,
-          },
+          and: [
+            {
+              sourceFingerprint: {
+                equals: sourceFingerprint,
+              },
+            },
+            {
+              limba: {
+                equals: candidate.limba,
+              },
+            },
+          ],
         },
       })
 
