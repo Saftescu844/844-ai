@@ -6,10 +6,33 @@ import type {
   FlashArticlePersistenceReadiness,
 } from './articleCandidatePersistenceReadiness'
 
+import type {
+  FlashTargetLanguage,
+} from './flashTargetLanguage'
+
 import {
   buildFlashAiStagingWriteInput,
   type FlashAiStagingWriteInput,
 } from './flashAiStagingWriteInput'
+
+function parseOptionalTargetLanguage(
+  value: unknown,
+): FlashTargetLanguage | null {
+  if (value === undefined) {
+    return null
+  }
+
+  if (
+    value === 'ro' ||
+    value === 'en'
+  ) {
+    return value
+  }
+
+  throw new Error(
+    'FlashAI STAGING write handoff targetLanguage must be "ro" or "en".',
+  )
+}
 
 function isRecord(
   value: unknown,
@@ -71,11 +94,38 @@ export function buildFlashAiStagingWriteInputFromHandoffValue(
     )
   }
 
-  return buildFlashAiStagingWriteInput({
-    candidate:
-      candidate as unknown as FlashNormalizedArticleCandidate,
+  const explicitTargetLanguage =
+    parseOptionalTargetLanguage(
+      value.targetLanguage,
+    )
 
-    readiness:
-      readiness as unknown as FlashArticlePersistenceReadiness,
-  })
+  const writeInput =
+    buildFlashAiStagingWriteInput({
+      candidate:
+        candidate as unknown as FlashNormalizedArticleCandidate,
+
+      readiness:
+        readiness as unknown as FlashArticlePersistenceReadiness,
+    })
+
+  if (
+    explicitTargetLanguage !== null &&
+    explicitTargetLanguage !==
+      writeInput.projection.limba
+  ) {
+    throw new Error(
+      'FlashAI STAGING write handoff target language does not match persistence readiness.',
+    )
+  }
+
+  if (
+    writeInput.projection.limba === 'en' &&
+    explicitTargetLanguage !== 'en'
+  ) {
+    throw new Error(
+      'FlashAI STAGING EN write handoff requires explicit targetLanguage "en".',
+    )
+  }
+
+  return writeInput
 }

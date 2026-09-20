@@ -146,6 +146,8 @@ it(
     expect(
       artifact,
     ).toEqual({
+      targetLanguage:
+        'ro',
       candidate,
       readiness,
     })

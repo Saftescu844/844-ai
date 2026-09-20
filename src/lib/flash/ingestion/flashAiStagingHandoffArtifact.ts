@@ -6,11 +6,24 @@ import type {
   FlashArticlePersistenceReadiness,
 } from './articleCandidatePersistenceReadiness'
 
+import type {
+  FlashTargetLanguage,
+} from './flashTargetLanguage'
+
 import {
   buildFlashAiStagingWriteInput,
 } from './flashAiStagingWriteInput'
 
 export interface FlashAiStagingHandoffArtifact {
+  /**
+   * Explicit handoff intent.
+   *
+   * New artifacts always carry the target language so an
+   * English write cannot be inferred only from nested data.
+   */
+  targetLanguage:
+    FlashTargetLanguage
+
   candidate:
     FlashNormalizedArticleCandidate
 
@@ -38,12 +51,15 @@ export function buildFlashAiStagingHandoffArtifact({
   readiness:
     FlashArticlePersistenceReadiness
 }): FlashAiStagingHandoffArtifact {
-  buildFlashAiStagingWriteInput({
-    candidate,
-    readiness,
-  })
+  const writeInput =
+    buildFlashAiStagingWriteInput({
+      candidate,
+      readiness,
+    })
 
   return {
+    targetLanguage:
+      writeInput.projection.limba,
     candidate,
     readiness,
   }
