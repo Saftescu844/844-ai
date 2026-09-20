@@ -180,6 +180,7 @@ async function main(): Promise<void> {
     result.result as {
       id?: unknown
       slug?: unknown
+      limba?: unknown
       editorialStatus?: unknown
       automationDecision?: unknown
       _status?: unknown
@@ -194,6 +195,8 @@ async function main(): Promise<void> {
       created.id,
     slug:
       created.slug,
+    limba:
+      created.limba,
     editorialStatus:
       created.editorialStatus,
     automationDecision:
