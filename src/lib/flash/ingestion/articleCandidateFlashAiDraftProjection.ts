@@ -5,8 +5,9 @@ import type {
 import type {
   FlashArticlePersistenceReadiness,
 } from './articleCandidatePersistenceReadiness'
-import type {
-  FlashTargetLanguage,
+import {
+  resolveFlashTargetLanguage,
+  type FlashTargetLanguage,
 } from './flashTargetLanguage'
 
 export interface FlashAiDraftProjection {
@@ -90,7 +91,9 @@ export function projectFlashAiDraftFromPersistenceReadiness(
       verifiedEditorial.editorialTitle,
 
     limba:
-      readiness.targetLanguage,
+      resolveFlashTargetLanguage(
+        readiness.targetLanguage,
+      ),
 
     pilon:
       classification.pilonId,
