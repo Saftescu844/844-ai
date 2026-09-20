@@ -5,7 +5,10 @@ export const FLASH_PREPERSISTENCE_EDITORIAL_OUTPUT_SCHEMA:
     properties: {
       language: {
         type: 'string',
-        const: 'ro',
+        enum: [
+          'ro',
+          'en',
+        ],
       },
 
       editorialTitle: {
