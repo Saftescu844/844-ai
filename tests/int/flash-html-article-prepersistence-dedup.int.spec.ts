@@ -23,7 +23,7 @@ const candidate = (
   editorialTrust: 'high',
   citationMode: 'paraphrase',
   allowAutoPublish: false,
-  language: 'ro',
+  language: 'en',
   finalUrl:
     'https://digital-strategy.ec.europa.eu/en/news/fourth-gpai-signatory-taskforce-meeting',
   canonicalUrl:
@@ -50,7 +50,7 @@ const existing = (
     Partial<FlashPrePersistenceDedupRecord> = {},
 ): FlashPrePersistenceDedupRecord => ({
   id: 20,
-  language: 'en',
+  language: 'ro',
   title:
     'Different existing Flash',
   eventFingerprint:
