@@ -1,4 +1,9 @@
 import {
+  resolveFlashTargetLanguage,
+  type FlashTargetLanguage,
+} from '../ingestion/flashTargetLanguage'
+
+import {
   FLASH_EDITORIAL_MAX_TITLE_LENGTH,
   FLASH_EDITORIAL_MIN_WORDS,
   countFlashEditorialWords,
@@ -18,7 +23,7 @@ export interface FlashPrePersistenceEditorialQualityReviewParagraphEdit {
 }
 
 export interface FlashPrePersistenceEditorialQualityReviewSemanticOutput {
-  language: 'ro'
+  language: FlashTargetLanguage
   editorialTitle: string
   paragraphEdits:
     FlashPrePersistenceEditorialQualityReviewParagraphEdit[]
@@ -135,6 +140,8 @@ function containsLetter(
 
 export function parseFlashPrePersistenceEditorialQualityReviewSemanticOutput(
   raw: string,
+  targetLanguageInput?:
+    FlashTargetLanguage,
 ): FlashPrePersistenceEditorialQualityReviewSemanticOutput {
   let parsed: unknown
 
@@ -166,7 +173,15 @@ export function parseFlashPrePersistenceEditorialQualityReviewSemanticOutput(
     )
   }
 
-  if (root.language !== 'ro') {
+  const targetLanguage =
+    resolveFlashTargetLanguage(
+      targetLanguageInput,
+    )
+
+  if (
+    root.language !==
+    targetLanguage
+  ) {
     fail(
       'invalid_output_language',
     )
@@ -289,7 +304,8 @@ export function parseFlashPrePersistenceEditorialQualityReviewSemanticOutput(
     )
 
   return {
-    language: 'ro',
+    language:
+      targetLanguage,
     editorialTitle,
     paragraphEdits,
   }
@@ -304,6 +320,15 @@ export function applyFlashPrePersistenceEditorialQualityReviewCopyEdit({
   review:
     FlashPrePersistenceEditorialQualityReviewSemanticOutput
 }): FlashPrePersistenceEditorialGenerationSemanticOutput {
+  if (
+    editorial.language !==
+    review.language
+  ) {
+    fail(
+      'invalid_output_language',
+    )
+  }
+
   const editorialParagraphs =
     [
       ...editorial.editorialParagraphs,
@@ -349,7 +374,8 @@ export function applyFlashPrePersistenceEditorialQualityReviewCopyEdit({
 
   const reviewedEditorial:
     FlashPrePersistenceEditorialGenerationSemanticOutput = {
-      language: 'ro',
+      language:
+        editorial.language,
       editorialTitle:
         review.editorialTitle,
       editorialParagraphs,
