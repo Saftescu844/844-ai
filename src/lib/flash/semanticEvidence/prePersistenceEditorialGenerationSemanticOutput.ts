@@ -1,4 +1,9 @@
 import {
+  resolveFlashTargetLanguage,
+  type FlashTargetLanguage,
+} from '../ingestion/flashTargetLanguage'
+
+import {
   FlashSemanticEvidenceProducerError,
 } from './semanticEvidenceProducer'
 
@@ -12,7 +17,7 @@ export const FLASH_EDITORIAL_MAX_TITLE_LENGTH =
   200
 
 export interface FlashPrePersistenceEditorialGenerationSemanticOutput {
-  language: 'ro'
+  language: FlashTargetLanguage
   editorialTitle: string
   editorialParagraphs: string[]
 }
@@ -24,6 +29,7 @@ export interface FlashEditorialSemanticOutputParseOptions {
    * be inspected and its publication-length eligibility reported separately.
    */
   enforceWordCount?: boolean
+  targetLanguage?: FlashTargetLanguage
 }
 
 type UnknownRecord =
@@ -98,7 +104,7 @@ export function countFlashEditorialWords(
 }
 
 /**
- * Strict parser for the REG-001T Romanian editorial generation contract.
+ * Strict parser for the REG-001T bilingual editorial generation contract.
  *
  * Generation callers use the default strict 500–1000-word gate. A bounded
  * editorial QA caller may explicitly disable only that gate so fidelity
@@ -152,7 +158,15 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
     )
   }
 
-  if (root.language !== 'ro') {
+  const targetLanguage =
+    resolveFlashTargetLanguage(
+      options.targetLanguage,
+    )
+
+  if (
+    root.language !==
+    targetLanguage
+  ) {
     invalidOutput(
       'invalid_output_language',
     )
@@ -252,7 +266,8 @@ export function parseFlashPrePersistenceEditorialGenerationSemanticOutput(
   }
 
   return {
-    language: 'ro',
+    language:
+      targetLanguage,
     editorialTitle,
     editorialParagraphs,
   }

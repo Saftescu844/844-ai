@@ -28,7 +28,7 @@ export interface AnthropicPrePersistenceEditorialQualityReviewSemanticProducerOp
 }
 
 /**
- * Anthropic wrapper for the bounded REG-001T Romanian editorial QA pass.
+ * Anthropic wrapper for the bounded REG-001T bilingual editorial QA pass.
  *
  * It reuses the same strict structured-output shape as first-pass editorial
  * generation. The application parser remains authoritative for title length

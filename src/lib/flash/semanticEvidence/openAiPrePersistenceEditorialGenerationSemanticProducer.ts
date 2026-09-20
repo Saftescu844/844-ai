@@ -31,11 +31,11 @@ export interface OpenAiPrePersistenceEditorialGenerationSemanticProducerOptions 
 }
 
 /**
- * OpenAI composition for bounded REG-001T Romanian
+ * OpenAI composition for bounded REG-001T bilingual
  * editorial generation.
  *
  * Provider-independent parsing remains authoritative for:
- * - Romanian language;
+ * - requested target language;
  * - title validity;
  * - paragraph validity;
  * - 500–1000-word publication contract.

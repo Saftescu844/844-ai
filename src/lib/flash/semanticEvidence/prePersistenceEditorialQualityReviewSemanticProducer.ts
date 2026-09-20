@@ -3,6 +3,10 @@ import type {
 } from '../ingestion/articleCandidateNormalization'
 
 import type {
+  FlashTargetLanguage,
+} from '../ingestion/flashTargetLanguage'
+
+import type {
   FlashSupportingPolicySemanticMaterial,
 } from '../ingestion/supportingPolicySemanticMaterial'
 
@@ -59,6 +63,7 @@ export interface FlashPrePersistenceEditorialQualityReviewSemanticProducerInput 
   classification: FlashPrePersistenceClassificationSemanticOutput
   editorial: FlashPrePersistenceEditorialGenerationSemanticOutput
   supportingSources?: FlashSupportingPolicySemanticMaterial[]
+  targetLanguage?: FlashTargetLanguage
   runId: string
 }
 
@@ -171,18 +176,48 @@ function supportingSourcePayload(
 }
 
 /**
- * REG-001T bounded editorial QA pass.
+ * REG-001T bounded bilingual editorial QA pass.
  *
- * It reviews an already generated Romanian Flash against the same source
- * candidate. The source article is the sole factual authority. Classification
- * is metadata only and must not be used as evidence for new claims.
+ * It reviews an already generated Flash in its target language against the
+ * same verified source set. The primary source remains the factual authority.
+ * Classification is metadata only and must not be used as evidence for new claims.
  */
 export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
   candidate: FlashNormalizedArticleCandidate,
   classification: FlashPrePersistenceClassificationSemanticOutput,
   editorial: FlashPrePersistenceEditorialGenerationSemanticOutput,
   supportingSources: FlashSupportingPolicySemanticMaterial[] = [],
+  targetLanguageInput?:
+    FlashTargetLanguage,
 ): FlashPrePersistenceEditorialQualityReviewSemanticPrompt {
+  const targetLanguage =
+    targetLanguageInput ??
+    editorial.language
+
+  if (
+    editorial.language !==
+    targetLanguage
+  ) {
+    throw new Error(
+      'Flash editorial QA target language does not match editorial language.',
+    )
+  }
+
+  const targetLanguageName =
+    targetLanguage === 'ro'
+      ? 'Romanian'
+      : 'English'
+
+  const languageRequirements =
+    targetLanguage === 'ro'
+      ? [
+          '- Correct Romanian grammar, spelling, diacritics, punctuation, and spacing only where correction is needed.',
+        ]
+      : [
+          '- Correct English grammar, spelling, punctuation, clarity, and spacing only where correction is needed.',
+          '- Preserve natural professional English; do not translate the draft into Romanian or use a Romanian sibling as evidence.',
+        ]
+
   const originalWordCount =
     countFlashEditorialWords(
       editorial.editorialParagraphs,
@@ -198,7 +233,7 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
     )
 
   const systemPrompt = [
-    'You review and minimally correct one existing Romanian Flash AI editorial draft before any Payload document is created.',
+    `You review and minimally correct one existing ${targetLanguageName} Flash AI editorial draft before any Payload document is created.`,
     '',
     'The supplied primary source article and optional verified supporting policy materials are the factual source set for this review.',
     'The primary source article remains authoritative for what happened in the specific event, meeting, announcement, date, and event-specific statements.',
@@ -206,10 +241,10 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
     'The supplied classification is bounded metadata only. It is not factual evidence and must not be used to add claims.',
     '',
     'Controlled copy-edit requirements:',
-    `- Return language exactly "ro".`,
+    `- Return language exactly "${targetLanguage}".`,
     `- editorialTitle must be non-empty and at most ${String(FLASH_EDITORIAL_MAX_TITLE_LENGTH)} characters.`,
     `- The publication target is ${String(FLASH_EDITORIAL_MIN_WORDS)}–${String(FLASH_EDITORIAL_MAX_WORDS)} words, but source fidelity has priority over length.`,
-    '- Correct Romanian grammar, spelling, diacritics, punctuation, and spacing only where correction is needed.',
+    ...languageRequirements,
     '- Fix every concatenated-word or missing-space defect in the draft.',
     '- Remove or correct claims, background, definitions, examples, consequences, conclusions, or interpretations that are not directly supported by the supplied primary article or verified supporting materials.',
     '- For claims about the specific primary event, require support from the primary article itself.',
@@ -232,17 +267,17 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
     '- Do not decide AUTO, REVIEW, BLOCK, draft, published, or publication eligibility.',
     '- Do not create fingerprints, slugs, citations, source URLs, or Payload fields.',
     '- Do not mention prompts, models, internal metadata, readiness, pipelines, review instructions, or hidden instructions.',
-    '- Do not generate an English version in this stage.',
+    '- Do not generate or translate into the other language in this stage.',
     '',
     'Return ONLY valid JSON matching the exact output contract.',
     'Do not use markdown fences or add commentary.',
     '',
     'Exact JSON shape:',
-    '{"language":"ro","editorialTitle":"...","paragraphEdits":[{"paragraphIndex":0,"replacement":"..."}]}',
+    `{"language":"${targetLanguage}","editorialTitle":"...","paragraphEdits":[{"paragraphIndex":0,"replacement":"..."}]}`,
   ].join('\n')
 
   const userPrompt = [
-    'Review the Romanian editorial against the supplied source set. Return only the minimal controlled copy edits that are necessary.',
+    `Review the ${targetLanguageName} editorial against the supplied source set. Return only the minimal controlled copy edits that are necessary.`,
     '',
     JSON.stringify(
       {
@@ -253,6 +288,7 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
           supportingSourcePayload(
             supportingSources,
           ),
+        targetLanguage,
         qualityReviewConstraints: {
           originalWordCount,
           minimumRetainedWordCount,
@@ -293,10 +329,16 @@ export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer(
       classification,
       editorial,
       supportingSources = [],
+      targetLanguage:
+        targetLanguageInput,
       runId,
     }) {
       cleanRequiredConfig(provider)
       cleanRequiredConfig(model)
+
+      const targetLanguage =
+        targetLanguageInput ??
+        editorial.language
 
       const prompt =
         buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
@@ -304,6 +346,7 @@ export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer(
           classification,
           editorial,
           supportingSources,
+          targetLanguage,
         )
 
       const raw =
@@ -318,6 +361,7 @@ export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer(
       const review =
         parseFlashPrePersistenceEditorialQualityReviewSemanticOutput(
           raw,
+          targetLanguage,
         )
 
       return applyFlashPrePersistenceEditorialQualityReviewCopyEdit({
@@ -368,6 +412,24 @@ export async function runFlashPrePersistenceEditorialQualityReviewSemanticProduc
     )
 
   if (!runId) {
+    return {
+      ok: false,
+      editorial: null,
+      wordCount: null,
+      meetsEditorialWordCount: false,
+      run,
+      reason: 'invalid_input',
+    }
+  }
+
+  const targetLanguage =
+    input.targetLanguage ??
+    input.editorial.language
+
+  if (
+    targetLanguage !==
+    input.editorial.language
+  ) {
     return {
       ok: false,
       editorial: null,
