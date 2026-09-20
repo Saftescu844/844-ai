@@ -77,7 +77,11 @@ export interface FlashArticlePersistenceReadiness {
    */
   canCreateFlashAiDraft: boolean
 
-  targetLanguage:
+  /**
+   * Always populated by evaluateFlashArticlePersistenceReadiness.
+   * Optional only so legacy staging handoff fixtures deserialize as RO.
+   */
+  targetLanguage?:
     FlashTargetLanguage
 
   verifiedEditorial:
