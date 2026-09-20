@@ -31,7 +31,7 @@ export interface OpenAiPrePersistenceEditorialQualityReviewSemanticProducerOptio
 }
 
 /**
- * OpenAI composition for the controlled REG-001T Romanian
+ * OpenAI composition for the controlled REG-001T bilingual
  * editorial quality-review copy-edit pass.
  *
  * The model returns only title + indexed paragraph replacements.
