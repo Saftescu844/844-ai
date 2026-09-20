@@ -8,6 +8,10 @@ import {
 import type {
   FlashNormalizedArticleCandidate,
 } from './articleCandidateNormalization'
+import {
+  resolveFlashTargetLanguage,
+  type FlashTargetLanguage,
+} from './flashTargetLanguage'
 
 export type FlashPrePersistenceDedupMatchReason =
   | 'canonical_source_url_match'
@@ -33,6 +37,7 @@ export interface FlashPrePersistenceDedupRecord {
 export interface FlashPrePersistenceDedupCandidateSignals {
   eventFingerprint?: string | null
   sourceFingerprint?: string | null
+  targetLanguage?: FlashTargetLanguage
 }
 
 export interface FlashPrePersistenceDedupMatch {
@@ -130,6 +135,11 @@ export function evaluateFlashArticlePrePersistenceDedup(
       candidate.title,
     )
 
+  const targetLanguage =
+    resolveFlashTargetLanguage(
+      candidateSignals.targetLanguage,
+    )
+
   const matches:
     FlashPrePersistenceDedupMatch[] = []
 
@@ -142,7 +152,14 @@ export function evaluateFlashArticlePrePersistenceDedup(
     const matchReasons:
       FlashPrePersistenceDedupMatchReason[] = []
 
+    const sameTargetLanguage =
+      record.language !== null &&
+      record.language !== undefined &&
+      record.language ===
+        targetLanguage
+
     const sourceUrlMatch =
+      sameTargetLanguage &&
       (record.sourceUrls ?? [])
         .some(
           value => {
@@ -172,6 +189,7 @@ export function evaluateFlashArticlePrePersistenceDedup(
       )
 
     if (
+      sameTargetLanguage &&
       candidateEventFingerprint &&
       existingEventFingerprint &&
       candidateEventFingerprint ===
@@ -189,6 +207,7 @@ export function evaluateFlashArticlePrePersistenceDedup(
       )
 
     if (
+      sameTargetLanguage &&
       candidateSourceFingerprint &&
       existingSourceFingerprint &&
       candidateSourceFingerprint ===
@@ -200,14 +219,8 @@ export function evaluateFlashArticlePrePersistenceDedup(
       )
     }
 
-    const sameLanguage =
-      record.language !== null &&
-      record.language !== undefined &&
-      record.language ===
-        candidate.language
-
     if (
-      sameLanguage &&
+      sameTargetLanguage &&
       candidateTitle &&
       candidateTitle ===
         normalizeDedupTitle(
