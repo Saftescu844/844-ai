@@ -141,6 +141,7 @@ export function evaluateFlashDedup(
       )
 
     if (
+      sameLanguage &&
       candidateEventFingerprint &&
       existingEventFingerprint &&
       candidateEventFingerprint ===
@@ -154,6 +155,7 @@ export function evaluateFlashDedup(
     }
 
     if (
+      sameLanguage &&
       candidateSourceFingerprint &&
       existingSourceFingerprint &&
       candidateSourceFingerprint ===
