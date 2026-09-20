@@ -81,6 +81,9 @@ export async function createFlashAiDraftWithFinalDedupGuard({
 
         sourceFingerprint:
           projection.sourceFingerprint,
+
+        targetLanguage:
+          projection.limba,
       },
     )
 
