@@ -10,14 +10,24 @@ import {
 import type {
   FlashNormalizedArticleCandidate,
 } from './articleCandidateNormalization'
+import {
+  resolveFlashTargetLanguage,
+  type FlashTargetLanguage,
+} from './flashTargetLanguage'
 
 type FlashPayloadReader =
   Pick<Payload, 'find'>
 
 export interface FlashArticlePrePersistenceDedupReadOnlyOptions {
   /**
+   * Limba editorială a Flash-ului care urmează să fie creat.
+   * Este distinctă de candidate.language, care descrie limba sursei.
+   */
+  targetLanguage?: FlashTargetLanguage
+
+  /**
    * Event fingerprint grounded înainte de persistență.
-   * Dacă este prezent, este căutat exact și independent de limbă.
+   * Dacă este prezent, este căutat exact în aceeași limbă țintă.
    */
   eventFingerprint?: string | null
 
@@ -124,6 +134,11 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
       options.sourceFingerprint,
     )
 
+  const targetLanguage =
+    resolveFlashTargetLanguage(
+      options.targetLanguage,
+    )
+
   /*
    * Semnal puternic pre-persistență:
    * căutăm URL-ul canonic exact deja citat de un Flash.
@@ -137,10 +152,20 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
       overrideAccess: true,
       limit: 100,
       where: {
-        'surseFlash.url': {
-          equals:
-            candidate.canonicalUrl,
-        },
+        and: [
+          {
+            'surseFlash.url': {
+              equals:
+                candidate.canonicalUrl,
+            },
+          },
+          {
+            limba: {
+              equals:
+                targetLanguage,
+            },
+          },
+        ],
       },
     })
 
@@ -163,10 +188,20 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
         overrideAccess: true,
         limit: 100,
         where: {
-          eventFingerprint: {
-            equals:
-              candidateEventFingerprint,
-          },
+          and: [
+            {
+              eventFingerprint: {
+                equals:
+                  candidateEventFingerprint,
+              },
+            },
+            {
+              limba: {
+                equals:
+                  targetLanguage,
+              },
+            },
+          ],
         },
       })
 
@@ -191,10 +226,20 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
         overrideAccess: true,
         limit: 100,
         where: {
-          sourceFingerprint: {
-            equals:
-              candidateSourceFingerprint,
-          },
+          and: [
+            {
+              sourceFingerprint: {
+                equals:
+                  candidateSourceFingerprint,
+              },
+            },
+            {
+              limba: {
+                equals:
+                  targetLanguage,
+              },
+            },
+          ],
         },
       })
 
@@ -223,7 +268,7 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
       where: {
         limba: {
           equals:
-            candidate.language,
+            targetLanguage,
         },
       },
     })
@@ -251,6 +296,7 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
             candidateEventFingerprint,
           sourceFingerprint:
             candidateSourceFingerprint,
+          targetLanguage,
         },
       ),
   }
