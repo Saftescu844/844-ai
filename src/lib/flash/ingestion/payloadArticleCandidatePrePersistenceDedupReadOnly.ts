@@ -176,8 +176,8 @@ export async function evaluateFlashArticlePrePersistenceDedupReadOnly(
 
   /*
    * Semnal canonic de duplicat evident:
-   * un eventFingerprint grounded este căutat exact,
-   * independent de limbă.
+   * un eventFingerprint grounded este căutat exact
+   * doar în aceeași limbă editorială țintă.
    */
   if (candidateEventFingerprint) {
     const eventFingerprintMatches =
