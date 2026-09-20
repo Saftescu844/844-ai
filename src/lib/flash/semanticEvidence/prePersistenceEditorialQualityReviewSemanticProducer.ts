@@ -211,7 +211,7 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
   const languageRequirements =
     targetLanguage === 'ro'
       ? [
-          ...languageRequirements,
+          '- Correct Romanian grammar, spelling, diacritics, punctuation, and spacing only where correction is needed.',
         ]
       : [
           '- Correct English grammar, spelling, punctuation, clarity, and spacing only where correction is needed.',
@@ -244,7 +244,7 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
     `- Return language exactly "${targetLanguage}".`,
     `- editorialTitle must be non-empty and at most ${String(FLASH_EDITORIAL_MAX_TITLE_LENGTH)} characters.`,
     `- The publication target is ${String(FLASH_EDITORIAL_MIN_WORDS)}–${String(FLASH_EDITORIAL_MAX_WORDS)} words, but source fidelity has priority over length.`,
-    '- Correct Romanian grammar, spelling, diacritics, punctuation, and spacing only where correction is needed.',
+    ...languageRequirements,
     '- Fix every concatenated-word or missing-space defect in the draft.',
     '- Remove or correct claims, background, definitions, examples, consequences, conclusions, or interpretations that are not directly supported by the supplied primary article or verified supporting materials.',
     '- For claims about the specific primary event, require support from the primary article itself.',
