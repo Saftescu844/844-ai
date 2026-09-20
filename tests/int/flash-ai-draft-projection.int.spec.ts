@@ -32,6 +32,8 @@ describe(
           FlashArticlePersistenceReadiness = {
             canCreateFlashAiDraft: true,
 
+            targetLanguage: 'ro',
+
             verifiedEditorial: {
               editorialTitle:
                 'Titlu editorial verificat',
