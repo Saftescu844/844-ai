@@ -50,7 +50,7 @@ const existing = (
     Partial<FlashPrePersistenceDedupRecord> = {},
 ): FlashPrePersistenceDedupRecord => ({
   id: 20,
-  language: 'en',
+  language: 'ro',
   title:
     'Different existing Flash',
   eventFingerprint:
@@ -129,7 +129,7 @@ describe(
     )
 
     it(
-      'detects an equal grounded event fingerprint independently of language',
+      'detects an equal grounded event fingerprint in the same target language',
       () => {
         const eventFingerprint =
           'grounded-event-fingerprint'
@@ -139,13 +139,13 @@ describe(
             candidate(),
             [
               existing({
-                language: 'ro',
                 eventFingerprint:
                   eventFingerprint.toUpperCase(),
               }),
             ],
             {
               eventFingerprint,
+              targetLanguage: 'ro',
             },
           )
 
@@ -173,6 +173,57 @@ describe(
             ],
           },
         ])
+      },
+    )
+
+    it(
+      'allows the same grounded event fingerprint in the other target language',
+      () => {
+        const eventFingerprint =
+          'grounded-event-fingerprint'
+
+        const result =
+          evaluateFlashArticlePrePersistenceDedup(
+            candidate(),
+            [
+              existing({
+                language: 'en',
+                eventFingerprint,
+                sourceUrls: [
+                  candidate().canonicalUrl,
+                ],
+              }),
+            ],
+            {
+              eventFingerprint,
+              targetLanguage: 'ro',
+            },
+          )
+
+        expect(
+          result.eventFingerprintDuplicateFound,
+        ).toBe(false)
+
+        expect(
+          result.sourceDuplicateFound,
+        ).toBe(false)
+
+        expect(
+          result.finalDedupPending,
+        ).toBe(false)
+
+        expect(result.reasons)
+          .not.toContain(
+            'event_fingerprint_match',
+          )
+
+        expect(result.reasons)
+          .not.toContain(
+            'canonical_source_url_match',
+          )
+
+        expect(result.matches)
+          .toEqual([])
       },
     )
 
@@ -291,7 +342,7 @@ describe(
             candidate(),
             [
               existing({
-                language: 'ro',
+                language: 'en',
                 title:
                   'Fourth GPAI Signatory Taskforce meeting',
               }),

@@ -64,7 +64,7 @@ function flash(
       'Different Flash title',
     slug:
       'different-flash-title',
-    limba: 'en',
+    limba: 'ro',
     versiuneAlternativa: null,
     pilon: 1,
     flashType: 'announcement',
@@ -155,7 +155,7 @@ describe(
     )
 
     it(
-      'detectează eventFingerprint grounded identic independent de limbă',
+      'detectează eventFingerprint grounded identic în aceeași limbă țintă',
       async () => {
         const candidate =
           normalizedCandidate()
@@ -211,13 +211,77 @@ describe(
             draft: true,
             overrideAccess: true,
             where: {
-              eventFingerprint: {
-                equals:
-                  eventFingerprint,
-              },
+              and: [
+                {
+                  eventFingerprint: {
+                    equals:
+                      eventFingerprint,
+                  },
+                },
+                {
+                  limba: {
+                    equals: 'ro',
+                  },
+                },
+              ],
             },
           }),
         )
+      },
+    )
+
+    it(
+      'permite același eventFingerprint în cealaltă limbă țintă',
+      async () => {
+        const candidate =
+          normalizedCandidate()
+
+        const eventFingerprint =
+          'grounded-event-fingerprint'
+
+        const otherLanguageMatch =
+          flash({
+            id: 34,
+            limba: 'en',
+            eventFingerprint,
+            surseFlash: [
+              {
+                url:
+                  candidate.canonicalUrl,
+              },
+            ],
+          })
+
+        const payload =
+          payloadReader([
+            [otherLanguageMatch],
+            [otherLanguageMatch],
+            [],
+          ])
+
+        const result =
+          await evaluateFlashArticlePrePersistenceDedupReadOnly(
+            payload,
+            candidate,
+            {
+              eventFingerprint,
+              targetLanguage: 'ro',
+            },
+          )
+
+        expect(
+          result.evidence
+            .eventFingerprintDuplicateFound,
+        ).toBe(false)
+
+        expect(
+          result.evidence
+            .sourceDuplicateFound,
+        ).toBe(false)
+
+        expect(
+          result.evidence.matches,
+        ).toEqual([])
       },
     )
 
@@ -277,10 +341,19 @@ describe(
             draft: true,
             overrideAccess: true,
             where: {
-              sourceFingerprint: {
-                equals:
-                  sourceFingerprint,
-              },
+              and: [
+                {
+                  sourceFingerprint: {
+                    equals:
+                      sourceFingerprint,
+                  },
+                },
+                {
+                  limba: {
+                    equals: 'ro',
+                  },
+                },
+              ],
             },
           }),
         )
@@ -367,10 +440,19 @@ describe(
             draft: true,
             overrideAccess: true,
             where: {
-              'surseFlash.url': {
-                equals:
-                  candidate.canonicalUrl,
-              },
+              and: [
+                {
+                  'surseFlash.url': {
+                    equals:
+                      candidate.canonicalUrl,
+                  },
+                },
+                {
+                  limba: {
+                    equals: 'ro',
+                  },
+                },
+              ],
             },
           }),
         )
@@ -386,7 +468,7 @@ describe(
             sort: '-createdAt',
             where: {
               limba: {
-                equals: 'en',
+                equals: 'ro',
               },
             },
           }),

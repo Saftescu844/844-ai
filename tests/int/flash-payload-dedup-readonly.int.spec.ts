@@ -86,9 +86,9 @@ describe(
         const duplicate =
           flash({
             id: 20,
-            limba: 'en',
+            limba: 'ro',
             titlu:
-              'OpenAI launches an education platform',
+              'Altă formulare a aceluiași eveniment',
             sourceFingerprint:
               'different-source',
           })
@@ -119,6 +119,52 @@ describe(
         ).toContain(
           'event_fingerprint_match',
         )
+      },
+    )
+
+    it(
+      'permite un Flash din cealaltă limbă cu același eventFingerprint',
+      async () => {
+        const candidate =
+          flash()
+
+        const otherLanguage =
+          flash({
+            id: 20,
+            limba: 'en',
+            titlu:
+              'OpenAI launches an education platform',
+          })
+
+        const payload =
+          payloadReader(
+            candidate,
+            [
+              [candidate, otherLanguage],
+              [candidate, otherLanguage],
+              [candidate],
+            ],
+          )
+
+        const result =
+          await evaluateFlashDedupByIdReadOnly(
+            payload,
+            candidate.id,
+          )
+
+        expect(
+          result.evidence
+            .dedupPassed,
+        ).toBe(true)
+
+        expect(
+          result.evidence
+            .obviousDuplicate,
+        ).toBe(false)
+
+        expect(
+          result.evidence.matches,
+        ).toEqual([])
       },
     )
 

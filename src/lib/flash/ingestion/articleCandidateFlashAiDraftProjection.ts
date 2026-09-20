@@ -5,10 +5,14 @@ import type {
 import type {
   FlashArticlePersistenceReadiness,
 } from './articleCandidatePersistenceReadiness'
+import {
+  resolveFlashTargetLanguage,
+  type FlashTargetLanguage,
+} from './flashTargetLanguage'
 
 export interface FlashAiDraftProjection {
   titlu: string
-  limba: 'ro'
+  limba: FlashTargetLanguage
   pilon: number
   flashType: FlashAi['flashType']
   continut: FlashAi['continut']
@@ -86,7 +90,10 @@ export function projectFlashAiDraftFromPersistenceReadiness(
     titlu:
       verifiedEditorial.editorialTitle,
 
-    limba: 'ro',
+    limba:
+      resolveFlashTargetLanguage(
+        readiness.targetLanguage,
+      ),
 
     pilon:
       classification.pilonId,

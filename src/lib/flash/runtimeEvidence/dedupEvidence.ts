@@ -140,7 +140,15 @@ export function evaluateFlashDedup(
         record.sourceFingerprint,
       )
 
+    const sameLanguage =
+      candidate.language !== null &&
+      candidate.language !== undefined &&
+      record.language !== null &&
+      record.language !== undefined &&
+      candidate.language === record.language
+
     if (
+      sameLanguage &&
       candidateEventFingerprint &&
       existingEventFingerprint &&
       candidateEventFingerprint ===
@@ -154,6 +162,7 @@ export function evaluateFlashDedup(
     }
 
     if (
+      sameLanguage &&
       candidateSourceFingerprint &&
       existingSourceFingerprint &&
       candidateSourceFingerprint ===
@@ -163,13 +172,6 @@ export function evaluateFlashDedup(
         'source_fingerprint_match',
       )
     }
-
-    const sameLanguage =
-      candidate.language !== null &&
-      candidate.language !== undefined &&
-      record.language !== null &&
-      record.language !== undefined &&
-      candidate.language === record.language
 
     if (
       sameLanguage &&

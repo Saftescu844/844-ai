@@ -20,6 +20,10 @@ import type {
 import type {
   FlashNormalizedArticleCandidate,
 } from './articleCandidateNormalization'
+import {
+  resolveFlashTargetLanguage,
+  type FlashTargetLanguage,
+} from './flashTargetLanguage'
 import type {
   FlashPrePersistenceDedupEvidence,
 } from './articleCandidatePrePersistenceDedup'
@@ -73,6 +77,13 @@ export interface FlashArticlePersistenceReadiness {
    */
   canCreateFlashAiDraft: boolean
 
+  /**
+   * Always populated by evaluateFlashArticlePersistenceReadiness.
+   * Optional only so legacy staging handoff fixtures deserialize as RO.
+   */
+  targetLanguage?:
+    FlashTargetLanguage
+
   verifiedEditorial:
     FlashPersistenceVerifiedEditorial | null
 
@@ -108,6 +119,7 @@ export interface FlashArticlePersistenceReadinessInput {
   dedup: FlashPrePersistenceDedupEvidence
   sourceFingerprint: string
   eventFingerprint?: string | null
+  targetLanguage?: FlashTargetLanguage
 
   /**
    * Must come from the strict REG-001S semantic parser/producer path.
@@ -144,6 +156,11 @@ export function evaluateFlashArticlePersistenceReadiness(
     sourceVerification,
     dedup,
   } = input
+
+  const targetLanguage =
+    resolveFlashTargetLanguage(
+      input.targetLanguage,
+    )
 
   if (
     candidate.canonicalUrl !==
@@ -183,6 +200,17 @@ export function evaluateFlashArticlePersistenceReadiness(
       null
 
   if (verifiedEditorialInput) {
+    if (
+      verifiedEditorialInput
+        .editorial
+        .language !==
+      targetLanguage
+    ) {
+      throw new Error(
+        'Flash persistence readiness editorial language does not match target language.',
+      )
+    }
+
     const qualityGate =
       evaluateFlashPrePersistenceEditorialQualityGate(
         verifiedEditorialInput.editorial,
@@ -326,6 +354,8 @@ export function evaluateFlashArticlePersistenceReadiness(
   return {
     canCreateFlashAiDraft:
       blockers.size === 0,
+
+    targetLanguage,
 
     verifiedEditorial,
 

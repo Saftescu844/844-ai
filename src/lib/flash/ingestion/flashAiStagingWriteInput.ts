@@ -5,6 +5,9 @@ import type {
 import type {
   FlashArticlePersistenceReadiness,
 } from './articleCandidatePersistenceReadiness'
+import {
+  resolveFlashTargetLanguage,
+} from './flashTargetLanguage'
 
 import {
   projectFlashAiDraftFromPersistenceReadiness,
@@ -77,6 +80,17 @@ export function buildFlashAiStagingWriteInput({
     projectFlashAiDraftFromPersistenceReadiness(
       readiness,
     )
+
+  if (
+    projection.limba !==
+    resolveFlashTargetLanguage(
+      readiness.targetLanguage,
+    )
+  ) {
+    throw new Error(
+      'FlashAI STAGING write input target language mismatch.',
+    )
+  }
 
   if (
     projection.eventFingerprint !==

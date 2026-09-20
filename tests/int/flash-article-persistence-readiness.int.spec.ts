@@ -115,6 +115,7 @@ describe(
 
         expect(result).toEqual({
           canCreateFlashAiDraft: false,
+          targetLanguage: 'ro',
           verifiedEditorial: null,
           sourceGroundedValues: {
             sourceId: 4,
@@ -270,6 +271,46 @@ describe(
 
         expect(result.canCreateFlashAiDraft)
           .toBe(true)
+      },
+    )
+
+    it(
+      'fails closed when editorial language does not match target language',
+      () => {
+        const editorial = {
+          language:
+            'ro' as const,
+          editorialTitle:
+            'Titlu editorial verificat',
+          editorialParagraphs: [
+            Array.from(
+              { length: 500 },
+              () => 'cuvânt',
+            ).join(' '),
+          ],
+        }
+
+        expect(
+          () =>
+            evaluateFlashArticlePersistenceReadiness({
+              candidate: candidate(),
+              sourceVerification:
+                sourceVerification(),
+              dedup: dedup(),
+              sourceFingerprint,
+              targetLanguage: 'en',
+              validatedClassification,
+              verifiedEditorial: {
+                editorial,
+                lexicalContent:
+                  buildVerifiedFlashEditorialLexicalContent(
+                    editorial.editorialParagraphs,
+                  ),
+              },
+            }),
+        ).toThrow(
+          'Flash persistence readiness editorial language does not match target language.',
+        )
       },
     )
 

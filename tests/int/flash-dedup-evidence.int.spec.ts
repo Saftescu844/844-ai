@@ -87,6 +87,31 @@ describe(
     )
 
     it(
+      'același eveniment în cealaltă limbă nu este duplicat',
+      () => {
+        const result =
+          evaluateFlashDedup({
+            candidate: candidate(),
+            existing: [
+              candidate({
+                id: 20,
+                language: 'en',
+                title:
+                  'OpenAI launches a new education platform',
+              }),
+            ],
+          })
+
+        expect(result).toEqual({
+          dedupPassed: true,
+          obviousDuplicate: false,
+          reasons: [],
+          matches: [],
+        })
+      },
+    )
+
+    it(
       'sourceFingerprint identic cere review, nu BLOCK',
       () => {
         const result =
