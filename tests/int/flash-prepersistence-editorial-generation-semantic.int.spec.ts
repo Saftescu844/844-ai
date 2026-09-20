@@ -261,7 +261,7 @@ describe(
         expect(
           prompt.systemPrompt,
         ).toContain(
-          'Write an original editorial synthesis, not a translation or reconstruction of the sources.',
+          'Write an original editorial synthesis directly from the supplied verified source set',
         )
 
         expect(
