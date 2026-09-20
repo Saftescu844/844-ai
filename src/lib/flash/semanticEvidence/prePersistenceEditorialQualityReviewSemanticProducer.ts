@@ -198,8 +198,8 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
     editorial.language !==
     targetLanguage
   ) {
-    throw new FlashSemanticEvidenceProducerError(
-      'invalid_input',
+    throw new Error(
+      'Flash editorial QA target language does not match editorial language.',
     )
   }
 
@@ -412,6 +412,24 @@ export async function runFlashPrePersistenceEditorialQualityReviewSemanticProduc
     )
 
   if (!runId) {
+    return {
+      ok: false,
+      editorial: null,
+      wordCount: null,
+      meetsEditorialWordCount: false,
+      run,
+      reason: 'invalid_input',
+    }
+  }
+
+  const targetLanguage =
+    input.targetLanguage ??
+    input.editorial.language
+
+  if (
+    targetLanguage !==
+    input.editorial.language
+  ) {
     return {
       ok: false,
       editorial: null,
