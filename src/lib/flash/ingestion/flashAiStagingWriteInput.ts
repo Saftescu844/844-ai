@@ -79,6 +79,15 @@ export function buildFlashAiStagingWriteInput({
     )
 
   if (
+    projection.limba !==
+    readiness.targetLanguage
+  ) {
+    throw new Error(
+      'FlashAI STAGING write input target language mismatch.',
+    )
+  }
+
+  if (
     projection.eventFingerprint !==
     eventFingerprint
   ) {
