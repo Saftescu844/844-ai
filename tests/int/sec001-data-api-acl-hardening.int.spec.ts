@@ -45,6 +45,41 @@ describe(
   'SEC-001 Data API ACL hardening migration contract',
   () => {
     it(
+      'fails closed unless the verified staging database baseline still matches',
+      () => {
+        expect(
+          upSource,
+        ).toContain(
+          "current_user <> 'postgres'",
+        )
+
+        expect(
+          upSource,
+        ).toContain(
+          "v_tables <> 83",
+        )
+
+        expect(
+          upSource,
+        ).toContain(
+          "v_sequences <> 58",
+        )
+
+        expect(
+          upSource,
+        ).toContain(
+          "rolname LIKE 'app_%'",
+        )
+
+        expect(
+          upSource,
+        ).toContain(
+          'SEC-001 abort: staging baseline drift',
+        )
+      },
+    )
+
+    it(
       'revokes anon/authenticated access from current and future Payload-owned public objects',
       () => {
         expect(
@@ -75,6 +110,29 @@ describe(
           upSource,
         ).toContain(
           'REVOKE ALL PRIVILEGES\n    ON ALL SEQUENCES IN SCHEMA public\n    FROM anon, authenticated',
+        )
+      },
+    )
+
+    it(
+      'self-checks the ACL result and keeps RLS unchanged',
+      () => {
+        expect(
+          upSource,
+        ).toContain(
+          'v_default_anon_auth_entries <> 0',
+        )
+
+        expect(
+          upSource,
+        ).toContain(
+          'v_rls_enabled <> 0',
+        )
+
+        expect(
+          upSource,
+        ).toContain(
+          'SEC-001 postcheck failed',
         )
       },
     )
