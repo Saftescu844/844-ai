@@ -103,6 +103,12 @@ describe(
         expect(
           upSource,
         ).toContain(
+          'REVOKE EXECUTE\n    ON FUNCTIONS\n    FROM PUBLIC',
+        )
+
+        expect(
+          upSource,
+        ).toContain(
           'REVOKE ALL PRIVILEGES\n    ON ALL TABLES IN SCHEMA public\n    FROM anon, authenticated',
         )
 
@@ -121,6 +127,12 @@ describe(
           upSource,
         ).toContain(
           'v_default_anon_auth_entries <> 0',
+        )
+
+        expect(
+          upSource,
+        ).toContain(
+          'v_default_public_function_entries <> 0',
         )
 
         expect(
