@@ -95,15 +95,15 @@ async function main() {
   for (const s of stiri.slice(0, 5)) console.log('      [' + s.scor + '/10, ' + s.subcategorie + '] ' + s.titlu.substring(0, 50))
   console.log('')
 
-  const deProiectat = stiri.slice(0, Math.max(MAX_ARTICOLE * 5, 10)) // candidați mai mulți; ne oprim la MAX_ARTICOLE publicate efectiv
+  const deProiectat = stiri.slice(0, Math.max(MAX_ARTICOLE * 5, 10)) // candidați mai mulți; ne oprim la MAX_ARTICOLE create efectiv
   console.log('[3] Încerc până la ' + deProiectat.length + ' candidați, țintă ' + MAX_ARTICOLE + ' articole...\n')
 
   let publicate = 0
   for (const stire of deProiectat) {
-    if (publicate >= MAX_ARTICOLE) break // oprire când am publicat efectiv suficiente, nu doar încercat
+    if (publicate >= MAX_ARTICOLE) break // oprire când am creat efectiv suficiente, nu doar încercat
     console.log('  → [' + stire.scor + '/10, ' + stire.subcategorie + '] "' + stire.titlu.substring(0, 45) + '..." (' + stire.sursa + ')')
     const existent = stire.link ? await payload.find({ collection: 'articole', where: { sursaLink: { equals: stire.link } }, limit: 1 }) : { docs: [] as any[] }
-    if (existent.docs.length > 0) { console.log('    deja publicat, sar peste'); continue }
+    if (existent.docs.length > 0) { console.log('    deja există, sar peste'); continue }
 
     const prompt =
       'Ești jurnalist educațional la 844-ai.ro. Scrie un articol ORIGINAL în română despre AI în educație, pe baza acestei știri.\n\n' +
@@ -128,11 +128,11 @@ async function main() {
           excerpt: (art.excerpt || '').substring(0, 298), continut: htmlToLexical(art.continut),
           sursaNume: stire.sursa, sursaLink: stire.link,
           tags: (art.tags || []).map((t: string) => ({ tag: t })),
-          status: 'published', publishedAt: new Date().toISOString(),
+          status: 'draft',
           generatAutomat: true, numarConfirmari: 1,
         } as any,
       })
-      console.log('    ✓ PUBLICAT în Educație/' + stire.subcategorie + ' (ID ' + creat.id + ')')
+      console.log('    ✓ CIORNĂ în Educație/' + stire.subcategorie + ' (ID ' + creat.id + ')')
       publicate++
 
       try {
@@ -146,7 +146,7 @@ async function main() {
               excerpt: (tradus.excerpt || '').substring(0, 298), continut: tradus.continut,
               sursaNume: stire.sursa, sursaLink: stire.link,
               tags: (art.tags || []).map((t: string) => ({ tag: t })),
-              status: 'published', publishedAt: new Date().toISOString(),
+              status: 'draft',
               generatAutomat: true, numarConfirmari: 1,
               versiuneAlternativa: creat.id,
               metaTitle: (tradus.metaTitle || '').substring(0, 58), metaDescription: (tradus.metaDescription || '').substring(0, 158),
@@ -160,7 +160,7 @@ async function main() {
       console.log('    EROARE: ' + e.message)
     }
   }
-  console.log('\n=== GATA: ' + publicate + ' articole Educație publicate ===\n')
+  console.log('\n=== GATA: ' + publicate + ' ciorne RO Educație create ===\n')
   process.exit(0)
 }
 main().catch((err) => { console.error('\nEROARE FATALĂ:', err.message); process.exit(1) })
