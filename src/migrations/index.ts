@@ -14,6 +14,7 @@ import * as migration_20260902_120037 from './20260902_120037';
 import * as migration_20260909_074122_reg001d_flash_engine_runs from './20260909_074122_reg001d_flash_engine_runs';
 import * as migration_20260910_090156_reg001d_flash_engine_job_slug from './20260910_090156_reg001d_flash_engine_job_slug';
 import * as migration_20260919_111358_u14_7h_flash_ai_comments from './20260919_111358_u14_7h_flash_ai_comments';
+import * as migration_20260925_120000_sec001_data_api_acl_hardening from './20260925_120000_sec001_data_api_acl_hardening';
 
 export const migrations = [
   {
@@ -95,5 +96,10 @@ export const migrations = [
     up: migration_20260919_111358_u14_7h_flash_ai_comments.up,
     down: migration_20260919_111358_u14_7h_flash_ai_comments.down,
     name: '20260919_111358_u14_7h_flash_ai_comments'
+  },
+  {
+    up: migration_20260925_120000_sec001_data_api_acl_hardening.up,
+    down: migration_20260925_120000_sec001_data_api_acl_hardening.down,
+    name: '20260925_120000_sec001_data_api_acl_hardening',
   },
 ];
