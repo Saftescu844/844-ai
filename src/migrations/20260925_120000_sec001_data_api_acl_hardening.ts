@@ -138,6 +138,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
       v_anon_sequence_objects integer;
       v_auth_sequence_objects integer;
       v_default_anon_auth_entries integer;
+      v_default_public_function_entries integer;
       v_rls_enabled integer;
     BEGIN
       WITH object_acl AS (
@@ -182,6 +183,14 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
         AND d.defaclobjtype IN ('r', 'S', 'f')
         AND r.rolname IN ('anon', 'authenticated');
 
+      SELECT count(*) INTO v_default_public_function_entries
+      FROM pg_default_acl d
+      CROSS JOIN LATERAL aclexplode(d.defaclacl) a
+      WHERE d.defaclnamespace = 'public'::regnamespace
+        AND d.defaclrole = 'postgres'::regrole
+        AND d.defaclobjtype = 'f'
+        AND a.grantee = 0;
+
       SELECT count(*) INTO v_rls_enabled
       FROM pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -194,15 +203,17 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
         OR v_anon_sequence_objects <> 0
         OR v_auth_sequence_objects <> 0
         OR v_default_anon_auth_entries <> 0
+        OR v_default_public_function_entries <> 0
         OR v_rls_enabled <> 0
       THEN
         RAISE EXCEPTION
-          'SEC-001 postcheck failed anon_tables=% auth_tables=% anon_sequences=% auth_sequences=% default_entries=% rls=%',
+          'SEC-001 postcheck failed anon_tables=% auth_tables=% anon_sequences=% auth_sequences=% default_entries=% public_function_entries=% rls=%',
           v_anon_table_objects,
           v_auth_table_objects,
           v_anon_sequence_objects,
           v_auth_sequence_objects,
           v_default_anon_auth_entries,
+          v_default_public_function_entries,
           v_rls_enabled;
       END IF;
     END
