@@ -60,17 +60,30 @@ Production is intentionally unchanged by this document and its companion test.
 
 Promotion to `main` must be a dedicated production change with explicit approval.
 
+Production currently uses an older Article editorial model than staging:
+
+- production `main`: custom `status = draft | review | published | blocked`;
+- staging: `editorialStatus` plus Payload-native `_status`.
+
+Therefore the first production containment must be schema-compatible and must **not** copy the staging write shape mechanically.
+
+The proven production-compatible precedent is `publish-health.ts`, which already creates `status: 'draft'` rows successfully in the production database.
+
 Recommended sequence:
 
-1. validate the draft-only contract in staging CI;
-2. prepare a surgical production PR from `main`, copying only the validated publisher containment changes;
-3. inspect the production diff and confirm no unrelated staging code is included;
-4. merge only with explicit production approval;
-5. observe the next scheduled publisher runs;
-6. verify newly generated rows are `draft` / review-only;
-7. verify no direct `publishedAt` writes occur from the legacy publisher;
-8. keep the schedule active initially so discovery/generation continues;
-9. only after the canonical publication boundary is operational, consider disabling the legacy schedule.
+1. validate the modern draft-only contract in staging CI;
+2. prepare a surgical branch from `main`;
+3. for `publish-rss.ts`, `publish-education.ts`, and `publish-business.ts`, replace direct `status: 'published'` / `publishedAt` writes with the existing production-compatible `status: 'draft'` pattern;
+4. keep `publish-health.ts` behavior unchanged except for any non-semantic logging cleanup;
+5. do not introduce `editorialStatus`, `draft: true`, or staging-only schema assumptions into this first production containment patch;
+6. inspect the production diff and confirm no unrelated staging code is included;
+7. merge only with explicit production approval;
+8. observe the next scheduled publisher runs;
+9. verify newly generated rows are `status='draft'` and `published_at IS NULL`;
+10. keep the schedule active initially so discovery/generation continues;
+11. only after the canonical publication boundary is operational, consider disabling the legacy schedule.
+
+A later controlled production schema/application promotion can adopt the staging `editorialStatus + _status` model. PUB-001 containment does not require that larger migration.
 
 ## Non-goals
 
