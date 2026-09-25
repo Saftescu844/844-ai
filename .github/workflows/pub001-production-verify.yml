@@ -1,0 +1,72 @@
+name: PUB-001 Production Branch Verification
+
+on:
+  push:
+    branches:
+      - fix/pub001-production-draft-only-containment
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production-containment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint changed publisher scripts
+        run: npx eslint publish-rss.ts publish-education.ts publish-business.ts
+
+      - name: Assert production draft-only contract
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+
+          const changed = [
+            'publish-rss.ts',
+            'publish-education.ts',
+            'publish-business.ts',
+          ]
+
+          const allPublishers = [
+            ...changed,
+            'publish-health.ts',
+          ]
+
+          for (const file of allPublishers) {
+            const source = readFileSync(file, 'utf8')
+
+            if (/status:\s*['"]published['"]/.test(source)) {
+              throw new Error(`${file}: direct published status remains`)
+            }
+
+            if (/publishedAt\s*:/.test(source)) {
+              throw new Error(`${file}: direct publishedAt write remains`)
+            }
+
+            const drafts =
+              source.match(/status:\s*['"]draft['"]/g)?.length ?? 0
+
+            if (drafts !== 2) {
+              throw new Error(
+                `${file}: expected exactly 2 draft writes, found ${drafts}`,
+              )
+            }
+          }
+
+          console.log(
+            'PUB-001 production containment contract PASS',
+          )
+          NODE
