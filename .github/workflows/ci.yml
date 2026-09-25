@@ -20,13 +20,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       CI: "true"
-      PAYLOAD_DB_PUSH: "false"
 
-      # CI-only placeholders. This workflow must not depend on staging or
-      # production secrets and must not connect to real external services.
-      DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci"
+      # Ephemeral GitHub Actions database. Never staging or production.
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci"
+
+      # CI-only placeholders. No real external service credentials are used.
       PAYLOAD_SECRET: "ci-only-placeholder-secret-not-for-runtime"
       MEDIA_PUBLIC_BASE_URL: "https://example.invalid/media"
       S3_BUCKET: "ci-only"
@@ -52,6 +67,55 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prepare CI database roles
+        run: |
+          node --input-type=module <<'NODE'
+          import pg from 'pg'
+
+          const client = new pg.Client({
+            connectionString: process.env.DATABASE_URL,
+          })
+
+          await client.connect()
+
+          await client.query(`
+            DO $$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1
+                FROM pg_roles
+                WHERE rolname = 'anon'
+              ) THEN
+                CREATE ROLE anon NOLOGIN;
+              END IF;
+
+              IF NOT EXISTS (
+                SELECT 1
+                FROM pg_roles
+                WHERE rolname = 'authenticated'
+              ) THEN
+                CREATE ROLE authenticated NOLOGIN;
+              END IF;
+
+              IF NOT EXISTS (
+                SELECT 1
+                FROM pg_roles
+                WHERE rolname = 'service_role'
+              ) THEN
+                CREATE ROLE service_role NOLOGIN;
+              END IF;
+            END
+            $$;
+          `)
+
+          await client.end()
+          NODE
+
+      - name: Apply Payload migrations to ephemeral CI database
+        env:
+          PAYLOAD_DB_PUSH: "false"
+        run: npm run db:migrate:up
+
       - name: Lint
         run: npm run lint
 
@@ -59,4 +123,6 @@ jobs:
         run: npm run test:int
 
       - name: Production build
+        env:
+          PAYLOAD_DB_PUSH: "false"
         run: npm run build
