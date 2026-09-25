@@ -84,7 +84,7 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
 
           <h2 style={s.h2}>Cum îți gestionezi preferințele</h2>
           <p style={s.p}>
-            Poți schimba oricând alegerea inițială din linkul „Setări cookie-uri" din footer-ul
+            Poți schimba oricând alegerea inițială din linkul „Setări cookie-uri&quot; din footer-ul
             site-ului, sau poți controla/șterge cookie-urile direct din setările browserului tău.
           </p>
 
@@ -166,7 +166,7 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
 
           <h2 style={s.h2}>Managing your preferences</h2>
           <p style={s.p}>
-            You can change your initial choice anytime via the "Cookie Settings" link in the site
+            You can change your initial choice anytime via the &quot;Cookie Settings&quot; link in the site
             footer, or control/delete cookies directly from your browser settings.
           </p>
 
