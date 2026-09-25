@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - staging
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      CI: "true"
+
+      # Ephemeral GitHub Actions database. Never staging or production.
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci"
+
+      # CI-only placeholders. No real external service credentials are used.
+      PAYLOAD_SECRET: "ci-only-placeholder-secret-not-for-runtime"
+      MEDIA_PUBLIC_BASE_URL: "https://example.invalid/media"
+      S3_BUCKET: "ci-only"
+      S3_ACCESS_KEY_ID: "ci-only"
+      S3_SECRET_ACCESS_KEY: "ci-only"
+      S3_REGION: "eu-central-1"
+      S3_ENDPOINT: "https://example.invalid"
+      SITE_URL: "https://example.invalid"
+      BREVO_API_KEY: "ci-not-used"
+      ANTHROPIC_API_KEY: "ci-not-used"
+      OPENAI_API_KEY: "ci-not-used"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare CI database roles
+        run: |
+          node --input-type=module <<'NODE'
+          import pg from 'pg'
+
+          const client = new pg.Client({
+            connectionString: process.env.DATABASE_URL,
+          })
+
+          await client.connect()
+
+          await client.query(`
+            DO $$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1
+                FROM pg_roles
+                WHERE rolname = 'anon'
+              ) THEN
+                CREATE ROLE anon NOLOGIN;
+              END IF;
+
+              IF NOT EXISTS (
+                SELECT 1
+                FROM pg_roles
+                WHERE rolname = 'authenticated'
+              ) THEN
+                CREATE ROLE authenticated NOLOGIN;
+              END IF;
+
+              IF NOT EXISTS (
+                SELECT 1
+                FROM pg_roles
+                WHERE rolname = 'service_role'
+              ) THEN
+                CREATE ROLE service_role NOLOGIN;
+              END IF;
+            END
+            $$;
+          `)
+
+          await client.end()
+          NODE
+
+      - name: Apply Payload migrations to ephemeral CI database
+        env:
+          PAYLOAD_DB_PUSH: "false"
+        run: npm run db:migrate:up
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Integration tests
+        run: npm run test:int
+
+      - name: Production build
+        env:
+          PAYLOAD_DB_PUSH: "false"
+        run: npm run build
