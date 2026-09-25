@@ -15,8 +15,11 @@ Production evidence collected on 2026-09-25 confirms that this authority is acti
 
 In the preceding seven-day window, automatically generated production content included:
 
-- 66 directly published article rows;
+- 78 article rows in total;
+- 72 directly published article rows;
 - 6 medical draft rows.
+
+The two published rows categorized as Health in that window were produced through the general RSS publisher's cross-pillar classification path; the dedicated medical publisher itself remains draft-only.
 
 The direct-publication paths are:
 
