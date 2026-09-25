@@ -26,8 +26,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint changed publisher scripts
-        run: npx eslint publish-rss.ts publish-education.ts publish-business.ts
+      - name: Parse changed publisher scripts
+        run: |
+          npx esbuild publish-rss.ts --bundle --platform=node --packages=external --outfile=/tmp/publish-rss.js
+          npx esbuild publish-education.ts --bundle --platform=node --packages=external --outfile=/tmp/publish-education.js
+          npx esbuild publish-business.ts --bundle --platform=node --packages=external --outfile=/tmp/publish-business.js
 
       - name: Assert production draft-only contract
         run: |
