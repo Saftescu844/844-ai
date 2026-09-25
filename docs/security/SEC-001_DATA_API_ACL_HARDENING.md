@@ -92,7 +92,11 @@ The successful dry-run confirmed that, inside the transaction:
 
 After rollback, the original ACL baseline was verified as restored.
 
-## Pre-apply abort conditions
+## Executable preflight / abort conditions
+
+The migration itself performs a fail-closed preflight before any ACL change.
+
+It aborts if the verified staging baseline has drifted, including if the current user is not `postgres`, object counts/ownership have changed, public functions/views have appeared, or an `app_*` role exists.
 
 Do not apply SEC-001 if any of these have changed:
 
@@ -120,7 +124,8 @@ After eventual application in staging:
 8. verify media upload/read/delete using a test fixture;
 9. verify newsletter staging flow;
 10. verify Flash/Payload Jobs and migration status;
-11. inspect Railway and PostgreSQL logs.
+11. verify the migration self-check completed without error;
+12. inspect Railway and PostgreSQL logs.
 
 ## Rollback
 
