@@ -19,6 +19,7 @@ import * as migration_20260927_152500_db001b_newsletter_rls_probe from './202609
 import * as migration_20260927_162500_db001c_useri_sessions_rls from './20260927_162500_db001c_useri_sessions_rls';
 import * as migration_20260927_164500_db001d_useri_rls from './20260927_164500_db001d_useri_rls';
 import * as migration_20260927_170500_db001e_newsletter_segment_rls from './20260927_170500_db001e_newsletter_segment_rls';
+import * as migration_20260927_172500_db001f_comentarii_rls from './20260927_172500_db001f_comentarii_rls';
 
 export const migrations = [
   {
@@ -125,5 +126,10 @@ export const migrations = [
     up: migration_20260927_170500_db001e_newsletter_segment_rls.up,
     down: migration_20260927_170500_db001e_newsletter_segment_rls.down,
     name: '20260927_170500_db001e_newsletter_segment_rls',
+  },
+  {
+    up: migration_20260927_172500_db001f_comentarii_rls.up,
+    down: migration_20260927_172500_db001f_comentarii_rls.down,
+    name: '20260927_172500_db001f_comentarii_rls',
   },
 ];
