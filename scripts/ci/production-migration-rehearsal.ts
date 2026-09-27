@@ -50,7 +50,7 @@ async function prepare(): Promise<void> {
     // Recreate the exact July baseline schema without recording it through the
     // Payload migrator. This models the current production reality: the schema
     // already exists, while migration history contains only the old dev marker.
-    await baseline.up({ db } as Parameters<typeof baseline.up>[0])
+    await baseline.up({ db } as unknown as Parameters<typeof baseline.up>[0])
 
     await pool.query(`
       INSERT INTO public.payload_migrations
