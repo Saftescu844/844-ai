@@ -18,6 +18,7 @@ import * as migration_20260925_120000_sec001_data_api_acl_hardening from './2026
 import * as migration_20260927_152500_db001b_newsletter_rls_probe from './20260927_152500_db001b_newsletter_rls_probe';
 import * as migration_20260927_162500_db001c_useri_sessions_rls from './20260927_162500_db001c_useri_sessions_rls';
 import * as migration_20260927_164500_db001d_useri_rls from './20260927_164500_db001d_useri_rls';
+import * as migration_20260927_170500_db001e_newsletter_segment_rls from './20260927_170500_db001e_newsletter_segment_rls';
 
 export const migrations = [
   {
@@ -119,5 +120,10 @@ export const migrations = [
     up: migration_20260927_164500_db001d_useri_rls.up,
     down: migration_20260927_164500_db001d_useri_rls.down,
     name: '20260927_164500_db001d_useri_rls',
+  },
+  {
+    up: migration_20260927_170500_db001e_newsletter_segment_rls.up,
+    down: migration_20260927_170500_db001e_newsletter_segment_rls.down,
+    name: '20260927_170500_db001e_newsletter_segment_rls',
   },
 ];
