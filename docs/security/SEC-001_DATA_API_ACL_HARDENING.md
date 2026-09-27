@@ -2,9 +2,9 @@
 
 ## Status
 
-Implementation prepared on a dedicated branch.
+Applied and validated on staging.
 
-This change is **not deployed** and **not applied** to staging or production.
+Production remains **not applied** and requires a separate controlled cutover decision.
 
 ## Current verified staging baseline
 
@@ -38,6 +38,7 @@ It intentionally preserves:
 
 - `postgres`;
 - `service_role`;
+- direct PostgreSQL application roles such as `app_prod2`, provided they do not own Payload objects;
 - schema ownership;
 - RLS state;
 - Supabase Storage;
@@ -65,6 +66,7 @@ It does **not**:
 - enable RLS;
 - revoke `USAGE` on schema `public`;
 - modify `service_role`;
+- revoke or rewrite privileges for direct PostgreSQL application roles such as `app_prod2`;
 - modify `supabase_admin`;
 - modify `storage.*`;
 - modify `auth.*`;
@@ -96,13 +98,15 @@ After rollback, the original ACL baseline was verified as restored.
 
 The migration itself performs a fail-closed preflight before any ACL change.
 
-It aborts if the verified staging baseline has drifted, including if the current user is not `postgres`, object counts/ownership have changed, public functions/views have appeared, or an `app_*` role exists.
+It aborts if the verified baseline has drifted, including if the current user is not `postgres`, object counts/ownership have changed, public functions/views have appeared, or an `app_*` role owns a Payload relation.
+
+The mere existence of a direct application role does not abort SEC-001. This is required for production compatibility: `app_prod2` is a login role with explicit/default table and sequence privileges, but owns no `public` objects.
 
 Do not apply SEC-001 if any of these have changed:
 
 - `current_user` is not `postgres`;
 - public object ownership no longer matches the verified baseline;
-- staging has gained an `app_*` role;
+- an `app_*` role owns a table, sequence, view, or materialized view in `public`;
 - the application has started using Supabase Data API / `supabase-js` for Payload tables;
 - public functions or views have been introduced without separate review;
 - migration history is no longer aligned with the repository;
@@ -137,4 +141,20 @@ Rollback should be used only while this remains the latest ACL change. If later 
 
 Production is explicitly out of scope for this change.
 
-Production currently differs from staging and includes the PostgreSQL login role `app_prod2`, which must be reviewed separately before any production ACL migration.
+Production differs from staging and includes the PostgreSQL login role `app_prod2`.
+
+Read-only production audit confirmed:
+
+- `app_prod2` owns 0 objects in `public`;
+- it has explicit privileges on the 36 legacy tables and all 30 legacy sequences;
+- it has `postgres` default privileges for future tables and sequences;
+- `pg_stat_statements` confirms real historical use of the role;
+- therefore it must not be dropped or blindly revoked during cutover.
+
+The production-like CI rehearsal now includes an `app_prod2` role and verifies that:
+
+- SEC-001 still removes `anon` / `authenticated` access;
+- `app_prod2` retains access to both legacy and newly-created Payload objects;
+- `app_prod2` owns no Payload relations.
+
+Production remains unchanged until explicit approval.
