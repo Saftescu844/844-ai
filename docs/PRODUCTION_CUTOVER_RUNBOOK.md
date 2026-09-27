@@ -166,33 +166,23 @@ Do not mutate version history.
 
 ---
 
-## 7. Migration connection gate
+## 7. Migration connection gate — PASS
 
 SEC-001 requires the migration session to execute as PostgreSQL `postgres`.
 
-The production application may use a different direct application role such as `app_prod2`.
+For this production environment, the effective production database connection role has been confirmed as:
 
-Therefore, immediately before cutover:
+`postgres`
 
-### Case A — production DATABASE_URL executes as postgres
+Therefore:
 
-The same connection may be used for Payload migrations.
+- the existing production `DATABASE_URL` is eligible for Payload migration execution;
+- no separate admin migration connection is required;
+- no temporary migration secret is required;
+- `app_prod2` remains a preserved application role and is not used as the migration owner;
+- SEC-001 will still verify that Payload objects remain owned by `postgres`.
 
-### Case B — production DATABASE_URL executes as app_prod2 or another application role
-
-Do **not** elevate or rewrite the application role.
-
-Use a separate temporary admin migration connection that resolves to PostgreSQL `postgres`.
-
-Rules:
-
-- never print the admin connection string;
-- never commit it to GitHub;
-- never put it in documentation;
-- scope it only to the migration mechanism;
-- remove it after successful closeout if it was introduced temporarily.
-
-If the effective migration role cannot be confirmed as `postgres`, abort.
+Immediately before cutover, re-confirm `current_user = 'postgres'` read-only. If that assertion fails, abort.
 
 ---
 
@@ -456,6 +446,7 @@ As of 2026-09-27:
 - release dry-run PR #129: **PASS / remains DRAFT**
 - migration rehearsal: **PASS**
 - production-like `app_prod2` rehearsal: **PASS**
+- production database migration role: **postgres / PASS**
 - production mutation approval for full cutover: **NOT GIVEN**
 
 The next safe action is final runbook review and release-candidate freeze. No production mutation should occur until a separate explicit cutover approval is given.
