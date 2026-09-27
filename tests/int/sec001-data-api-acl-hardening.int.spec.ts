@@ -45,7 +45,7 @@ describe(
   'SEC-001 Data API ACL hardening migration contract',
   () => {
     it(
-      'fails closed unless the verified staging database baseline still matches',
+      'fails closed on baseline drift while allowing non-owning application roles',
       () => {
         expect(
           upSource,
@@ -74,7 +74,19 @@ describe(
         expect(
           upSource,
         ).toContain(
-          'SEC-001 abort: staging baseline drift',
+          'v_app_owned_relations <> 0',
+        )
+
+        expect(
+          upSource,
+        ).not.toContain(
+          'OR v_app_roles <> 0',
+        )
+
+        expect(
+          upSource,
+        ).toContain(
+          'SEC-001 abort: baseline drift',
         )
       },
     )
