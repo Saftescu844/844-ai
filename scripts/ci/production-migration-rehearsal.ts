@@ -49,15 +49,14 @@ async function prepare(): Promise<void> {
 
     // Recreate the exact July baseline schema without recording it through the
     // Payload migrator. This models the current production reality: the schema
-    // exists, while migration history does not yet contain the baseline name.
+    // already exists, while migration history contains only the old dev marker.
     await baseline.up({ db } as Parameters<typeof baseline.up>[0])
 
     await pool.query(`
       INSERT INTO public.payload_migrations
         (name, batch, updated_at, created_at)
       VALUES
-        ('dev', -1, now(), now()),
-        ('20260730_185012_baseline_current_schema', 1, now(), now())
+        ('dev', -1, now(), now())
     `)
 
     const seeded = await pool.query<{ id: number; slug: string }>(`
@@ -157,6 +156,87 @@ async function prepare(): Promise<void> {
           fixture.publishedAt,
         ],
       )
+    }
+
+    // One-time migration-history onboarding rehearsal.
+    //
+    // This happens while the legacy schema still exists, so "status" remains
+    // the exact authority used by the live legacy application. Aligning
+    // _status at this point cannot change legacy public visibility, but makes
+    // the database ready for the modern model where _status is authoritative.
+    await pool.query('BEGIN')
+
+    try {
+      const preflight = await pool.query<{
+        dev_markers: number
+        baseline_markers: number
+        published_rows: number
+        published_without_date: number
+      }>(`
+        SELECT
+          (
+            SELECT count(*)::int
+            FROM public.payload_migrations
+            WHERE name = 'dev' AND batch = -1
+          ) AS dev_markers,
+          (
+            SELECT count(*)::int
+            FROM public.payload_migrations
+            WHERE name = '20260730_185012_baseline_current_schema'
+          ) AS baseline_markers,
+          (
+            SELECT count(*)::int
+            FROM public.articole
+            WHERE status = 'published'
+          ) AS published_rows,
+          (
+            SELECT count(*)::int
+            FROM public.articole
+            WHERE status = 'published'
+              AND published_at IS NULL
+          ) AS published_without_date
+      `)
+
+      assert.deepEqual(preflight.rows[0], {
+        dev_markers: 1,
+        baseline_markers: 0,
+        published_rows: 2,
+        published_without_date: 0,
+      })
+
+      await pool.query(`
+        UPDATE public.articole
+        SET _status = status
+        WHERE _status IS DISTINCT FROM status
+      `)
+
+      const aligned = await pool.query<{ mismatches: number }>(`
+        SELECT count(*)::int AS mismatches
+        FROM public.articole
+        WHERE _status IS DISTINCT FROM status
+      `)
+
+      assert.equal(aligned.rows[0]?.mismatches, 0)
+
+      const removed = await pool.query(`
+        DELETE FROM public.payload_migrations
+        WHERE name = 'dev'
+          AND batch = -1
+      `)
+
+      assert.equal(removed.rowCount, 1, 'Expected exactly one legacy dev migration marker')
+
+      await pool.query(`
+        INSERT INTO public.payload_migrations
+          (name, batch, updated_at, created_at)
+        VALUES
+          ('20260730_185012_baseline_current_schema', 1, now(), now())
+      `)
+
+      await pool.query('COMMIT')
+    } catch (error) {
+      await pool.query('ROLLBACK')
+      throw error
     }
   } finally {
     await pool.end()
@@ -265,7 +345,7 @@ async function assertRehearsal(): Promise<void> {
     const versionMap = new Map(versions.rows.map((row) => [row.version_slug, row]))
 
     // Historical native version status is deliberately preserved. Only the
-    // editorial field is converted published -> approved.
+    // editorial field is converted published -> approved by the real migration.
     assert.deepEqual(
       {
         editorial: versionMap.get('version-visible-native-draft')?.editorial_status,
@@ -303,7 +383,7 @@ async function assertRehearsal(): Promise<void> {
     )
     const migrationNames = new Set(migrationRows.rows.map((row) => row.name))
 
-    assert.ok(migrationNames.has('dev'), 'Historical production marker must remain present')
+    assert.equal(migrationNames.has('dev'), false, 'Legacy dev marker must be removed before migrate')
 
     for (const migration of migrations) {
       assert.ok(
@@ -358,7 +438,9 @@ async function assertRehearsal(): Promise<void> {
     process.stdout.write(
       [
         'Production migration rehearsal PASS',
-        '- baseline history onboarding prevented baseline DDL replay',
+        '- legacy dev marker removed before Payload migrate',
+        '- baseline recorded without replaying baseline DDL',
+        '- live article _status aligned while legacy status remained authoritative',
         '- all post-baseline migrations applied through Payload migrate',
         '- legacy public visibility preserved exactly',
         '- hidden legacy rows remained hidden',
