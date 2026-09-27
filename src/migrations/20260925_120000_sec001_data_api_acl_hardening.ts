@@ -17,6 +17,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
       v_tables_owned_postgres integer;
       v_sequences_owned_postgres integer;
       v_app_roles integer;
+      v_app_owned_relations integer;
     BEGIN
       IF current_user <> 'postgres' THEN
         RAISE EXCEPTION
@@ -71,6 +72,14 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
       FROM pg_roles
       WHERE rolname LIKE 'app_%';
 
+      SELECT count(*) INTO v_app_owned_relations
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN pg_roles r ON r.oid = c.relowner
+      WHERE n.nspname = 'public'
+        AND c.relkind IN ('r', 'S', 'v', 'm')
+        AND r.rolname LIKE 'app_%';
+
       IF v_tables <> 83
         OR v_sequences <> 58
         OR v_functions <> 0
@@ -78,10 +87,10 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
         OR v_materialized_views <> 0
         OR v_tables_owned_postgres <> 83
         OR v_sequences_owned_postgres <> 58
-        OR v_app_roles <> 0
+        OR v_app_owned_relations <> 0
       THEN
         RAISE EXCEPTION
-          'SEC-001 abort: staging baseline drift tables=% sequences=% functions=% views=% matviews=% postgres_tables=% postgres_sequences=% app_roles=%',
+          'SEC-001 abort: baseline drift tables=% sequences=% functions=% views=% matviews=% postgres_tables=% postgres_sequences=% app_roles=% app_owned_relations=%',
           v_tables,
           v_sequences,
           v_functions,
@@ -89,7 +98,8 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
           v_materialized_views,
           v_tables_owned_postgres,
           v_sequences_owned_postgres,
-          v_app_roles;
+          v_app_roles,
+          v_app_owned_relations;
       END IF;
     END
     $sec001_preflight$;
