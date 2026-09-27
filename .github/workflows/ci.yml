@@ -40,6 +40,7 @@ jobs:
 
       # Ephemeral GitHub Actions database. Never staging or production.
       DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci"
+      REHEARSAL_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/migration_rehearsal"
 
       # CI-only placeholders. No real external service credentials are used.
       PAYLOAD_SECRET: "ci-only-placeholder-secret-not-for-runtime"
@@ -110,6 +111,14 @@ jobs:
 
           await client.end()
           NODE
+
+      - name: Rehearse legacy production migration cutover
+        env:
+          PAYLOAD_DB_PUSH: "false"
+        run: |
+          npx tsx scripts/ci/production-migration-rehearsal.ts prepare
+          DATABASE_URL="$REHEARSAL_DATABASE_URL" npm run db:migrate:up
+          npx tsx scripts/ci/production-migration-rehearsal.ts assert
 
       - name: Apply Payload migrations to ephemeral CI database
         env:
