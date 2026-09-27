@@ -380,11 +380,34 @@ No staging database or production database was mutated by this rehearsal.
 
 ---
 
-## 9. Immediate next technical task
+## 9. Recovery strategy decision — 2026-09-27
+
+The selected production recovery strategy is:
+
+**Fresh scheduled physical backup immediately before cutover; no PITR add-on.**
+
+Operational implications:
+
+- confirm a same-day restorable backup before cutover;
+- record its exact UTC timestamp;
+- start the cutover as close to that backup as practical;
+- prefer the quiet interval before the 05:00 UTC publisher run;
+- avoid deliberate editorial/media writes during the recovery-loss window;
+- treat database rollback and Railway code rollback as a coupled recovery after schema migration begins.
+
+The exact procedure is maintained in:
+
+`docs/PRODUCTION_CUTOVER_RUNBOOK.md`
+
+PITR remains intentionally disabled unless a later explicit decision changes the recovery strategy.
+
+---
+
+## 10. Immediate next technical task
 
 The next safe task is:
 
-**Release integration design and pre-cutover runbook**
+**Final release-candidate freeze and pre-cutover verification**
 
 Deliverables:
 
