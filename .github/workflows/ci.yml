@@ -40,6 +40,7 @@ jobs:
 
       # Ephemeral GitHub Actions database. Never staging or production.
       DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci"
+      REHEARSAL_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/migration_rehearsal"
 
       # CI-only placeholders. No real external service credentials are used.
       PAYLOAD_SECRET: "ci-only-placeholder-secret-not-for-runtime"
@@ -115,6 +116,40 @@ jobs:
         env:
           PAYLOAD_DB_PUSH: "false"
         run: npm run db:migrate:up
+
+      - name: Rehearse legacy production migration cutover
+        env:
+          PAYLOAD_DB_PUSH: "false"
+        run: |
+          npx tsx scripts/ci/production-migration-rehearsal.ts prepare
+          DATABASE_URL="$REHEARSAL_DATABASE_URL" npm run db:migrate:up
+          npx tsx scripts/ci/production-migration-rehearsal.ts assert
+
+      - name: Verify primary CI database isolation
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import pg from 'pg'
+
+          const client = new pg.Client({
+            connectionString: process.env.DATABASE_URL,
+          })
+
+          await client.connect()
+
+          try {
+            const result = await client.query(`
+              SELECT
+                to_regclass('public.useri')::text AS useri,
+                to_regclass('public.flash_engine_runs')::text AS flash_engine_runs
+            `)
+
+            assert.equal(result.rows[0]?.useri, 'useri')
+            assert.equal(result.rows[0]?.flash_engine_runs, 'flash_engine_runs')
+          } finally {
+            await client.end()
+          }
+          NODE
 
       - name: Lint
         run: npm run lint
