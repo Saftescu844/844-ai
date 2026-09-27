@@ -51,7 +51,7 @@ async function prepare(): Promise<void> {
     // preserved by SEC-001 because it is a direct PostgreSQL application role,
     // not a Supabase Data API role. It must never own Payload objects.
     await pool.query(`
-      DO $
+      DO $app_role$
       BEGIN
         IF NOT EXISTS (
           SELECT 1 FROM pg_roles WHERE rolname = 'app_prod2'
@@ -59,7 +59,7 @@ async function prepare(): Promise<void> {
           CREATE ROLE app_prod2 LOGIN;
         END IF;
       END
-      $;
+      $app_role$;
 
       ALTER DEFAULT PRIVILEGES
       FOR ROLE postgres
