@@ -315,19 +315,84 @@ Do not:
 
 ---
 
-## 8. Immediate next technical task
+## 8. Migration onboarding rehearsal — VALIDATED IN CI
+
+A production-like migration rehearsal was completed in an isolated PostgreSQL 17 database in CI.
+
+### Production state discovered read-only
+
+Legacy production currently contains four root article combinations:
+
+- `status=draft`, `_status=draft`: 121 rows
+- `status=draft`, `_status=published`: 13 rows
+- `status=published`, `_status=draft`: 715 rows
+- `status=published`, `_status=published`: 6 rows
+
+The old application uses `status='published'` as the public-read authority.  
+The modern staging application uses `_status='published'`.
+
+Therefore a blind schema/code cutover would change public visibility for hundreds of existing articles.
+
+The historical version table also contains mixed editorial/native states. Those version-native statuses are legitimate history and must not be normalized blindly.
+
+### Approved onboarding model for rehearsal
+
+The rehearsal validates a one-time transactional onboarding step **before** running the post-baseline Payload migrations:
+
+1. require the historical `payload_migrations(name='dev', batch=-1)` marker;
+2. require the baseline migration not to be recorded yet;
+3. verify legacy published rows satisfy the expected timestamp invariant;
+4. align live root article `_status` to the old authoritative `status`;
+5. verify zero root mismatches remain;
+6. delete exactly the single historical `dev/-1` marker;
+7. record `20260730_185012_baseline_current_schema` as already represented;
+8. commit the onboarding transaction;
+9. run the real post-baseline migration chain through Payload.
+
+This alignment happens while the legacy application still reads `status`, so it does not change the old application's public-read contract. It prepares the database for the modern application, where `_status` becomes authoritative.
+
+### CI safety boundary
+
+The rehearsal harness:
+
+- requires `CI=true`;
+- accepts only `localhost`, `127.0.0.1` or `::1`;
+- accepts only the exact database name `migration_rehearsal`;
+- uses no staging or production credentials;
+- recreates a separate ephemeral database;
+- seeds all four legacy root status combinations;
+- preserves historical version-native status;
+- runs the actual repository migrations rather than copied SQL;
+- verifies final schema counts and SEC-001 ACL invariants.
+
+### Verified result
+
+Final quality-gate run on the rehearsal branch confirmed:
+
+- primary ephemeral CI migrations: PASS
+- production migration rehearsal: PASS
+- primary/rehearsal database isolation: PASS
+- lint: PASS
+- integration tests: **153/153 files, 1092/1092 tests PASS**
+- production build: PASS
+
+No staging database or production database was mutated by this rehearsal.
+
+---
+
+## 9. Immediate next technical task
 
 The next safe task is:
 
-**Production migration onboarding rehearsal design**
+**Release integration design and pre-cutover runbook**
 
 Deliverables:
 
-1. exact baseline-history onboarding procedure;
-2. representative non-production migration rehearsal plan;
-3. assertions for the editorial-status data transformation;
-4. release integration strategy for the 554-commit staging delta;
-5. rollback and recovery checkpoints;
-6. production-governance prerequisite list.
+1. exact one-time production onboarding transaction with before/after assertions;
+2. release integration strategy for the large `staging` / `main` divergence;
+3. preservation of the production-only PUB-001 history;
+4. exact production backup and recovery checkpoints;
+5. publisher maintenance-window procedure;
+6. production preflight and post-deployment invariant checklist.
 
-This work remains staging/documentation/testing only until a separate production approval is given.
+This work remains branch/documentation/testing only until a separate explicit production approval is given.
