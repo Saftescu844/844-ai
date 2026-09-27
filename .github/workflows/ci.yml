@@ -120,9 +120,10 @@ jobs:
       - name: Rehearse legacy production migration cutover
         env:
           PAYLOAD_DB_PUSH: "false"
+          DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/migration_rehearsal"
         run: |
           npx tsx scripts/ci/production-migration-rehearsal.ts prepare
-          DATABASE_URL="$REHEARSAL_DATABASE_URL" npm run db:migrate:up
+          npm run db:migrate:up
           npx tsx scripts/ci/production-migration-rehearsal.ts assert
 
       - name: Verify primary CI database isolation
