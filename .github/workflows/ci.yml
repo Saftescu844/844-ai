@@ -112,6 +112,34 @@ jobs:
           await client.end()
           NODE
 
+      - name: Create isolated migration rehearsal database
+        run: |
+          node --input-type=module <<'NODE'
+          import pg from 'pg'
+
+          const client = new pg.Client({
+            connectionString: process.env.DATABASE_URL,
+          })
+
+          await client.connect()
+
+          const existing = await client.query(
+            "SELECT 1 FROM pg_database WHERE datname = 'migration_rehearsal'",
+          )
+
+          if (existing.rowCount !== 0) {
+            throw new Error('migration_rehearsal database already exists; refusing to reuse it')
+          }
+
+          await client.query('CREATE DATABASE migration_rehearsal')
+          await client.end()
+          NODE
+
+      - name: Rehearse production cutover migrations
+        env:
+          MIGRATION_REHEARSAL_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/migration_rehearsal"
+        run: npx tsx scripts/production-migration-rehearsal.ts
+
       - name: Apply Payload migrations to ephemeral CI database
         env:
           PAYLOAD_DB_PUSH: "false"
