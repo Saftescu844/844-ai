@@ -16,6 +16,7 @@ import * as migration_20260910_090156_reg001d_flash_engine_job_slug from './2026
 import * as migration_20260919_111358_u14_7h_flash_ai_comments from './20260919_111358_u14_7h_flash_ai_comments';
 import * as migration_20260925_120000_sec001_data_api_acl_hardening from './20260925_120000_sec001_data_api_acl_hardening';
 import * as migration_20260927_152500_db001b_newsletter_rls_probe from './20260927_152500_db001b_newsletter_rls_probe';
+import * as migration_20260927_162500_db001c_useri_sessions_rls from './20260927_162500_db001c_useri_sessions_rls';
 
 export const migrations = [
   {
@@ -107,5 +108,10 @@ export const migrations = [
     up: migration_20260927_152500_db001b_newsletter_rls_probe.up,
     down: migration_20260927_152500_db001b_newsletter_rls_probe.down,
     name: '20260927_152500_db001b_newsletter_rls_probe',
+  },
+  {
+    up: migration_20260927_162500_db001c_useri_sessions_rls.up,
+    down: migration_20260927_162500_db001c_useri_sessions_rls.down,
+    name: '20260927_162500_db001c_useri_sessions_rls',
   },
 ];
