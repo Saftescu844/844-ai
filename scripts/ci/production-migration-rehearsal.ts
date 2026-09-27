@@ -47,6 +47,31 @@ async function prepare(): Promise<void> {
   try {
     const db = drizzle(pool)
 
+    // Reproduce the production-only application role. It is intentionally
+    // preserved by SEC-001 because it is a direct PostgreSQL application role,
+    // not a Supabase Data API role. It must never own Payload objects.
+    await pool.query(`
+      DO $
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_roles WHERE rolname = 'app_prod2'
+        ) THEN
+          CREATE ROLE app_prod2 LOGIN;
+        END IF;
+      END
+      $;
+
+      ALTER DEFAULT PRIVILEGES
+      FOR ROLE postgres
+      IN SCHEMA public
+      GRANT ALL PRIVILEGES ON TABLES TO app_prod2;
+
+      ALTER DEFAULT PRIVILEGES
+      FOR ROLE postgres
+      IN SCHEMA public
+      GRANT ALL PRIVILEGES ON SEQUENCES TO app_prod2;
+    `)
+
     // Recreate the exact July baseline schema without recording it through the
     // Payload migrator. This models the current production reality: the schema
     // already exists, while migration history contains only the old dev marker.
@@ -420,12 +445,30 @@ async function assertRehearsal(): Promise<void> {
       auth_table: boolean
       anon_sequence: boolean
       auth_sequence: boolean
+      app_legacy_table: boolean
+      app_new_table: boolean
+      app_legacy_sequence: boolean
+      app_new_sequence: boolean
+      app_owned_relations: number
     }>(`
       SELECT
         has_table_privilege('anon', 'public.articole', 'SELECT') AS anon_table,
         has_table_privilege('authenticated', 'public.articole', 'SELECT') AS auth_table,
         has_sequence_privilege('anon', 'public.articole_id_seq', 'USAGE') AS anon_sequence,
-        has_sequence_privilege('authenticated', 'public.articole_id_seq', 'USAGE') AS auth_sequence
+        has_sequence_privilege('authenticated', 'public.articole_id_seq', 'USAGE') AS auth_sequence,
+        has_table_privilege('app_prod2', 'public.articole', 'SELECT') AS app_legacy_table,
+        has_table_privilege('app_prod2', 'public.flash_ai', 'SELECT') AS app_new_table,
+        has_sequence_privilege('app_prod2', 'public.articole_id_seq', 'USAGE') AS app_legacy_sequence,
+        has_sequence_privilege('app_prod2', 'public.flash_ai_id_seq', 'USAGE') AS app_new_sequence,
+        (
+          SELECT count(*)::int
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          JOIN pg_roles r ON r.oid = c.relowner
+          WHERE n.nspname = 'public'
+            AND c.relkind IN ('r', 'S', 'v', 'm')
+            AND r.rolname = 'app_prod2'
+        ) AS app_owned_relations
     `)
 
     assert.deepEqual(acl.rows[0], {
@@ -433,6 +476,11 @@ async function assertRehearsal(): Promise<void> {
       auth_table: false,
       anon_sequence: false,
       auth_sequence: false,
+      app_legacy_table: true,
+      app_new_table: true,
+      app_legacy_sequence: true,
+      app_new_sequence: true,
+      app_owned_relations: 0,
     })
 
     process.stdout.write(
@@ -445,7 +493,8 @@ async function assertRehearsal(): Promise<void> {
         '- legacy public visibility preserved exactly',
         '- hidden legacy rows remained hidden',
         '- historical version-native status preserved',
-        '- SEC-001 final ACL invariant preserved',
+        '- SEC-001 final anon/auth ACL invariant preserved',
+        '- production-like app_prod2 privileges preserved without object ownership',
       ].join('\n') + '\n',
     )
   } finally {
