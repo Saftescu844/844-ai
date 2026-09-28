@@ -89,15 +89,16 @@ If a database restore becomes necessary, database metadata will return to the ba
 
 ## 5. Release candidate gate
 
-Current dry-run evidence:
+Historical dry-run evidence:
 
 - release PR: **#129**
-- status: **DRAFT**
-- latest validated head at time of this document: `4a89c70dd2e14fde1ceaa0e31e36957e57e21952`
-- CI run: `36308896769`
-- result: **SUCCESS**
+- status: **DRAFT / historical evidence only**
+- the dry-run quality gate previously completed successfully
+- its head no longer matches current `staging`
 
-Validated:
+Since that dry-run, staging has added the five DB-001 RLS hardening migrations and the DB-003 ACL anti-regression CI guard. PR #129 must therefore **not** be treated as a current release candidate and must not be merged.
+
+The historical dry-run remains useful because it validated:
 
 - production-like migration rehearsal;
 - migration-history onboarding;
@@ -106,10 +107,8 @@ Validated:
 - SEC-001;
 - isolated database boundary;
 - lint;
-- 1092/1092 integration tests;
+- integration tests;
 - production build.
-
-These SHAs are evidence, not permanent cutover targets.
 
 Immediately before a real cutover:
 
@@ -280,6 +279,11 @@ Payload should then apply only the post-baseline migrations, in order:
 14. `20260910_090156_reg001d_flash_engine_job_slug`
 15. `20260919_111358_u14_7h_flash_ai_comments`
 16. `20260925_120000_sec001_data_api_acl_hardening`
+17. `20260927_152500_db001b_newsletter_rls_probe`
+18. `20260927_162500_db001c_useri_sessions_rls`
+19. `20260927_164500_db001d_useri_rls`
+20. `20260927_170500_db001e_newsletter_segment_rls`
+21. `20260927_172500_db001f_comentarii_rls`
 
 Abort if:
 
@@ -434,7 +438,7 @@ Only after all production invariants pass:
 
 ## 16. Current gate status
 
-As of 2026-09-27:
+As of 2026-09-28:
 
 - PUB-001 live production containment: **PASS**
 - production scheduled backup availability: **PASS**
@@ -443,10 +447,14 @@ As of 2026-09-27:
 - production project status: **ACTIVE_HEALTHY**
 - `main` protection: **PASS**
 - required `quality-gate`: **PASS**
-- release dry-run PR #129: **PASS / remains DRAFT**
+- DB-001B…DB-001F sensitive-table RLS hardening in staging: **PASS**
+- DB-002 proportional-hardening review: **PASS / no unnecessary expansion**
+- DB-003 ACL anti-regression CI guard: **PASS**
+- current staging migration bundle: **22 migrations total / 21 post-baseline**
+- release dry-run PR #129: **historical evidence only / stale against current staging / DO NOT MERGE**
 - migration rehearsal: **PASS**
 - production-like `app_prod2` rehearsal: **PASS**
 - production database migration role: **postgres / PASS**
 - production mutation approval for full cutover: **NOT GIVEN**
 
-The next safe action is final runbook review and release-candidate freeze. No production mutation should occur until a separate explicit cutover approval is given.
+No production mutation is required now. Normal staging development may continue. When a real cutover is scheduled, refresh the release candidate from the then-current `main` and `staging`, rerun the complete quality gate and migration rehearsal, and obtain separate explicit production approval before any production change.
