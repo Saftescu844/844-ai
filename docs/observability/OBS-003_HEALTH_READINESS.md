@@ -3,7 +3,7 @@
 **Project:** 844-ai.ro  
 **Chapter:** 31 — Observability tehnică și editorială end-to-end  
 **Scope:** explicit health semantics for the web application  
-**Environment impact:** code only; no Railway configuration change; no database schema change; no production mutation
+**Environment impact:** endpoint code plus a separately approved staging Railway healthcheck update; no database schema change; no production mutation
 
 ## 1. Goal
 
@@ -12,7 +12,7 @@ OBS-003 separates two different operational questions that were previously confl
 - **liveness** — is the application process able to serve HTTP?
 - **readiness** — can the application reach the minimum critical dependency required to serve useful traffic?
 
-The existing Railway staging healthcheck remains unchanged in this slice.
+The endpoint implementation itself does not require an infrastructure change. After direct staging validation, a separate explicitly approved operational follow-up changed Railway staging from the page-level healthcheck to `/api-health/ready`.
 
 ## 2. Endpoints
 
@@ -65,9 +65,9 @@ Health state must not be cached by intermediaries.
 
 ## 5. Deliberate exclusions
 
-OBS-003 does not:
+The OBS-003 code slice does not:
 
-- change Railway's configured healthcheck path;
+- require a Railway configuration change as part of the code merge;
 - query Anthropic/OpenAI/Brevo;
 - query Storage;
 - add a new database table;
@@ -76,8 +76,10 @@ OBS-003 does not:
 - mutate application data;
 - affect editorial/publication behavior.
 
-## 6. Future operational step
+## 6. Operational follow-up — completed in staging
 
-After staging deployment and direct verification of both endpoints, a later separate infrastructure decision may replace Railway's current page-level healthcheck with the explicit readiness endpoint.
+After staging deployment, both endpoints were directly validated. The readiness response returned HTTP 200 and `{"ok":true,"status":"ready"}`; `X-Request-ID` was verified against the matching structured-log `correlationId`.
 
-That Railway configuration change is intentionally not part of OBS-003 and should require explicit approval.
+With separate explicit approval, Railway staging was then changed from the page-level `/ro` healthcheck to `/api-health/ready`. The resulting rollout completed successfully on commit `9ce282ab0424469b3f57b01f075e9221d2f212c6`.
+
+This follow-up affected staging infrastructure only. Production remained unchanged.

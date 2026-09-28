@@ -49,9 +49,10 @@ Nu se introduc în acest document parole, chei API, connection string-uri sau al
 - Connected branch: `staging`
 - Auto Deploy: dezactivat
 - Deploymenturile se pornesc manual după verificarea codului și a variabilelor
-- Healthcheck Path: `/ro`
+- Healthcheck Path: `/api-health/ready`
 - Pre-deploy Command: neconfigurată
 - Migrațiile Payload sunt incluse în build prin `prodMigrations`
+- Readiness healthcheck validat în staging la 2026-09-28: HTTP 200, probe PostgreSQL reușit și `X-Request-ID` corelat cu logurile aplicației
 
 ### Supabase
 
