@@ -3,6 +3,10 @@ import {
   queueFlashEngineEvaluationJob,
 } from '@/lib/flash/jobs/queueFlashEngineEvaluationJob'
 
+import {
+  serializeStructuredRuntimeEvent,
+} from '@/lib/observability/structuredRuntimeEvent'
+
 function argument(
   name: string,
 ): string | null {
@@ -202,6 +206,38 @@ async function main() {
     reusedExisting:
       result.reusedExisting,
   })
+
+  console.log(
+    serializeStructuredRuntimeEvent({
+      event:
+        'flash.engine.enqueue',
+
+      component:
+        'flash-engine-enqueue-cli',
+
+      status:
+        'success',
+
+      correlationId:
+        `flash-engine-job:${String(result.job.id)}`,
+
+      data: {
+        jobId:
+          result.job.id,
+
+        flashId,
+
+        task:
+          result.task,
+
+        queue:
+          result.queue,
+
+        reusedExisting:
+          result.reusedExisting,
+      },
+    }),
+  )
 }
 
 main()
@@ -216,6 +252,24 @@ main()
     error => {
       console.error(
         'FLASH_ENGINE_ENQUEUE_FAILED',
+      )
+
+      console.error(
+        serializeStructuredRuntimeEvent({
+          event:
+            'flash.engine.enqueue',
+
+          component:
+            'flash-engine-enqueue-cli',
+
+          status:
+            'failed',
+
+          data: {
+            errorCode:
+              'FLASH_ENGINE_ENQUEUE_FAILED',
+          },
+        }),
       )
 
       console.error(
