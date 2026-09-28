@@ -7,6 +7,10 @@ import {
   runFlashEngineManualQueueOnce,
 } from '@/lib/flash/jobs/runFlashEngineManualQueueOnce'
 
+import {
+  serializeStructuredRuntimeEvent,
+} from '@/lib/observability/structuredRuntimeEvent'
+
 function hasFlag(
   name: string,
 ): boolean {
@@ -128,6 +132,30 @@ async function main() {
         false,
     })
 
+    console.log(
+      serializeStructuredRuntimeEvent({
+        event:
+          'flash.engine.run-next',
+
+        component:
+          'flash-engine-run-next-cli',
+
+        status:
+          'noop',
+
+        data: {
+          task:
+            result.task,
+
+          queue:
+            result.queue,
+
+          executed:
+            false,
+        },
+      }),
+    )
+
     return
   }
 
@@ -148,6 +176,36 @@ async function main() {
     executionStatus:
       result.executionStatus,
   })
+
+  console.log(
+    serializeStructuredRuntimeEvent({
+      event:
+        'flash.engine.run-next',
+
+      component:
+        'flash-engine-run-next-cli',
+
+      status:
+        'success',
+
+      correlationId:
+        `flash-engine-job:${result.jobId}`,
+
+      data: {
+        jobId:
+          result.jobId,
+
+        task:
+          result.task,
+
+        queue:
+          result.queue,
+
+        executionStatus:
+          result.executionStatus,
+      },
+    }),
+  )
 }
 
 main()
@@ -162,6 +220,24 @@ main()
     error => {
       console.error(
         'FLASH_ENGINE_RUN_NEXT_FAILED',
+      )
+
+      console.error(
+        serializeStructuredRuntimeEvent({
+          event:
+            'flash.engine.run-next',
+
+          component:
+            'flash-engine-run-next-cli',
+
+          status:
+            'failed',
+
+          data: {
+            errorCode:
+              'FLASH_ENGINE_RUN_NEXT_FAILED',
+          },
+        }),
       )
 
       console.error(
