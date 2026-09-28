@@ -47,6 +47,9 @@ function request(email = 'alice@example.com') {
 
 async function expectGeneric(response: Response) {
   expect(response.status).toBe(200)
+  expect(response.headers.get('X-Request-ID')).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  )
   await expect(response.json()).resolves.toEqual({
     ok: true,
     rezultat: 'verifica_emailul',
@@ -57,6 +60,7 @@ describe('newsletter public anti-enumeration response', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
   })
 
   afterEach(() => {
@@ -170,6 +174,9 @@ describe('newsletter public anti-enumeration response', () => {
     const response = await POST(request('not-an-email'))
 
     expect(response.status).toBe(400)
+    expect(response.headers.get('X-Request-ID')).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    )
     await expect(response.json()).resolves.toEqual({
       ok: false,
       eroare: 'email_invalid',

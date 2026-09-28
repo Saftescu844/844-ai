@@ -1,4 +1,9 @@
 import { trimiteConfirmareCont } from '@/lib/account-email'
+import {
+  createHttpRequestContext,
+  finalizeHttpResponse,
+  logHttpInternalFailure,
+} from '@/lib/observability/httpRequestContext'
 import { payloadClient } from '@/lib/payload'
 import { parsePublicAccountInput } from '@/lib/public-account'
 import { claimPublicRegistrationAttempt } from '@/lib/public-registration-rate-limit'
@@ -35,20 +40,42 @@ function raspunsInvalid(camp: string): Response {
 }
 
 export async function POST(req: Request) {
+  const requestContext =
+    createHttpRequestContext(
+      req,
+      'api-account-register',
+    )
+
+  const reply =
+    (
+      response:
+        Response,
+    ) =>
+      finalizeHttpResponse(
+        requestContext,
+        response,
+      )
+
   let body: unknown
 
   try {
     body = await req.json()
   } catch {
-    return raspunsInvalid('cerere')
+    return reply(
+      raspunsInvalid(
+        'cerere',
+      ),
+    )
   }
 
   const validare =
     parsePublicAccountInput(body)
 
   if (!validare.ok) {
-    return raspunsInvalid(
-      validare.camp,
+    return reply(
+      raspunsInvalid(
+        validare.camp,
+      ),
     )
   }
 
@@ -63,9 +90,15 @@ export async function POST(req: Request) {
 
   try {
     payload = await payloadClient()
-  } catch (eroare) {
-    console.error('[account-register] Payload indisponibil:', eroare)
-    return raspunsPublic()
+  } catch {
+    logHttpInternalFailure(
+      requestContext,
+      'ACCOUNT_REGISTER_PAYLOAD_UNAVAILABLE',
+    )
+
+    return reply(
+      raspunsPublic(),
+    )
   }
 
   try {
@@ -81,11 +114,19 @@ export async function POST(req: Request) {
       )
 
     if (!allowed) {
-      return raspunsPublic()
+      return reply(
+        raspunsPublic(),
+      )
     }
-  } catch (eroare) {
-    console.error('[account-register] rate limit indisponibil:', eroare)
-    return raspunsPublic()
+  } catch {
+    logHttpInternalFailure(
+      requestContext,
+      'ACCOUNT_REGISTER_RATE_LIMIT_FAILED',
+    )
+
+    return reply(
+      raspunsPublic(),
+    )
   }
 
   try {
@@ -102,11 +143,19 @@ export async function POST(req: Request) {
     })
 
     if (existent.docs.length > 0) {
-      return raspunsPublic()
+      return reply(
+        raspunsPublic(),
+      )
     }
-  } catch (eroare) {
-    console.error('[account-register] eroare verificare email existent:', eroare)
-    return raspunsPublic()
+  } catch {
+    logHttpInternalFailure(
+      requestContext,
+      'ACCOUNT_REGISTER_LOOKUP_FAILED',
+    )
+
+    return reply(
+      raspunsPublic(),
+    )
   }
 
   let userId: number | string | null = null
@@ -134,7 +183,9 @@ export async function POST(req: Request) {
     const token = user._verificationToken
 
     if (!token) {
-      throw new Error('Payload nu a generat tokenul de verificare')
+      throw new Error(
+        'Payload verification token missing',
+      )
     }
 
     await trimiteConfirmareCont(
@@ -143,9 +194,14 @@ export async function POST(req: Request) {
       limba,
     )
 
-    return raspunsPublic()
-  } catch (eroare) {
-    console.error('[account-register] eroare creare/trimitere:', eroare)
+    return reply(
+      raspunsPublic(),
+    )
+  } catch {
+    logHttpInternalFailure(
+      requestContext,
+      'ACCOUNT_REGISTER_CREATE_OR_SEND_FAILED',
+    )
 
     if (userId !== null) {
       try {
@@ -154,14 +210,16 @@ export async function POST(req: Request) {
           id: userId,
           overrideAccess: true,
         })
-      } catch (cleanupError) {
-        console.error(
-          '[account-register] cleanup user neconfirmat eșuat:',
-          cleanupError,
+      } catch {
+        logHttpInternalFailure(
+          requestContext,
+          'ACCOUNT_REGISTER_CLEANUP_FAILED',
         )
       }
     }
 
-    return raspunsPublic()
+    return reply(
+      raspunsPublic(),
+    )
   }
 }
