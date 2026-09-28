@@ -155,6 +155,14 @@ describe(
         ).not.toContain(
           'FLASH_ENGINE_RUN_NEXT_OK',
         )
+
+        expect(
+          output(
+            result,
+          ),
+        ).toContain(
+          '"event":"flash.engine.run-next"',
+        )
       },
       CLI_TEST_TIMEOUT_MS,
     )
