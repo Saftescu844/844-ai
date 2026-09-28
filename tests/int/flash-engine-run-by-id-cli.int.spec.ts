@@ -172,6 +172,14 @@ describe(
         ).not.toContain(
           'FLASH_ENGINE_RUN_BY_ID_OK',
         )
+
+        expect(
+          output(
+            result,
+          ),
+        ).toContain(
+          '"event":"flash.engine.run-by-id"',
+        )
       },
       CLI_TEST_TIMEOUT_MS,
     )

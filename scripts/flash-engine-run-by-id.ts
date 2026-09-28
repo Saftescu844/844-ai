@@ -7,6 +7,10 @@ import {
   runFlashEngineEvaluationJobByID,
 } from '@/lib/flash/jobs/runFlashEngineEvaluationJobByID'
 
+import {
+  serializeStructuredRuntimeEvent,
+} from '@/lib/observability/structuredRuntimeEvent'
+
 function argument(
   name: string,
 ): string | null {
@@ -241,6 +245,36 @@ async function main() {
           )
         ]?.status,
   })
+
+  console.log(
+    serializeStructuredRuntimeEvent({
+      event:
+        'flash.engine.run-by-id',
+
+      component:
+        'flash-engine-run-by-id-cli',
+
+      status:
+        'success',
+
+      correlationId:
+        `flash-engine-job:${String(result.jobId)}`,
+
+      data: {
+        jobId:
+          result.jobId,
+
+        flashId:
+          result.flashId,
+
+        task:
+          result.task,
+
+        queue:
+          result.queue,
+      },
+    }),
+  )
 }
 
 main()
@@ -255,6 +289,24 @@ main()
     error => {
       console.error(
         'FLASH_ENGINE_RUN_BY_ID_FAILED',
+      )
+
+      console.error(
+        serializeStructuredRuntimeEvent({
+          event:
+            'flash.engine.run-by-id',
+
+          component:
+            'flash-engine-run-by-id-cli',
+
+          status:
+            'failed',
+
+          data: {
+            errorCode:
+              'FLASH_ENGINE_RUN_BY_ID_FAILED',
+          },
+        }),
       )
 
       console.error(

@@ -172,6 +172,14 @@ describe(
         ).not.toContain(
           'FLASH_ENGINE_ENQUEUE_OK',
         )
+
+        expect(
+          output(
+            result,
+          ),
+        ).toContain(
+          '"event":"flash.engine.enqueue"',
+        )
       },
       CLI_TEST_TIMEOUT_MS,
     )
