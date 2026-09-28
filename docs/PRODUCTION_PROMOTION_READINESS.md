@@ -51,7 +51,7 @@ The legacy publisher no longer owns direct publication authority.
 
 ### Staging database
 
-`844-ai-dev` records 17 controlled Payload migrations:
+`844-ai-dev` records 22 controlled Payload migrations:
 
 1. `20260730_185012_baseline_current_schema`
 2. `20260809_162701_sitesettings_initial_schema`
@@ -70,6 +70,11 @@ The legacy publisher no longer owns direct publication authority.
 15. `20260910_090156_reg001d_flash_engine_job_slug`
 16. `20260919_111358_u14_7h_flash_ai_comments`
 17. `20260925_120000_sec001_data_api_acl_hardening`
+18. `20260927_152500_db001b_newsletter_rls_probe`
+19. `20260927_162500_db001c_useri_sessions_rls`
+20. `20260927_164500_db001d_useri_rls`
+21. `20260927_170500_db001e_newsletter_segment_rls`
+22. `20260927_172500_db001f_comentarii_rls`
 
 ### Production database
 
@@ -164,11 +169,19 @@ It changes semantics of existing production article data and must be validated a
 
 These alter PostgreSQL enum types and must be applied in controlled sequence.
 
-#### Security ACL hardening
+#### Security hardening
 
-`20260925_120000_sec001_data_api_acl_hardening`
+`20260925_120000_sec001_data_api_acl_hardening` removes direct Payload table/sequence access for Supabase client roles.
 
-This changes database privileges and belongs at the end of the verified migration chain, with post-migration application checks.
+The subsequent controlled RLS migrations add defense in depth for the five sensitive tables already validated in staging:
+
+- `newsletter`
+- `useri_sessions`
+- `useri`
+- `newsletter_segment`
+- `comentarii`
+
+These migrations do not use `FORCE RLS`, do not create broad policies, and preserve server-side access through the PostgreSQL application path.
 
 ---
 
@@ -403,19 +416,18 @@ PITR remains intentionally disabled unless a later explicit decision changes the
 
 ---
 
-## 10. Immediate next technical task
+## 10. Current stabilization state — 2026-09-28
 
-The next safe task is:
+Staging hardening is complete for the currently identified high-value database risks:
 
-**Final release-candidate freeze and pre-cutover verification**
+- DB-001B…DB-001F: PASS in staging;
+- DB-002 internal-table review: PASS / no unnecessary RLS expansion;
+- DB-003 CI ACL anti-regression guard: PASS and merged into `staging`;
+- current staging migration bundle: 22 migrations;
+- production remains unchanged by these staging-only hardening steps.
 
-Deliverables:
+The historical cutover dry-run PR #129 remains useful as evidence, but its head no longer matches current `staging` and must not be treated as a current release candidate.
 
-1. exact one-time production onboarding transaction with before/after assertions;
-2. release integration strategy for the large `staging` / `main` divergence;
-3. preservation of the production-only PUB-001 history;
-4. exact production backup and recovery checkpoints;
-5. publisher maintenance-window procedure;
-6. production preflight and post-deployment invariant checklist.
+The next production-cutover task is therefore **not** an immediate deployment. When a real production cutover is scheduled, create or refresh the release candidate from the then-current `main` and `staging`, rerun the complete quality gate and migration rehearsal, and record the exact release SHA.
 
-This work remains branch/documentation/testing only until a separate explicit production approval is given.
+Until explicit production approval is given, normal development may continue in staging without forcing a premature release freeze.
