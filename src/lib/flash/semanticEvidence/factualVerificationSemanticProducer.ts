@@ -21,6 +21,10 @@ import {
 } from './semanticEvidenceProducer'
 
 import type {
+  FlashProviderTransportFailureCategory,
+} from '../resilience/providerTransportFailure'
+
+import type {
   FlashSemanticTextExecutor,
 } from './semanticTextExecutor'
 
@@ -144,6 +148,9 @@ export interface FlashFactualVerificationProducerFailure {
 
   reason:
     FlashSemanticEvidenceProducerFailureReason
+
+  transportCategory?:
+    FlashProviderTransportFailureCategory
 }
 
 export type FlashFactualVerificationProducerResult =
@@ -273,6 +280,8 @@ function failure(
     FlashFactualVerificationRunMetadata,
   reason:
     FlashSemanticEvidenceProducerFailureReason,
+  transportCategory?:
+    FlashProviderTransportFailureCategory | null,
 ): FlashFactualVerificationProducerFailure {
   return {
     ok:
@@ -284,6 +293,12 @@ function failure(
     run,
 
     reason,
+
+    ...(transportCategory
+      ? {
+          transportCategory,
+        }
+      : {}),
   }
 }
 
@@ -617,6 +632,7 @@ export async function runFlashFactualVerificationSemanticProducer({
       return failure(
         run,
         error.reason,
+        error.transportCategory,
       )
     }
 
