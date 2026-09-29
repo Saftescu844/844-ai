@@ -298,6 +298,9 @@ function producerRecoveryDisposition(
     ? null
     : classifyFlashProducerFailureRecovery(
         reason,
+        producerTransportCategory(
+          result,
+        ),
       )
 }
 
