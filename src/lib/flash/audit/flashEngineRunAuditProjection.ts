@@ -8,6 +8,10 @@ import type {
   FlashRuntimeEvidenceComponent,
 } from '../runtimeEvidence/runtimeEvidenceAggregator'
 
+import type {
+  FlashSemanticEvidenceProducerFailureReason,
+} from '../semanticEvidence/semanticEvidenceProducer'
+
 export type FlashEngineRunProducerStatus =
   | 'completed'
   | 'failed'
@@ -15,9 +19,21 @@ export type FlashEngineRunProducerStatus =
 
 type ProducerResult =
   | {
-      ok: boolean
+      ok: true
+    }
+  | {
+      ok: false
+
+      reason:
+        FlashSemanticEvidenceProducerFailureReason
     }
   | null
+
+type RequiredProducerResult =
+  Exclude<
+    ProducerResult,
+    null
+  >
 
 /**
  * Contract structural minim pentru proiecția de audit.
@@ -51,25 +67,17 @@ export interface FlashEngineRunAuditProjectionInput {
     contradictionProduction:
       ProducerResult
 
-    safetyProduction: {
-      ok:
-        boolean
-    }
+    safetyProduction:
+      RequiredProducerResult
 
-    medicalInterpretationProduction: {
-      ok:
-        boolean
-    }
+    medicalInterpretationProduction:
+      RequiredProducerResult
 
-    extraordinaryClaimProduction: {
-      ok:
-        boolean
-    }
+    extraordinaryClaimProduction:
+      RequiredProducerResult
 
-    regulatoryStatusProduction: {
-      ok:
-        boolean
-    }
+    regulatoryStatusProduction:
+      RequiredProducerResult
 
     runtime: {
       runtimeDecision: {
@@ -126,25 +134,46 @@ export interface FlashEngineRunCompletedAuditProjection {
       claimExtraction:
         FlashEngineRunProducerStatus
 
+      claimExtractionFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
       verification:
         FlashEngineRunProducerStatus
+
+      verificationFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
     }
 
     semantic: {
       contradictions:
         FlashEngineRunProducerStatus
 
+      contradictionsFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
       safety:
         FlashEngineRunProducerStatus
+
+      safetyFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
 
       medicalInterpretation:
         FlashEngineRunProducerStatus
 
+      medicalInterpretationFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
       extraordinaryClaim:
         FlashEngineRunProducerStatus
 
+      extraordinaryClaimFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
       regulatoryStatus:
         FlashEngineRunProducerStatus
+
+      regulatoryStatusFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
     }
 
     runtime: {
@@ -171,6 +200,20 @@ function producerStatus(
   return result.ok
     ? 'completed'
     : 'failed'
+}
+
+function producerFailureReason(
+  result:
+    ProducerResult,
+): FlashSemanticEvidenceProducerFailureReason | null {
+  if (
+    result === null ||
+    result.ok
+  ) {
+    return null
+  }
+
+  return result.reason
 }
 
 /**
@@ -242,8 +285,20 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .factualClaimExtractionProduction,
           ),
 
+        claimExtractionFailureReason:
+          producerFailureReason(
+            input
+              .factualClaimExtractionProduction,
+          ),
+
         verification:
           producerStatus(
+            input
+              .factualVerificationProduction,
+          ),
+
+        verificationFailureReason:
+          producerFailureReason(
             input
               .factualVerificationProduction,
           ),
@@ -257,8 +312,22 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .contradictionProduction,
           ),
 
+        contradictionsFailureReason:
+          producerFailureReason(
+            input
+              .semanticRuntime
+              .contradictionProduction,
+          ),
+
         safety:
           producerStatus(
+            input
+              .semanticRuntime
+              .safetyProduction,
+          ),
+
+        safetyFailureReason:
+          producerFailureReason(
             input
               .semanticRuntime
               .safetyProduction,
@@ -271,6 +340,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .medicalInterpretationProduction,
           ),
 
+        medicalInterpretationFailureReason:
+          producerFailureReason(
+            input
+              .semanticRuntime
+              .medicalInterpretationProduction,
+          ),
+
         extraordinaryClaim:
           producerStatus(
             input
@@ -278,8 +354,22 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .extraordinaryClaimProduction,
           ),
 
+        extraordinaryClaimFailureReason:
+          producerFailureReason(
+            input
+              .semanticRuntime
+              .extraordinaryClaimProduction,
+          ),
+
         regulatoryStatus:
           producerStatus(
+            input
+              .semanticRuntime
+              .regulatoryStatusProduction,
+          ),
+
+        regulatoryStatusFailureReason:
+          producerFailureReason(
             input
               .semanticRuntime
               .regulatoryStatusProduction,
