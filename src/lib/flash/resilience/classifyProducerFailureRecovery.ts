@@ -53,9 +53,6 @@ export function classifyFlashProducerFailureRecovery(
   }
 
   switch (reason) {
-    case 'provider_error':
-      return 'manualAssessment'
-
     case 'provider_structured_output_invalid_json':
     case 'provider_structured_output_incomplete_json':
     case 'provider_structured_output_non_json':
