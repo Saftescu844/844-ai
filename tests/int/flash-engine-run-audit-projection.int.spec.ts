@@ -54,6 +54,9 @@ describe(
 
             factualVerificationProduction: {
               ok: false,
+
+              reason:
+                'provider_error',
             },
 
             semanticRuntime: {
@@ -70,6 +73,9 @@ describe(
 
               extraordinaryClaimProduction: {
                 ok: false,
+
+                reason:
+                  'provider_output_truncated',
               },
 
               regulatoryStatusProduction: {
@@ -229,25 +235,46 @@ describe(
             claimExtraction:
               'completed',
 
+            claimExtractionFailureReason:
+              null,
+
             verification:
               'failed',
+
+            verificationFailureReason:
+              'provider_error',
           },
 
           semantic: {
             contradictions:
               'notRun',
 
+            contradictionsFailureReason:
+              null,
+
             safety:
               'completed',
+
+            safetyFailureReason:
+              null,
 
             medicalInterpretation:
               'completed',
 
+            medicalInterpretationFailureReason:
+              null,
+
             extraordinaryClaim:
               'failed',
 
+            extraordinaryClaimFailureReason:
+              'provider_output_truncated',
+
             regulatoryStatus:
               'completed',
+
+            regulatoryStatusFailureReason:
+              null,
           },
 
           runtime: {
@@ -269,6 +296,24 @@ describe(
             .engineCertain,
         ).toBe(
           false,
+        )
+
+        expect(
+          projection
+            .evidenceSummary
+            .factual
+            .verificationFailureReason,
+        ).toBe(
+          'provider_error',
+        )
+
+        expect(
+          projection
+            .evidenceSummary
+            .semantic
+            .extraordinaryClaimFailureReason,
+        ).toBe(
+          'provider_output_truncated',
         )
 
         const persistedJson =
