@@ -32,9 +32,12 @@ export interface RequeueFlashEngineRetryCandidateRunOptions {
     NodeJS.ProcessEnv
 }
 
-const RETRY_DISPOSITION_FIELDS = [
+const FACTUAL_RETRY_DISPOSITION_FIELDS = [
   'claimExtractionRecoveryDisposition',
   'verificationRecoveryDisposition',
+] as const
+
+const SEMANTIC_RETRY_DISPOSITION_FIELDS = [
   'contradictionsRecoveryDisposition',
   'safetyRecoveryDisposition',
   'medicalInterpretationRecoveryDisposition',
@@ -80,6 +83,8 @@ function positiveInteger(
 function sectionHasRetryCandidate(
   section:
     unknown,
+  fields:
+    readonly string[],
 ): boolean {
   if (
     !isRecord(
@@ -89,7 +94,7 @@ function sectionHasRetryCandidate(
     return false
   }
 
-  return RETRY_DISPOSITION_FIELDS.some(
+  return fields.some(
     field =>
       section[field] ===
       'retryCandidate',
@@ -111,9 +116,11 @@ export function flashEngineAuditHasRetryCandidate(
   return (
     sectionHasRetryCandidate(
       evidenceSummary.factual,
+      FACTUAL_RETRY_DISPOSITION_FIELDS,
     ) ||
     sectionHasRetryCandidate(
       evidenceSummary.semantic,
+      SEMANTIC_RETRY_DISPOSITION_FIELDS,
     )
   )
 }
