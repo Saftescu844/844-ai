@@ -257,7 +257,7 @@ describe(
               'rateLimited',
 
             verificationRecoveryDisposition:
-              'manualAssessment',
+              'retryCandidate',
           },
 
           semantic: {
@@ -376,7 +376,7 @@ describe(
             .factual
             .verificationRecoveryDisposition,
         ).toBe(
-          'manualAssessment',
+          'retryCandidate',
         )
 
         expect(
