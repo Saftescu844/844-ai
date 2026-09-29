@@ -2,6 +2,10 @@ import type {
   FlashSemanticDocument,
 } from './semanticDocument'
 
+import type {
+  FlashProviderTransportFailureCategory,
+} from '../resilience/providerTransportFailure'
+
 export type FlashSemanticEvidenceKind =
   | 'safety'
   | 'medicalInterpretation'
@@ -123,6 +127,9 @@ export interface FlashSemanticEvidenceProducerFailure {
 
   reason:
     FlashSemanticEvidenceProducerFailureReason
+
+  transportCategory?:
+    FlashProviderTransportFailureCategory
 }
 
 export type FlashSemanticEvidenceProducerResult<
@@ -139,12 +146,20 @@ export class FlashSemanticEvidenceProducerError
       'invalid_input' | 'execution_error'
     >
 
+  readonly transportCategory:
+    FlashProviderTransportFailureCategory | null
+
   constructor(
     reason:
       Exclude<
         FlashSemanticEvidenceProducerFailureReason,
         'invalid_input' | 'execution_error'
       >,
+
+    options: {
+      transportCategory?:
+        FlashProviderTransportFailureCategory | null
+    } = {},
   ) {
     super(reason)
 
@@ -153,6 +168,10 @@ export class FlashSemanticEvidenceProducerError
 
     this.reason =
       reason
+
+    this.transportCategory =
+      options.transportCategory ??
+      null
   }
 }
 
@@ -280,6 +299,13 @@ export async function runFlashSemanticEvidenceProducer<
 
         reason:
           error.reason,
+
+        ...(error.transportCategory
+          ? {
+              transportCategory:
+                error.transportCategory,
+            }
+          : {}),
       }
     }
 
