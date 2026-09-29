@@ -142,3 +142,33 @@ RES-006 does not:
 A later resilience slice may improve operator visibility by listing or reporting completed runs with `retryCandidate`.
 
 That should remain observational unless a separate, explicit decision is made to automate any part of the recovery workflow.
+
+
+---
+
+## 11. Operational staging validation — completed 2026-09-29
+
+Chapter 32 received a real end-to-end staging validation after RES-006 was merged.
+
+A controlled Flash Engine evaluation produced:
+
+- Payload job ID `9`;
+- run ID `flash-engine-job:9`;
+- persisted run record ID `14`;
+- status `completed`;
+- decision `review`;
+- all factual and semantic producers `completed`;
+- all failure-reason fields `null`;
+- all transport-category fields `null`;
+- all recovery-disposition fields `null`;
+- no editorial mutation of the source Flash.
+
+The staging worker reported terminal execution status `success` with correlation ID `flash-engine-job:9`.
+
+No `retryCandidate` was produced because the provider/runtime path completed normally.
+
+The complete validation evidence and Chapter 32 closeout decision are recorded in:
+
+[`CHAPTER_32_RESILIENCE_VALIDATION_CLOSEOUT.md`](./CHAPTER_32_RESILIENCE_VALIDATION_CLOSEOUT.md)
+
+At closeout, no RES-007 is introduced. A retry-candidate listing/reporting feature remains deferred until a real operational need appears.

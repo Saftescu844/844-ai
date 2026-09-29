@@ -53,6 +53,7 @@ Nu se introduc în acest document parole, chei API, connection string-uri sau al
 - Pre-deploy Command: neconfigurată
 - Migrațiile Payload sunt incluse în build prin `prodMigrations`
 - Readiness healthcheck validat în staging la 2026-09-28: HTTP 200, probe PostgreSQL reușit și `X-Request-ID` corelat cu logurile aplicației
+- Flash Engine resilience validat end-to-end în staging la 2026-09-29: worker cron a executat cu succes jobul `9`, audit `flash-engine-job:9`, fără eroare și fără mutație editorială; closeout documentat în `docs/resilience/CHAPTER_32_RESILIENCE_VALIDATION_CLOSEOUT.md`
 
 ### Supabase
 
