@@ -12,7 +12,57 @@ describe(
   'Flash producer recovery disposition',
   () => {
     it.each([
-      'provider_error',
+      'timeout',
+      'rateLimited',
+      'serverError',
+      'networkError',
+    ] as const)(
+      'marks transient provider transport %s as retry candidate',
+      transportCategory => {
+        expect(
+          classifyFlashProducerFailureRecovery(
+            'provider_error',
+            transportCategory,
+          ),
+        ).toBe(
+          'retryCandidate',
+        )
+      },
+    )
+
+    it(
+      'does not retry provider client errors as-is',
+      () => {
+        expect(
+          classifyFlashProducerFailureRecovery(
+            'provider_error',
+            'clientError',
+          ),
+        ).toBe(
+          'doNotRetry',
+        )
+      },
+    )
+
+    it.each([
+      undefined,
+      null,
+      'unknown',
+    ] as const)(
+      'requires manual assessment for provider_error with %s transport metadata',
+      transportCategory => {
+        expect(
+          classifyFlashProducerFailureRecovery(
+            'provider_error',
+            transportCategory,
+          ),
+        ).toBe(
+          'manualAssessment',
+        )
+      },
+    )
+
+    it.each([
       'provider_structured_output_invalid_json',
       'provider_structured_output_incomplete_json',
       'provider_structured_output_non_json',

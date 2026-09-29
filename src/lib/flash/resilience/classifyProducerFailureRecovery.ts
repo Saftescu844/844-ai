@@ -2,9 +2,14 @@ import type {
   FlashSemanticEvidenceProducerFailureReason,
 } from '@/lib/flash/semanticEvidence/semanticEvidenceProducer'
 
+import type {
+  FlashProviderTransportFailureCategory,
+} from '@/lib/flash/resilience/providerTransportFailure'
+
 export type FlashProducerRecoveryDisposition =
   | 'doNotRetry'
   | 'manualAssessment'
+  | 'retryCandidate'
 
 /**
  * Clasificare conservatoare pentru recovery.
@@ -16,15 +21,38 @@ export type FlashProducerRecoveryDisposition =
  * - răspunde doar la întrebarea:
  *   "putem spune sigur că repetarea aceleiași cereri are sens?"
  *
- * Cu semnalul actual, niciun failure reason nu este suficient
- * pentru auto-retry.
+ * retryCandidate NU înseamnă auto-retry.
+ * Este doar un semnal bounded pentru operator / policy layer.
  */
 export function classifyFlashProducerFailureRecovery(
   reason:
     FlashSemanticEvidenceProducerFailureReason,
+  transportCategory?:
+    FlashProviderTransportFailureCategory | null,
 ): FlashProducerRecoveryDisposition {
+  if (
+    reason ===
+    'provider_error'
+  ) {
+    switch (
+      transportCategory ??
+        'unknown'
+    ) {
+      case 'timeout':
+      case 'rateLimited':
+      case 'serverError':
+      case 'networkError':
+        return 'retryCandidate'
+
+      case 'clientError':
+        return 'doNotRetry'
+
+      case 'unknown':
+        return 'manualAssessment'
+    }
+  }
+
   switch (reason) {
-    case 'provider_error':
     case 'provider_structured_output_invalid_json':
     case 'provider_structured_output_incomplete_json':
     case 'provider_structured_output_non_json':
