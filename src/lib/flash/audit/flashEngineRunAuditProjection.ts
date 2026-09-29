@@ -12,6 +12,10 @@ import type {
   FlashSemanticEvidenceProducerFailureReason,
 } from '../semanticEvidence/semanticEvidenceProducer'
 
+import type {
+  FlashProviderTransportFailureCategory,
+} from '../resilience/providerTransportFailure'
+
 import {
   classifyFlashProducerFailureRecovery,
   type FlashProducerRecoveryDisposition,
@@ -31,6 +35,9 @@ type ProducerResult =
 
       reason:
         FlashSemanticEvidenceProducerFailureReason
+
+      transportCategory?:
+        FlashProviderTransportFailureCategory
     }
   | null
 
@@ -142,6 +149,9 @@ export interface FlashEngineRunCompletedAuditProjection {
       claimExtractionFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
 
+      claimExtractionTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
       claimExtractionRecoveryDisposition:
         FlashProducerRecoveryDisposition | null
 
@@ -150,6 +160,9 @@ export interface FlashEngineRunCompletedAuditProjection {
 
       verificationFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
+
+      verificationTransportCategory:
+        FlashProviderTransportFailureCategory | null
 
       verificationRecoveryDisposition:
         FlashProducerRecoveryDisposition | null
@@ -162,6 +175,9 @@ export interface FlashEngineRunCompletedAuditProjection {
       contradictionsFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
 
+      contradictionsTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
       contradictionsRecoveryDisposition:
         FlashProducerRecoveryDisposition | null
 
@@ -170,6 +186,9 @@ export interface FlashEngineRunCompletedAuditProjection {
 
       safetyFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
+
+      safetyTransportCategory:
+        FlashProviderTransportFailureCategory | null
 
       safetyRecoveryDisposition:
         FlashProducerRecoveryDisposition | null
@@ -180,6 +199,9 @@ export interface FlashEngineRunCompletedAuditProjection {
       medicalInterpretationFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
 
+      medicalInterpretationTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
       medicalInterpretationRecoveryDisposition:
         FlashProducerRecoveryDisposition | null
 
@@ -189,6 +211,9 @@ export interface FlashEngineRunCompletedAuditProjection {
       extraordinaryClaimFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
 
+      extraordinaryClaimTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
       extraordinaryClaimRecoveryDisposition:
         FlashProducerRecoveryDisposition | null
 
@@ -197,6 +222,9 @@ export interface FlashEngineRunCompletedAuditProjection {
 
       regulatoryStatusFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
+
+      regulatoryStatusTransportCategory:
+        FlashProviderTransportFailureCategory | null
 
       regulatoryStatusRecoveryDisposition:
         FlashProducerRecoveryDisposition | null
@@ -240,6 +268,21 @@ function producerFailureReason(
   }
 
   return result.reason
+}
+
+function producerTransportCategory(
+  result:
+    ProducerResult,
+): FlashProviderTransportFailureCategory | null {
+  if (
+    result === null ||
+    result.ok
+  ) {
+    return null
+  }
+
+  return result.transportCategory ??
+    null
 }
 
 function producerRecoveryDisposition(
@@ -333,6 +376,12 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .factualClaimExtractionProduction,
           ),
 
+        claimExtractionTransportCategory:
+          producerTransportCategory(
+            input
+              .factualClaimExtractionProduction,
+          ),
+
         claimExtractionRecoveryDisposition:
           producerRecoveryDisposition(
             input
@@ -347,6 +396,12 @@ export function buildFlashEngineRunCompletedAuditProjection(
 
         verificationFailureReason:
           producerFailureReason(
+            input
+              .factualVerificationProduction,
+          ),
+
+        verificationTransportCategory:
+          producerTransportCategory(
             input
               .factualVerificationProduction,
           ),
@@ -373,6 +428,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .contradictionProduction,
           ),
 
+        contradictionsTransportCategory:
+          producerTransportCategory(
+            input
+              .semanticRuntime
+              .contradictionProduction,
+          ),
+
         contradictionsRecoveryDisposition:
           producerRecoveryDisposition(
             input
@@ -389,6 +451,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
 
         safetyFailureReason:
           producerFailureReason(
+            input
+              .semanticRuntime
+              .safetyProduction,
+          ),
+
+        safetyTransportCategory:
+          producerTransportCategory(
             input
               .semanticRuntime
               .safetyProduction,
@@ -415,6 +484,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .medicalInterpretationProduction,
           ),
 
+        medicalInterpretationTransportCategory:
+          producerTransportCategory(
+            input
+              .semanticRuntime
+              .medicalInterpretationProduction,
+          ),
+
         medicalInterpretationRecoveryDisposition:
           producerRecoveryDisposition(
             input
@@ -436,6 +512,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .extraordinaryClaimProduction,
           ),
 
+        extraordinaryClaimTransportCategory:
+          producerTransportCategory(
+            input
+              .semanticRuntime
+              .extraordinaryClaimProduction,
+          ),
+
         extraordinaryClaimRecoveryDisposition:
           producerRecoveryDisposition(
             input
@@ -452,6 +535,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
 
         regulatoryStatusFailureReason:
           producerFailureReason(
+            input
+              .semanticRuntime
+              .regulatoryStatusProduction,
+          ),
+
+        regulatoryStatusTransportCategory:
+          producerTransportCategory(
             input
               .semanticRuntime
               .regulatoryStatusProduction,
