@@ -261,6 +261,17 @@ describe(
 
         expect(
           flashEngineAuditHasRetryCandidate({
+            factual: {
+              safetyRecoveryDisposition:
+                'retryCandidate',
+            },
+          }),
+        ).toBe(
+          false,
+        )
+
+        expect(
+          flashEngineAuditHasRetryCandidate({
             arbitrary: {
               recoveryDisposition:
                 'retryCandidate',
