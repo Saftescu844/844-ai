@@ -238,11 +238,17 @@ describe(
             claimExtractionFailureReason:
               null,
 
+            claimExtractionRecoveryDisposition:
+              null,
+
             verification:
               'failed',
 
             verificationFailureReason:
               'provider_error',
+
+            verificationRecoveryDisposition:
+              'manualAssessment',
           },
 
           semantic: {
@@ -252,10 +258,16 @@ describe(
             contradictionsFailureReason:
               null,
 
+            contradictionsRecoveryDisposition:
+              null,
+
             safety:
               'completed',
 
             safetyFailureReason:
+              null,
+
+            safetyRecoveryDisposition:
               null,
 
             medicalInterpretation:
@@ -264,16 +276,25 @@ describe(
             medicalInterpretationFailureReason:
               null,
 
+            medicalInterpretationRecoveryDisposition:
+              null,
+
             extraordinaryClaim:
               'failed',
 
             extraordinaryClaimFailureReason:
               'provider_output_truncated',
 
+            extraordinaryClaimRecoveryDisposition:
+              'doNotRetry',
+
             regulatoryStatus:
               'completed',
 
             regulatoryStatusFailureReason:
+              null,
+
+            regulatoryStatusRecoveryDisposition:
               null,
           },
 
@@ -314,6 +335,24 @@ describe(
             .extraordinaryClaimFailureReason,
         ).toBe(
           'provider_output_truncated',
+        )
+
+        expect(
+          projection
+            .evidenceSummary
+            .factual
+            .verificationRecoveryDisposition,
+        ).toBe(
+          'manualAssessment',
+        )
+
+        expect(
+          projection
+            .evidenceSummary
+            .semantic
+            .extraordinaryClaimRecoveryDisposition,
+        ).toBe(
+          'doNotRetry',
         )
 
         const persistedJson =

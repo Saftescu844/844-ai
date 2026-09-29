@@ -12,6 +12,11 @@ import type {
   FlashSemanticEvidenceProducerFailureReason,
 } from '../semanticEvidence/semanticEvidenceProducer'
 
+import {
+  classifyFlashProducerFailureRecovery,
+  type FlashProducerRecoveryDisposition,
+} from '../resilience/classifyProducerFailureRecovery'
+
 export type FlashEngineRunProducerStatus =
   | 'completed'
   | 'failed'
@@ -137,11 +142,17 @@ export interface FlashEngineRunCompletedAuditProjection {
       claimExtractionFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
 
+      claimExtractionRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+
       verification:
         FlashEngineRunProducerStatus
 
       verificationFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
+
+      verificationRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
     }
 
     semantic: {
@@ -151,11 +162,17 @@ export interface FlashEngineRunCompletedAuditProjection {
       contradictionsFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
 
+      contradictionsRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+
       safety:
         FlashEngineRunProducerStatus
 
       safetyFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
+
+      safetyRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
 
       medicalInterpretation:
         FlashEngineRunProducerStatus
@@ -163,17 +180,26 @@ export interface FlashEngineRunCompletedAuditProjection {
       medicalInterpretationFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
 
+      medicalInterpretationRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+
       extraordinaryClaim:
         FlashEngineRunProducerStatus
 
       extraordinaryClaimFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
 
+      extraordinaryClaimRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+
       regulatoryStatus:
         FlashEngineRunProducerStatus
 
       regulatoryStatusFailureReason:
         FlashSemanticEvidenceProducerFailureReason | null
+
+      regulatoryStatusRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
     }
 
     runtime: {
@@ -214,6 +240,22 @@ function producerFailureReason(
   }
 
   return result.reason
+}
+
+function producerRecoveryDisposition(
+  result:
+    ProducerResult,
+): FlashProducerRecoveryDisposition | null {
+  const reason =
+    producerFailureReason(
+      result,
+    )
+
+  return reason === null
+    ? null
+    : classifyFlashProducerFailureRecovery(
+        reason,
+      )
 }
 
 /**
@@ -291,6 +333,12 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .factualClaimExtractionProduction,
           ),
 
+        claimExtractionRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .factualClaimExtractionProduction,
+          ),
+
         verification:
           producerStatus(
             input
@@ -299,6 +347,12 @@ export function buildFlashEngineRunCompletedAuditProjection(
 
         verificationFailureReason:
           producerFailureReason(
+            input
+              .factualVerificationProduction,
+          ),
+
+        verificationRecoveryDisposition:
+          producerRecoveryDisposition(
             input
               .factualVerificationProduction,
           ),
@@ -319,6 +373,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .contradictionProduction,
           ),
 
+        contradictionsRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .semanticRuntime
+              .contradictionProduction,
+          ),
+
         safety:
           producerStatus(
             input
@@ -328,6 +389,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
 
         safetyFailureReason:
           producerFailureReason(
+            input
+              .semanticRuntime
+              .safetyProduction,
+          ),
+
+        safetyRecoveryDisposition:
+          producerRecoveryDisposition(
             input
               .semanticRuntime
               .safetyProduction,
@@ -347,6 +415,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .medicalInterpretationProduction,
           ),
 
+        medicalInterpretationRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .semanticRuntime
+              .medicalInterpretationProduction,
+          ),
+
         extraordinaryClaim:
           producerStatus(
             input
@@ -361,6 +436,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
               .extraordinaryClaimProduction,
           ),
 
+        extraordinaryClaimRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .semanticRuntime
+              .extraordinaryClaimProduction,
+          ),
+
         regulatoryStatus:
           producerStatus(
             input
@@ -370,6 +452,13 @@ export function buildFlashEngineRunCompletedAuditProjection(
 
         regulatoryStatusFailureReason:
           producerFailureReason(
+            input
+              .semanticRuntime
+              .regulatoryStatusProduction,
+          ),
+
+        regulatoryStatusRecoveryDisposition:
+          producerRecoveryDisposition(
             input
               .semanticRuntime
               .regulatoryStatusProduction,

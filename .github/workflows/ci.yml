@@ -115,7 +115,13 @@ jobs:
       - name: Apply Payload migrations to ephemeral CI database
         env:
           PAYLOAD_DB_PUSH: "false"
-        run: npm run db:migrate:up
+        run: |
+          npm run db:migrate:up
+          if ! npx tsx scripts/ci/assert-migration-complete.ts; then
+            echo "::warning::Payload migrate exited successfully without a complete CI schema; retrying once."
+            npm run db:migrate:up
+            npx tsx scripts/ci/assert-migration-complete.ts
+          fi
 
       - name: Guard public ACLs on primary CI database
         env:
@@ -129,6 +135,11 @@ jobs:
         run: |
           npx tsx scripts/ci/production-migration-rehearsal.ts prepare
           npm run db:migrate:up
+          if ! npx tsx scripts/ci/assert-migration-complete.ts; then
+            echo "::warning::Payload migrate exited successfully without a complete rehearsal schema; retrying once."
+            npm run db:migrate:up
+            npx tsx scripts/ci/assert-migration-complete.ts
+          fi
           npx tsx scripts/ci/production-migration-rehearsal.ts assert
 
       - name: Guard public ACLs on rehearsal database
