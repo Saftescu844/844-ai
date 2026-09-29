@@ -11,6 +11,10 @@ import {
   type OpenAiSemanticTextClient,
 } from '@/lib/flash/semanticEvidence/openAiSemanticTextExecutor'
 
+import {
+  FlashSemanticEvidenceProducerError,
+} from '@/lib/flash/semanticEvidence/semanticEvidenceProducer'
+
 function clientReturning(
   response: {
     status?: string | null
@@ -230,6 +234,86 @@ describe(
           executor(input),
         ).rejects.toThrow(
           'provider_error',
+        )
+      },
+    )
+
+    it(
+      'sanitizes OpenAI server transport metadata',
+      async () => {
+        const client:
+          OpenAiSemanticTextClient = {
+          responses: {
+            create:
+              async () => {
+                throw Object.assign(
+                  new Error(
+                    'RAW_OPENAI_MESSAGE_MUST_NOT_ESCAPE',
+                  ),
+                  {
+                    status:
+                      503,
+
+                    request_id:
+                      'raw-request-id',
+                  },
+                )
+              },
+          },
+        }
+
+        const executor =
+          createOpenAiSemanticTextExecutor({
+            client,
+
+            model:
+              'gpt-test',
+          })
+
+        try {
+          await executor(
+            input,
+          )
+        } catch (error) {
+          expect(
+            error,
+          ).toBeInstanceOf(
+            FlashSemanticEvidenceProducerError,
+          )
+
+          const controlled =
+            error as
+              FlashSemanticEvidenceProducerError
+
+          expect(
+            controlled.reason,
+          ).toBe(
+            'provider_error',
+          )
+
+          expect(
+            controlled.transportCategory,
+          ).toBe(
+            'serverError',
+          )
+
+          expect(
+            controlled.message,
+          ).toBe(
+            'provider_error',
+          )
+
+          expect(
+            controlled.message,
+          ).not.toContain(
+            'RAW_OPENAI_MESSAGE_MUST_NOT_ESCAPE',
+          )
+
+          return
+        }
+
+        throw new Error(
+          'Expected provider_error',
         )
       },
     )
