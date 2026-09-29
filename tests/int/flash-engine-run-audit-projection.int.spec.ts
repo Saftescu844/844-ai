@@ -57,6 +57,9 @@ describe(
 
               reason:
                 'provider_error',
+
+              transportCategory:
+                'rateLimited',
             },
 
             semanticRuntime: {
@@ -238,6 +241,9 @@ describe(
             claimExtractionFailureReason:
               null,
 
+            claimExtractionTransportCategory:
+              null,
+
             claimExtractionRecoveryDisposition:
               null,
 
@@ -246,6 +252,9 @@ describe(
 
             verificationFailureReason:
               'provider_error',
+
+            verificationTransportCategory:
+              'rateLimited',
 
             verificationRecoveryDisposition:
               'manualAssessment',
@@ -258,6 +267,9 @@ describe(
             contradictionsFailureReason:
               null,
 
+            contradictionsTransportCategory:
+              null,
+
             contradictionsRecoveryDisposition:
               null,
 
@@ -265,6 +277,9 @@ describe(
               'completed',
 
             safetyFailureReason:
+              null,
+
+            safetyTransportCategory:
               null,
 
             safetyRecoveryDisposition:
@@ -276,6 +291,9 @@ describe(
             medicalInterpretationFailureReason:
               null,
 
+            medicalInterpretationTransportCategory:
+              null,
+
             medicalInterpretationRecoveryDisposition:
               null,
 
@@ -285,6 +303,9 @@ describe(
             extraordinaryClaimFailureReason:
               'provider_output_truncated',
 
+            extraordinaryClaimTransportCategory:
+              null,
+
             extraordinaryClaimRecoveryDisposition:
               'doNotRetry',
 
@@ -292,6 +313,9 @@ describe(
               'completed',
 
             regulatoryStatusFailureReason:
+              null,
+
+            regulatoryStatusTransportCategory:
               null,
 
             regulatoryStatusRecoveryDisposition:
@@ -335,6 +359,15 @@ describe(
             .extraordinaryClaimFailureReason,
         ).toBe(
           'provider_output_truncated',
+        )
+
+        expect(
+          projection
+            .evidenceSummary
+            .factual
+            .verificationTransportCategory,
+        ).toBe(
+          'rateLimited',
         )
 
         expect(

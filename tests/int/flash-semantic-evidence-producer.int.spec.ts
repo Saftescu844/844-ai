@@ -273,6 +273,10 @@ describe(
                   async () => {
                     throw new FlashSemanticEvidenceProducerError(
                       'provider_error',
+                      {
+                        transportCategory:
+                          'rateLimited',
+                      },
                     )
                   },
               }),
@@ -297,6 +301,9 @@ describe(
 
           reason:
             'provider_error',
+
+          transportCategory:
+            'rateLimited',
         })
       },
     )

@@ -389,6 +389,86 @@ describe(
     )
 
     it(
+      'sanitizes Anthropic rate-limit transport metadata',
+      async () => {
+        const client:
+          AnthropicSemanticTextClient = {
+          messages: {
+            create:
+              async () => {
+                throw Object.assign(
+                  new Error(
+                    'RAW_ANTHROPIC_MESSAGE_MUST_NOT_ESCAPE',
+                  ),
+                  {
+                    status:
+                      429,
+
+                    request_id:
+                      'raw-request-id',
+                  },
+                )
+              },
+          },
+        }
+
+        const executor =
+          createAnthropicSemanticTextExecutor({
+            client,
+
+            model:
+              'claude-test-model',
+          })
+
+        try {
+          await executor(
+            input(),
+          )
+        } catch (error) {
+          expect(
+            error,
+          ).toBeInstanceOf(
+            FlashSemanticEvidenceProducerError,
+          )
+
+          const controlled =
+            error as
+              FlashSemanticEvidenceProducerError
+
+          expect(
+            controlled.reason,
+          ).toBe(
+            'provider_error',
+          )
+
+          expect(
+            controlled.transportCategory,
+          ).toBe(
+            'rateLimited',
+          )
+
+          expect(
+            controlled.message,
+          ).toBe(
+            'provider_error',
+          )
+
+          expect(
+            controlled.message,
+          ).not.toContain(
+            'RAW_ANTHROPIC_MESSAGE_MUST_NOT_ESCAPE',
+          )
+
+          return
+        }
+
+        throw new Error(
+          'Expected provider_error',
+        )
+      },
+    )
+
+    it(
       'rejects a response without usable text blocks',
       async () => {
         const {

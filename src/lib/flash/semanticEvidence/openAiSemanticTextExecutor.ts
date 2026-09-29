@@ -2,6 +2,10 @@ import {
   FlashSemanticEvidenceProducerError,
 } from './semanticEvidenceProducer'
 
+import {
+  classifyFlashProviderTransportFailure,
+} from '../resilience/providerTransportFailure'
+
 import type {
   FlashSemanticTextExecutor,
 } from './semanticTextExecutor'
@@ -295,6 +299,12 @@ export function createOpenAiSemanticTextExecutor({
 
       throw new FlashSemanticEvidenceProducerError(
         'provider_error',
+        {
+          transportCategory:
+            classifyFlashProviderTransportFailure(
+              error,
+            ),
+        },
       )
     }
 
