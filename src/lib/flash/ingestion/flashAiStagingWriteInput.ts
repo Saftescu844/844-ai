@@ -22,6 +22,63 @@ export interface FlashAiStagingWriteInput {
     FlashAiDraftProjection
 }
 
+function canBridgePendingEventIdentityAsSafeReviewDraft({
+  candidate,
+  readiness,
+  eventFingerprint,
+}: {
+  candidate:
+    FlashNormalizedArticleCandidate
+
+  readiness:
+    FlashArticlePersistenceReadiness
+
+  eventFingerprint:
+    string | null
+}): boolean {
+  if (eventFingerprint) {
+    return false
+  }
+
+  if (
+    !readiness.evidence
+      .finalDedupPending
+  ) {
+    return false
+  }
+
+  if (
+    candidate.sourceRole !==
+      'primary' ||
+    candidate.editorialTrust !==
+      'high' ||
+    candidate.allowAutoPublish !==
+      false
+  ) {
+    return false
+  }
+
+  if (
+    readiness.evidence
+      .sourceDuplicateFound ||
+    readiness.evidence
+      .eventFingerprintDuplicateFound ||
+    readiness.evidence
+      .sourceFingerprintReviewSignal ||
+    readiness.evidence
+      .titleReviewSignal
+  ) {
+    return false
+  }
+
+  return (
+    readiness.reviewSignals.length ===
+      1 &&
+    readiness.reviewSignals[0] ===
+      'event_identity_pending'
+  )
+}
+
 /**
  * Builds the controlled STAGING persistence handoff.
  *
@@ -44,13 +101,28 @@ export function buildFlashAiStagingWriteInput({
       .eventFingerprint
       ?.trim()
 
-  if (
-    !eventFingerprint ||
-    readiness.evidence
+  const hasGroundedEventIdentity =
+    Boolean(
+      eventFingerprint,
+    ) &&
+    !readiness.evidence
       .finalDedupPending
+
+  const canBridgePendingEventIdentity =
+    canBridgePendingEventIdentityAsSafeReviewDraft({
+      candidate,
+      readiness,
+      eventFingerprint:
+        eventFingerprint ??
+        null,
+    })
+
+  if (
+    !hasGroundedEventIdentity &&
+    !canBridgePendingEventIdentity
   ) {
     throw new Error(
-      'FlashAI STAGING write input requires grounded event identity.',
+      'FlashAI STAGING write input requires grounded event identity or a safe review-only pending identity.',
     )
   }
 
