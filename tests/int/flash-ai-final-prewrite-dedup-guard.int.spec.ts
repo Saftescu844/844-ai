@@ -317,7 +317,7 @@ it(
 )
 
 it(
-  'blocks persistence when grounded event identity is still pending',
+  'blocks persistence when pending event identity does not meet safe review-only conditions',
   async () => {
     const find =
       vi.fn().mockResolvedValue({
@@ -343,8 +343,11 @@ it(
     await expect(
       createFlashAiDraftWithFinalDedupGuard({
         payload,
-        candidate:
-          candidate(),
+        candidate: {
+          ...candidate(),
+          allowAutoPublish:
+            true,
+        },
         projection:
           incompleteProjection,
       }),
