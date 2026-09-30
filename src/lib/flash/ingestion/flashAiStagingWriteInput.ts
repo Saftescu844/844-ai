@@ -103,7 +103,8 @@ export function buildFlashAiStagingWriteInput({
     readiness
       .sourceGroundedValues
       .eventFingerprint
-      ?.trim()
+      ?.trim() ??
+    null
 
   const hasGroundedEventIdentity =
     Boolean(
