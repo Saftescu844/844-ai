@@ -62,7 +62,256 @@ it(
           readiness,
         }),
     ).toThrow(
-      'FlashAI STAGING write input requires grounded event identity.',
+      'FlashAI STAGING write input requires grounded event identity or a safe review-only pending identity.',
+    )
+  },
+)
+
+it(
+  'allows a review-only STAGING draft when event identity is pending but the primary source is high-trust and dedup is otherwise clean',
+  () => {
+    const canonicalUrl =
+      'https://digital-strategy.ec.europa.eu/en/news/fourth-gpai-signatory-taskforce-meeting'
+
+    const lexicalContent =
+      buildVerifiedFlashEditorialLexicalContent([
+        Array.from(
+          {
+            length:
+              523,
+          },
+          () =>
+            'cuvânt',
+        ).join(
+          ' ',
+        ),
+      ])
+
+    const candidate = {
+      sourceId:
+        4,
+
+      sourceName:
+        'Comisia Europeană — Digital Strategy / AI',
+
+      sourceRole:
+        'primary',
+
+      editorialTrust:
+        'high',
+
+      citationMode:
+        'paraphrase',
+
+      allowAutoPublish:
+        false,
+
+      language:
+        'en',
+
+      canonicalUrl,
+
+      sourcePublicationDate:
+        '2026-08-03',
+    } as FlashNormalizedArticleCandidate
+
+    const readiness: FlashArticlePersistenceReadiness = {
+      canCreateFlashAiDraft:
+        true,
+
+      verifiedEditorial: {
+        editorialTitle:
+          'A patra reuniune a grupului de lucru al semnatarilor GPAI',
+
+        lexicalContent,
+      },
+
+      sourceGroundedValues: {
+        sourceId:
+          4,
+
+        sourceName:
+          'Comisia Europeană — Digital Strategy / AI',
+
+        language:
+          'en',
+
+        sourceTitle:
+          'Fourth GPAI Signatory Taskforce meeting',
+
+        canonicalUrl,
+
+        sourcePublishedAt:
+          '2026-08-03',
+
+        sourceFingerprint:
+          'source-fingerprint',
+
+        eventFingerprint:
+          null,
+      },
+
+      classification: {
+        pilonId:
+          1,
+
+        flashType:
+          'regulation',
+
+        informationStatus:
+          'official',
+
+        riskLevel:
+          'medium',
+
+        isHealthRelated:
+          false,
+      },
+
+      draftControls: {
+        editorialStatus:
+          'draft',
+
+        automationDecision:
+          'review',
+
+        payloadStatus:
+          'draft',
+      },
+
+      deferredDecisions:
+        [],
+
+      blockers:
+        [],
+
+      reviewSignals: [
+        'event_identity_pending',
+      ],
+
+      evidence: {
+        sourceVerificationPassed:
+          true,
+
+        sourceDuplicateFound:
+          false,
+
+        eventFingerprintDuplicateFound:
+          false,
+
+        sourceFingerprintReviewSignal:
+          false,
+
+        titleReviewSignal:
+          false,
+
+        finalDedupPending:
+          true,
+
+        classificationAvailable:
+          true,
+      },
+    }
+
+    const result =
+      buildFlashAiStagingWriteInput({
+        candidate,
+        readiness,
+      })
+
+    expect(
+      result.projection,
+    ).toMatchObject({
+      editorialStatus:
+        'draft',
+
+      automationDecision:
+        'review',
+
+      eventFingerprint:
+        null,
+
+      _status:
+        'draft',
+    })
+  },
+)
+
+it(
+  'still fails closed for pending event identity when duplicate-review evidence exists',
+  () => {
+    const candidate = {
+      sourceId:
+        4,
+
+      sourceRole:
+        'primary',
+
+      editorialTrust:
+        'high',
+
+      allowAutoPublish:
+        false,
+
+      canonicalUrl:
+        'https://example.com/en/news/test',
+
+      sourcePublicationDate:
+        '2026-09-17',
+    } as FlashNormalizedArticleCandidate
+
+    const readiness = {
+      canCreateFlashAiDraft:
+        true,
+
+      blockers:
+        [],
+
+      reviewSignals: [
+        'event_identity_pending',
+        'normalized_title_match',
+      ],
+
+      sourceGroundedValues: {
+        sourceId:
+          4,
+
+        canonicalUrl:
+          candidate.canonicalUrl,
+
+        sourcePublishedAt:
+          candidate.sourcePublicationDate,
+
+        eventFingerprint:
+          null,
+      },
+
+      evidence: {
+        sourceDuplicateFound:
+          false,
+
+        eventFingerprintDuplicateFound:
+          false,
+
+        sourceFingerprintReviewSignal:
+          false,
+
+        titleReviewSignal:
+          true,
+
+        finalDedupPending:
+          true,
+      },
+    } as FlashArticlePersistenceReadiness
+
+    expect(
+      () =>
+        buildFlashAiStagingWriteInput({
+          candidate,
+          readiness,
+        }),
+    ).toThrow(
+      'FlashAI STAGING write input requires grounded event identity or a safe review-only pending identity.',
     )
   },
 )
