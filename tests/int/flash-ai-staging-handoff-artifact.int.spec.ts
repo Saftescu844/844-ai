@@ -193,7 +193,7 @@ it(
           readiness,
         }),
     ).toThrow(
-      'FlashAI STAGING write input requires grounded event identity.',
+      'FlashAI STAGING write input requires grounded event identity or a safe review-only pending identity.',
     )
   },
 )
