@@ -309,6 +309,92 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
   }
 }
 
+function buildFlashPrePersistenceEditorialQualityReviewRetentionRepairPrompt({
+  prompt,
+  error,
+}: {
+  prompt:
+    FlashPrePersistenceEditorialQualityReviewSemanticPrompt
+
+  error:
+    FlashPrePersistenceEditorialQualityReviewRetentionError
+}): FlashPrePersistenceEditorialQualityReviewSemanticPrompt {
+  return {
+    systemPrompt: [
+      prompt.systemPrompt,
+      '',
+      'Single retention-repair attempt:',
+      '- The previous QA output was invalid only because its reconstructed editorial fell below the required retention floor.',
+      '- This is the only corrective retry. Do not repeat the invalid compression.',
+      `- The previous reconstructed editorial contained ${String(error.diagnostics.reviewedWordCount)} words; the required minimum is ${String(error.diagnostics.minimumRetainedWordCount)} words.`,
+      '- Preserve the original draft wording for every source-supported passage unless a correction is genuinely necessary.',
+      '- Reconsider every previous paragraph replacement and restore source-supported wording that was unnecessarily removed.',
+      '- Do not invent, repeat, generalize, or pad to satisfy the floor.',
+      '- If source fidelity genuinely requires remaining below the minimum, return the faithful edits anyway; the application will fail closed.',
+    ].join('\n'),
+
+    userPrompt: [
+      prompt.userPrompt,
+      '',
+      'The previous QA response failed the retention floor. Return one corrected review using the same exact JSON contract.',
+      '',
+      JSON.stringify(
+        {
+          retentionFailure:
+            error.diagnostics,
+          previousReview:
+            error.review,
+        },
+        null,
+        2,
+      ),
+    ].join('\n'),
+  }
+}
+
+async function executeFlashPrePersistenceEditorialQualityReview({
+  executor,
+  runId,
+  prompt,
+  targetLanguage,
+  editorial,
+}: {
+  executor:
+    FlashSemanticTextExecutor
+
+  runId:
+    string
+
+  prompt:
+    FlashPrePersistenceEditorialQualityReviewSemanticPrompt
+
+  targetLanguage:
+    FlashTargetLanguage
+
+  editorial:
+    FlashPrePersistenceEditorialGenerationSemanticOutput
+}): Promise<FlashPrePersistenceEditorialGenerationSemanticOutput> {
+  const raw =
+    await executor({
+      runId,
+      systemPrompt:
+        prompt.systemPrompt,
+      userPrompt:
+        prompt.userPrompt,
+    })
+
+  const review =
+    parseFlashPrePersistenceEditorialQualityReviewSemanticOutput(
+      raw,
+      targetLanguage,
+    )
+
+  return applyFlashPrePersistenceEditorialQualityReviewCopyEdit({
+    editorial,
+    review,
+  })
+}
+
 export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer({
   executor,
   provider,
@@ -349,25 +435,40 @@ export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer(
           targetLanguage,
         )
 
-      const raw =
-        await executor({
+      try {
+        return await executeFlashPrePersistenceEditorialQualityReview({
+          executor,
           runId,
-          systemPrompt:
-            prompt.systemPrompt,
-          userPrompt:
-            prompt.userPrompt,
-        })
-
-      const review =
-        parseFlashPrePersistenceEditorialQualityReviewSemanticOutput(
-          raw,
+          prompt,
           targetLanguage,
-        )
+          editorial,
+        })
+      } catch (error) {
+        if (
+          !(
+            error instanceof
+              FlashPrePersistenceEditorialQualityReviewRetentionError
+          )
+        ) {
+          throw error
+        }
 
-      return applyFlashPrePersistenceEditorialQualityReviewCopyEdit({
-        editorial,
-        review,
-      })
+        const repairPrompt =
+          buildFlashPrePersistenceEditorialQualityReviewRetentionRepairPrompt({
+            prompt,
+            error,
+          })
+
+        return executeFlashPrePersistenceEditorialQualityReview({
+          executor,
+          runId:
+            `${runId}:retention-repair`,
+          prompt:
+            repairPrompt,
+          targetLanguage,
+          editorial,
+        })
+      }
     },
   }
 }

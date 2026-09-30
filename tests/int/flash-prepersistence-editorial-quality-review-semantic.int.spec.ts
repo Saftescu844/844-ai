@@ -341,16 +341,109 @@ describe(
     )
 
     it(
-      'fails closed when QA copy edits violate the retention floor',
+      'performs exactly one bounded retention repair and succeeds when the second review restores the minimum',
       async () => {
+        const executions: Array<{
+          runId: string
+          systemPrompt: string
+          userPrompt: string
+        }> = []
+
         const producer =
           createFlashPrePersistenceEditorialQualityReviewSemanticProducer({
             provider: 'test-provider',
             model: 'test-model',
-            executor: async () =>
-              reviewedRaw(
+            executor: async input => {
+              executions.push(input)
+
+              return reviewedRaw(
+                executions.length ===
+                  1
+                  ? 420
+                  : 500,
+              )
+            },
+          })
+
+        const result =
+          await runFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+            producer,
+            input: {
+              candidate,
+              classification,
+              editorial:
+                draft,
+              runId:
+                'editorial-quality-review-repair-test',
+            },
+          })
+
+        expect(executions)
+          .toHaveLength(2)
+
+        expect(
+          executions[0]?.runId,
+        ).toBe(
+          'editorial-quality-review-repair-test',
+        )
+
+        expect(
+          executions[1]?.runId,
+        ).toBe(
+          'editorial-quality-review-repair-test:retention-repair',
+        )
+
+        expect(
+          executions[1]?.systemPrompt,
+        ).toContain(
+          'Single retention-repair attempt:',
+        )
+
+        expect(
+          executions[1]?.systemPrompt,
+        ).toContain(
+          'This is the only corrective retry.',
+        )
+
+        expect(
+          executions[1]?.userPrompt,
+        ).toContain(
+          'retentionFailure',
+        )
+
+        expect(
+          executions[1]?.userPrompt,
+        ).toContain(
+          'previousReview',
+        )
+
+        expect(result).toMatchObject({
+          ok: true,
+          wordCount: 500,
+          meetsEditorialWordCount:
+            true,
+        })
+      },
+    )
+
+    it(
+      'fails closed when QA copy edits violate the retention floor',
+      async () => {
+        let executions =
+          0
+
+        const producer =
+          createFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+            provider: 'test-provider',
+            model: 'test-model',
+            executor: async () => {
+              executions +=
+                1
+
+              return reviewedRaw(
                 420,
-              ),
+              )
+            },
           })
 
         const result =
@@ -365,6 +458,9 @@ describe(
                 'editorial-quality-review-short-test',
             },
           })
+
+        expect(executions)
+          .toBe(2)
 
         expect(result).toMatchObject({
           ok: false,
