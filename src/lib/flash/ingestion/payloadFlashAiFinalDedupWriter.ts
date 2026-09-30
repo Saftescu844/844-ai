@@ -39,6 +39,67 @@ export interface CreateFlashAiDraftWithFinalDedupGuardInput {
     FlashAiDraftProjection
 }
 
+function canPersistSafePendingEventIdentityDraft({
+  candidate,
+  projection,
+  finalDedup,
+}: {
+  candidate:
+    FlashNormalizedArticleCandidate
+
+  projection:
+    FlashAiDraftProjection
+
+  finalDedup:
+    Awaited<
+      ReturnType<
+        typeof evaluateFlashArticlePrePersistenceDedupReadOnly
+      >
+    >
+}): boolean {
+  const evidence =
+    finalDedup.evidence
+
+  if (
+    projection.eventFingerprint !==
+      null ||
+    !evidence.finalDedupPending
+  ) {
+    return false
+  }
+
+  if (
+    candidate.sourceRole !==
+      'primary' ||
+    candidate.editorialTrust !==
+      'high' ||
+    candidate.allowAutoPublish !==
+      false
+  ) {
+    return false
+  }
+
+  if (
+    projection.editorialStatus !==
+      'draft' ||
+    projection.automationDecision !==
+      'review' ||
+    projection._status !==
+      'draft' ||
+    projection.generatAutomat !==
+      true
+  ) {
+    return false
+  }
+
+  return (
+    !evidence.sourceDuplicateFound &&
+    !evidence.eventFingerprintDuplicateFound &&
+    !evidence.sourceFingerprintReviewSignal &&
+    !evidence.titleReviewSignal
+  )
+}
+
 /**
  * Performs the last read-only dedup check immediately
  * before draft persistence.
@@ -87,13 +148,23 @@ export async function createFlashAiDraftWithFinalDedupGuard({
       },
     )
 
+  const canPersistPendingEventIdentity =
+    canPersistSafePendingEventIdentityDraft({
+      candidate,
+      projection,
+      finalDedup,
+    })
+
   if (
     finalDedup.evidence
       .sourceDuplicateFound ||
     finalDedup.evidence
       .eventFingerprintDuplicateFound ||
-    finalDedup.evidence
-      .finalDedupPending
+    (
+      finalDedup.evidence
+        .finalDedupPending &&
+      !canPersistPendingEventIdentity
+    )
   ) {
     throw new Error(
       'FlashAI final pre-write dedup guard blocked persistence.',
