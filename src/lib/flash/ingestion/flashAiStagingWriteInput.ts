@@ -71,10 +71,14 @@ function canBridgePendingEventIdentityAsSafeReviewDraft({
     return false
   }
 
+  const reviewSignals =
+    readiness.reviewSignals ??
+    []
+
   return (
-    readiness.reviewSignals.length ===
+    reviewSignals.length ===
       1 &&
-    readiness.reviewSignals[0] ===
+    reviewSignals[0] ===
       'event_identity_pending'
   )
 }
