@@ -28,6 +28,9 @@ import {
 import {
   evaluateFlashArticlePrePersistenceDedupReadOnly,
 } from '@/lib/flash/ingestion/payloadArticleCandidatePrePersistenceDedupReadOnly'
+import type {
+  FlashTargetLanguage,
+} from '@/lib/flash/ingestion/flashTargetLanguage'
 import {
   extractFlashHtmlArticle,
 } from '@/lib/flash/ingestion/htmlArticleExtraction'
@@ -219,6 +222,25 @@ function parseConfirmedBodyIdentity(
   }
 }
 
+function parseTargetLanguage(
+  value: string | null,
+): FlashTargetLanguage {
+  if (
+    value === null ||
+    value === 'ro'
+  ) {
+    return 'ro'
+  }
+
+  if (value === 'en') {
+    return 'en'
+  }
+
+  throw new Error(
+    '--target-language must be ro or en.',
+  )
+}
+
 function printHelp(): void {
   console.log(`
 Flash Engine HTML article pre-persistence dedup preview
@@ -230,6 +252,7 @@ Usage:
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/contents-code-gpai] \
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/signatory-taskforce-gpai-code-practice] \
     [--confirmed-event-id doi:10.1038/s41587-019-0105-3] \
+    [--target-language ro|en] \
     [--allow-provider-requests --model gpt-5.6-terra] \
     [--qa-retention-diagnostic-output ./tmp/flash-ai-qa-retention-diagnostic.json] \
     [--handoff-output ./tmp/flash-ai-staging-handoff.json]
@@ -263,9 +286,9 @@ Behavior:
   - accepts zero, one, or two explicit --supporting-url values; zero preserves the original REG-001T primary-only path
   - when supporting URLs are supplied, retrieves them through the canonical retriever and requires the REG-001U verified supporting-source pack contract to pass
   - deterministically extracts bounded supporting policy semantic material only after the supporting pack passes
-  - after successful classification, requests one original Romanian REG-001T editorial draft using the same primary source candidate, validated classification, and optional verified supporting materials
-  - the generated Romanian editorial must satisfy the strict 500–1000-word contract or the preview fails closed
-  - after successful generation, runs one bounded source-fidelity / Romanian QA pass against the same primary + supporting source set and classification
+  - after successful classification, requests one original REG-001T editorial draft in --target-language (default ro) using the same primary source candidate, validated classification, and optional verified supporting materials
+  - the generated target-language editorial must satisfy the strict 500–1000-word contract or the preview fails closed
+  - after successful generation, runs one bounded source-fidelity QA pass in the same target language against the same primary + supporting source set and classification
   - QA may return a shorter source-faithful diagnostic editorial rather than inventing or padding material to force the canonical minimum
   - QA retention-floor breaches are reported as structured fail-closed diagnostics; source-material sufficiency remains undetermined
   - optional --qa-retention-diagnostic-output writes only parsed/validated original + reviewed QA material when that retention breach occurs
@@ -481,6 +504,13 @@ async function main() {
     parseConfirmedBodyIdentity(
       readOption(
         '--confirmed-event-id',
+      ),
+    )
+
+  const targetLanguage =
+    parseTargetLanguage(
+      readOption(
+        '--target-language',
       ),
     )
 
@@ -758,6 +788,7 @@ async function main() {
           fingerprints.eventFingerprint,
         sourceFingerprint:
           fingerprints.sourceFingerprint,
+        targetLanguage,
       },
     )
 
@@ -772,6 +803,7 @@ async function main() {
         fingerprints.sourceFingerprint,
       eventFingerprint:
         fingerprints.eventFingerprint,
+      targetLanguage,
     })
 
   let prePersistenceClassification:
@@ -989,6 +1021,7 @@ async function main() {
           fingerprints.sourceFingerprint,
         eventFingerprint:
           fingerprints.eventFingerprint,
+        targetLanguage,
         validatedClassification:
           classificationResult.classification,
       })
@@ -1010,8 +1043,9 @@ async function main() {
             classificationResult.classification,
           supportingSources:
             supportingPolicySemanticMaterials,
+          targetLanguage,
           runId:
-            `flash-prepersistence-editorial-ro:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
+            `flash-prepersistence-editorial-${targetLanguage}:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
         },
       })
 
@@ -1052,8 +1086,9 @@ async function main() {
             editorialResult.editorial,
           supportingSources:
             supportingPolicySemanticMaterials,
+          targetLanguage,
           runId:
-            `flash-prepersistence-editorial-qa-ro:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
+            `flash-prepersistence-editorial-qa-${targetLanguage}:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
         },
       })
 
@@ -1198,6 +1233,7 @@ async function main() {
             fingerprints.sourceFingerprint,
           eventFingerprint:
             fingerprints.eventFingerprint,
+          targetLanguage,
           validatedClassification:
             classificationResult.classification,
           verifiedEditorial: {
@@ -1244,6 +1280,7 @@ async function main() {
     candidate: {
       sourceId:
         normalized.sourceId,
+      targetLanguage,
       sourceName:
         normalized.sourceName,
       language:
@@ -1294,7 +1331,7 @@ async function main() {
     prePersistenceEditorialGeneration
   ) {
     console.log(
-      'FLASH_PREPERSISTENCE_EDITORIAL_GENERATION_RO',
+      `FLASH_PREPERSISTENCE_EDITORIAL_GENERATION_${targetLanguage.toUpperCase()}`,
     )
     console.log(
       JSON.stringify(
@@ -1309,7 +1346,7 @@ async function main() {
     prePersistenceEditorialQualityReview
   ) {
     console.log(
-      'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_RO',
+      `FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_${targetLanguage.toUpperCase()}`,
     )
     console.log(
       JSON.stringify(
@@ -1325,7 +1362,7 @@ async function main() {
     prePersistenceEditorialLexicalContent
   ) {
     console.log(
-      'FLASH_PREPERSISTENCE_EDITORIAL_LEXICAL_RO',
+      `FLASH_PREPERSISTENCE_EDITORIAL_LEXICAL_${targetLanguage.toUpperCase()}`,
     )
     console.log(
       JSON.stringify(
