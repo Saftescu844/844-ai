@@ -1,5 +1,12 @@
 import { payloadClient } from '@/lib/payload'
 import { trimiteConfirmare } from '@/lib/newsletter-email'
+import { revendicaTrimitereConfirmare } from '@/lib/newsletter-confirmation-cooldown'
+import {
+  createHttpRequestContext,
+  finalizeHttpResponse,
+  logHttpInternalFailure,
+} from '@/lib/observability/httpRequestContext'
+import type { Newsletter } from '@/payload-types'
 
 type LimbaNewsletter = 'ro' | 'en'
 
@@ -14,7 +21,33 @@ function raspunsJSON(date: object, status: number): Response {
   })
 }
 
+function raspunsPublic(): Response {
+  return raspunsJSON(
+    {
+      ok: true,
+      rezultat: 'verifica_emailul',
+    },
+    200,
+  )
+}
+
 export async function POST(req: Request) {
+  const requestContext =
+    createHttpRequestContext(
+      req,
+      'api-newsletter',
+    )
+
+  const reply =
+    (
+      response:
+        Response,
+    ) =>
+      finalizeHttpResponse(
+        requestContext,
+        response,
+      )
+
   let email = ''
   let limba: LimbaNewsletter = 'ro'
 
@@ -22,7 +55,15 @@ export async function POST(req: Request) {
     const body: unknown = await req.json()
 
     if (!body || typeof body !== 'object') {
-      return raspunsJSON({ ok: false, eroare: 'cerere_invalida' }, 400)
+      return reply(
+        raspunsJSON(
+          {
+            ok: false,
+            eroare: 'cerere_invalida',
+          },
+          400,
+        ),
+      )
     }
 
     const date = body as Record<string, unknown>
@@ -33,21 +74,42 @@ export async function POST(req: Request) {
 
     limba = date.limba === 'en' ? 'en' : 'ro'
   } catch {
-    return raspunsJSON({ ok: false, eroare: 'cerere_invalida' }, 400)
+    return reply(
+      raspunsJSON(
+        {
+          ok: false,
+          eroare: 'cerere_invalida',
+        },
+        400,
+      ),
+    )
   }
 
   if (!EMAIL_REGEX.test(email) || email.length > 254) {
-    return raspunsJSON({ ok: false, eroare: 'email_invalid' }, 400)
+    return reply(
+      raspunsJSON(
+        {
+          ok: false,
+          eroare: 'email_invalid',
+        },
+        400,
+      ),
+    )
   }
 
   let payload
 
   try {
     payload = await payloadClient()
-  } catch (eroare) {
-    console.error('[newsletter] eroare conectare Payload:', eroare)
+  } catch {
+    logHttpInternalFailure(
+      requestContext,
+      'NEWSLETTER_PAYLOAD_UNAVAILABLE',
+    )
 
-    return raspunsJSON({ ok: false, eroare: 'eroare_server' }, 500)
+    return reply(
+      raspunsPublic(),
+    )
   }
 
   try {
@@ -64,73 +126,91 @@ export async function POST(req: Request) {
     const abonatExistent = existent.docs[0]
 
     if (abonatExistent?.confirmat) {
-      return raspunsJSON({ ok: false, eroare: 'deja_abonat' }, 409)
+      return reply(
+        raspunsPublic(),
+      )
     }
 
     if (abonatExistent) {
-      try {
-        await trimiteConfirmare(email, limba)
+      const revendicat = await revendicaTrimitereConfirmare(
+        (sql, values) => payload.db.pool.query(sql, [...values]),
+        abonatExistent.id,
+      )
 
-        return raspunsJSON(
-          {
-            ok: true,
-            rezultat: 'confirmare_retrimisa',
-          },
-          200,
-        )
-      } catch (eroare) {
-        console.error('[newsletter] eroare retrimitere confirmare:', eroare)
-
-        return raspunsJSON(
-          {
-            ok: false,
-            eroare: 'email_indisponibil',
-          },
-          503,
+      if (!revendicat) {
+        return reply(
+          raspunsPublic(),
         )
       }
+
+      try {
+        await trimiteConfirmare(
+          abonatExistent.id,
+          abonatExistent.email,
+          limba,
+        )
+      } catch {
+        logHttpInternalFailure(
+          requestContext,
+          'NEWSLETTER_RESEND_CONFIRMATION_FAILED',
+        )
+      }
+
+      return reply(
+        raspunsPublic(),
+      )
     }
 
+    let abonatNou: Newsletter
+
     try {
-      await payload.create({
+      abonatNou = await payload.create({
         collection: 'newsletter',
         data: {
           email,
           limba,
           segment: ['general'],
           confirmat: false,
-        } as any,
+          confirmationLastSentAt: new Date().toISOString(),
+        },
       })
-    } catch (eroare) {
-      console.error('[newsletter] eroare creare abonat:', eroare)
+    } catch {
+      // Include și cursa legitimă în care alt request a creat între timp
+      // aceeași adresă și constrângerea unique respinge acest create.
+      logHttpInternalFailure(
+        requestContext,
+        'NEWSLETTER_CREATE_FAILED',
+      )
 
-      return raspunsJSON({ ok: false, eroare: 'eroare_creare' }, 500)
+      return reply(
+        raspunsPublic(),
+      )
     }
 
     try {
-      await trimiteConfirmare(email, limba)
-
-      return raspunsJSON(
-        {
-          ok: true,
-          rezultat: 'confirmare_trimisa',
-        },
-        201,
+      await trimiteConfirmare(
+        abonatNou.id,
+        abonatNou.email,
+        limba,
       )
-    } catch (eroare) {
-      console.error('[newsletter] eroare trimitere confirmare:', eroare)
-
-      return raspunsJSON(
-        {
-          ok: false,
-          eroare: 'email_indisponibil',
-        },
-        503,
+    } catch {
+      logHttpInternalFailure(
+        requestContext,
+        'NEWSLETTER_SEND_CONFIRMATION_FAILED',
       )
     }
-  } catch (eroare) {
-    console.error('[newsletter] eroare procesare abonare:', eroare)
 
-    return raspunsJSON({ ok: false, eroare: 'eroare_server' }, 500)
+    return reply(
+      raspunsPublic(),
+    )
+  } catch {
+    logHttpInternalFailure(
+      requestContext,
+      'NEWSLETTER_PROCESSING_FAILED',
+    )
+
+    return reply(
+      raspunsPublic(),
+    )
   }
 }

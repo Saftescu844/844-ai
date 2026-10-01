@@ -6,7 +6,8 @@ async function main() {
   const a: any = await payload.findByID({ collection: 'articole', id: 9, depth: 1 })
   console.log('titlu:', a.titlu)
   console.log('pilon:', typeof a.pilon === 'object' ? a.pilon?.slug + ' (nume: ' + a.pilon?.nume + ')' : a.pilon)
-  console.log('status:', a.status)
+  console.log('status publicare:', a._status)
+  console.log('status editorial:', a.editorialStatus)
   process.exit(0)
 }
 main().catch((e) => { console.error(e.message); process.exit(1) })

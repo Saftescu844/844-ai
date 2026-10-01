@@ -1,15 +1,225 @@
-import type { CollectionConfig } from 'payload'
+import { APIError, type CollectionBeforeOperationHook, type CollectionConfig } from 'payload'
+import {
+  accountLanguage,
+  passwordResetHTML,
+  passwordResetSubject,
+} from '@/lib/password-recovery-email'
+import { claimPasswordRecoveryAttempt } from '@/lib/password-recovery-rate-limit'
 
 // ============================================================
 //  USERI — autentificare + nivel abonament (pentru Stripe)
 //  Colecția auth a platformei. Suportă comunitatea și conținutul premium.
 // ============================================================
+const limitPasswordRecovery: CollectionBeforeOperationHook<'useri'> = async ({
+  operation,
+  req,
+}) => {
+  if (operation !== 'forgotPassword') {
+    return
+  }
+
+  let allowed = false
+
+  try {
+    allowed =
+      await claimPasswordRecoveryAttempt(
+        (sql, values) =>
+          req.payload.db.pool.query(
+            sql,
+            [...values],
+          ),
+        req.headers,
+        process.env.PAYLOAD_SECRET || '',
+      )
+  } catch (error) {
+    req.payload.logger.error({
+      err: error,
+      msg: '[password-recovery] rate limit indisponibil',
+    })
+
+    throw new APIError(
+      'Serviciul de recuperare a parolei este temporar indisponibil.',
+      503,
+    )
+  }
+
+  if (!allowed) {
+    throw new APIError(
+      'Prea multe cereri de recuperare. Încearcă din nou mai târziu.',
+      429,
+      undefined,
+      true,
+    )
+  }
+}
+
+const protectLastAdminInvariant: CollectionBeforeOperationHook<'useri'> = async ({
+  args,
+  operation,
+  req,
+}) => {
+  const isDelete = operation === 'delete' || operation === 'deleteByID'
+
+  const isRoleDemotion =
+    (operation === 'update' || operation === 'updateByID') &&
+    'data' in args &&
+    args.data?.rol !== undefined &&
+    args.data.rol !== 'admin'
+
+  if (!isDelete && !isRoleDemotion) {
+    return
+  }
+
+  // Pentru cererile normale lăsăm access control-ul să respingă mai întâi
+  // actorii neautorizați, fără să dezvăluim informații despre administratori.
+  // Apelurile Local API cu overrideAccess rămân însă supuse invariantului.
+  const overridesAccess = 'overrideAccess' in args && args.overrideAccess === true
+
+  if (!overridesAccess && req.user?.rol !== 'admin') {
+    return
+  }
+
+  const { totalDocs: totalAdmins } = await req.payload.count({
+    collection: 'useri',
+    overrideAccess: true,
+    req,
+    where: {
+      rol: {
+        equals: 'admin',
+      },
+    },
+  })
+
+  if (totalAdmins === 0) {
+    return
+  }
+
+  let affectedAdmins = 0
+
+  if ('id' in args && (typeof args.id === 'string' || typeof args.id === 'number')) {
+    const result = await req.payload.count({
+      collection: 'useri',
+      overrideAccess: true,
+      req,
+      where: {
+        and: [
+          {
+            id: {
+              equals: args.id,
+            },
+          },
+          {
+            rol: {
+              equals: 'admin',
+            },
+          },
+        ],
+      },
+    })
+
+    affectedAdmins = result.totalDocs
+  } else if ('where' in args && args.where) {
+    const result = await req.payload.count({
+      collection: 'useri',
+      overrideAccess: true,
+      req,
+      where: {
+        and: [
+          args.where,
+          {
+            rol: {
+              equals: 'admin',
+            },
+          },
+        ],
+      },
+    })
+
+    affectedAdmins = result.totalDocs
+  }
+
+  if (affectedAdmins > 0 && affectedAdmins >= totalAdmins) {
+    throw new APIError(
+      'Operația este blocată deoarece ar elimina ultimul administrator al platformei.',
+      409,
+    )
+  }
+}
+
+const protectUserCommentDependencies: CollectionBeforeOperationHook<'useri'> = async ({
+  args,
+  operation,
+  req,
+}) => {
+  if (operation !== 'delete' && operation !== 'deleteByID') {
+    return
+  }
+
+  // Pentru cererile normale lăsăm access control-ul să respingă mai întâi
+  // actorii neautorizați. Local API cu overrideAccess rămâne însă protejat.
+  const overridesAccess = 'overrideAccess' in args && args.overrideAccess === true
+
+  if (!overridesAccess && req.user?.rol !== 'admin') {
+    return
+  }
+
+  let targetIDs: Array<number | string> = []
+
+  if ('id' in args && (typeof args.id === 'string' || typeof args.id === 'number')) {
+    targetIDs = [args.id]
+  } else if ('where' in args && args.where) {
+    const targets = await req.payload.find({
+      collection: 'useri',
+      depth: 0,
+      overrideAccess: true,
+      pagination: false,
+      req,
+      where: args.where,
+    })
+
+    targetIDs = targets.docs.map((doc) => doc.id)
+  }
+
+  if (targetIDs.length === 0) {
+    return
+  }
+
+  const { totalDocs: dependentComments } = await req.payload.count({
+    collection: 'comentarii',
+    overrideAccess: true,
+    req,
+    where: {
+      autor: {
+        in: targetIDs,
+      },
+    },
+  })
+
+  if (dependentComments > 0) {
+    throw new APIError(
+      'Utilizatorul nu poate fi șters cât timp există comentarii asociate.',
+      409,
+    )
+  }
+}
 
 export const Useri: CollectionConfig = {
   slug: 'useri',
   labels: { singular: 'User', plural: 'Useri' },
   auth: {
     verify: true, // verificare email la înregistrare
+    forgotPassword: {
+      expiration: 60 * 60 * 1000,
+      generateEmailSubject: (args) =>
+        passwordResetSubject(
+          accountLanguage(args?.user),
+        ),
+      generateEmailHTML: (args) =>
+        passwordResetHTML(
+          args?.token || '',
+          accountLanguage(args?.user),
+        ),
+    },
     maxLoginAttempts: 5,
     lockTime: 600000, // 10 min
   },
@@ -18,11 +228,61 @@ export const Useri: CollectionConfig = {
     defaultColumns: ['email', 'nume', 'rol', 'nivelAbonament'],
     group: 'Comunitate',
   },
+  hooks: {
+    beforeOperation: [
+      limitPasswordRecovery,
+      protectLastAdminInvariant,
+      protectUserCommentDependencies,
+    ],
+  },
+  access: {
+    admin: ({ req: { user } }) => user?.rol === 'admin' || user?.rol === 'editor',
+
+    create: ({ req: { user } }) => user?.rol === 'admin',
+
+    read: ({ req: { user } }) => {
+      if (!user) return false
+      if (user.rol === 'admin') return true
+      return { id: { equals: user.id } }
+    },
+
+    update: ({ req: { user } }) => {
+      if (!user) return false
+      if (user.rol === 'admin') return true
+      return { id: { equals: user.id } }
+    },
+
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+    unlock: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
+    {
+      name: 'email',
+      type: 'email',
+      access: {
+        // Schimbarea adresei necesită un flux explicit de reverificare.
+        // Până la implementarea lui, emailul poate fi setat doar la creare.
+        update: () => false,
+      },
+    },
+    {
+      name: '_verified',
+      type: 'checkbox',
+      admin: {
+        condition: (_data, _siblingData, { user }) => user?.rol === 'admin',
+      },
+      access: {
+        // Starea de verificare poate fi administrată manual doar de administratori.
+        // Fluxul legitim de verificare prin token este gestionat intern de Payload.
+        create: ({ req: { user } }) => user?.rol === 'admin',
+        update: ({ req: { user } }) => user?.rol === 'admin',
+      },
+    },
     { name: 'nume', type: 'text' },
     {
       name: 'rol',
       type: 'select',
+      saveToJWT: true,
       required: true,
       defaultValue: 'cititor',
       options: [
@@ -32,13 +292,15 @@ export const Useri: CollectionConfig = {
         { label: 'Administrator', value: 'admin' },
       ],
       access: {
-        // doar adminii pot schimba rolul
+        // Numai administratorul poate atribui sau modifica roluri.
+        create: ({ req: { user } }) => user?.rol === 'admin',
         update: ({ req: { user } }) => user?.rol === 'admin',
       },
     },
     {
       name: 'nivelAbonament',
       type: 'select',
+      saveToJWT: true,
       defaultValue: 'gratuit',
       options: [
         { label: 'Gratuit', value: 'gratuit' },
@@ -46,6 +308,11 @@ export const Useri: CollectionConfig = {
         { label: 'Acces complet (cursuri)', value: 'complet' },
       ],
       index: true,
+      access: {
+        // Utilizatorii nu își pot acorda singuri niveluri de abonament.
+        create: ({ req: { user } }) => user?.rol === 'admin',
+        update: ({ req: { user } }) => user?.rol === 'admin',
+      },
     },
     // === Câmpuri Stripe (integrare abonamente) ===
     {
@@ -53,9 +320,36 @@ export const Useri: CollectionConfig = {
       label: 'Abonament Stripe',
       admin: { initCollapsed: true },
       fields: [
-        { name: 'stripeCustomerId', type: 'text', admin: { readOnly: true } },
-        { name: 'stripeSubscriptionId', type: 'text', admin: { readOnly: true } },
-        { name: 'abonamentExpira', type: 'date', admin: { readOnly: true } },
+        {
+          name: 'stripeCustomerId',
+          type: 'text',
+          admin: { readOnly: true },
+          access: {
+            read: ({ req: { user } }) => user?.rol === 'admin',
+            create: ({ req: { user } }) => user?.rol === 'admin',
+            update: ({ req: { user } }) => user?.rol === 'admin',
+          },
+        },
+        {
+          name: 'stripeSubscriptionId',
+          type: 'text',
+          admin: { readOnly: true },
+          access: {
+            read: ({ req: { user } }) => user?.rol === 'admin',
+            create: ({ req: { user } }) => user?.rol === 'admin',
+            update: ({ req: { user } }) => user?.rol === 'admin',
+          },
+        },
+        {
+          name: 'abonamentExpira',
+          type: 'date',
+          admin: { readOnly: true },
+          access: {
+            read: ({ req: { user } }) => user?.rol === 'admin',
+            create: ({ req: { user } }) => user?.rol === 'admin',
+            update: ({ req: { user } }) => user?.rol === 'admin',
+          },
+        },
       ],
     },
     {

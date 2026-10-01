@@ -134,13 +134,14 @@ async function main() {
 
       const creat = await payload.create({
         collection: 'articole',
+        draft: true,
         data: {
           titlu: art.titlu, slug: slug(art.titlu), limba: 'ro', pilon: categorieId, tip: 'stire-auto',
           subcategorie: stire.subcategorie,
           excerpt: (art.excerpt || '').substring(0, 298), continut: htmlToLexical(art.continut),
           sursaNume: stire.sursa, sursaLink: stire.link,
           tags: (art.tags || []).map((t: string) => ({ tag: t })),
-          status: 'draft',
+          editorialStatus: 'review',
           generatAutomat: true, numarConfirmari: 1,
         } as any,
       })
@@ -153,19 +154,20 @@ async function main() {
         if (tradus) {
           const creatEn = await payload.create({
             collection: 'articole',
+            draft: true,
             data: {
               titlu: tradus.titlu, slug: slugEn(tradus.titlu), limba: 'en', pilon: categorieId, tip: 'stire-auto',
               subcategorie: stire.subcategorie,
               excerpt: (tradus.excerpt || '').substring(0, 298), continut: tradus.continut,
               sursaNume: stire.sursa, sursaLink: stire.link,
               tags: (art.tags || []).map((t: string) => ({ tag: t })),
-              status: 'draft',
+              editorialStatus: 'review',
               generatAutomat: true, numarConfirmari: 1,
               versiuneAlternativa: creat.id,
               metaTitle: (tradus.metaTitle || '').substring(0, 58), metaDescription: (tradus.metaDescription || '').substring(0, 158),
             } as any,
           })
-          await payload.update({ collection: 'articole', id: creat.id, data: { versiuneAlternativa: creatEn.id } as any })
+          await payload.update({ collection: 'articole', id: creat.id, draft: true, data: { versiuneAlternativa: creatEn.id } as any })
           console.log('    ✓ TRADUS în engleză (ID ' + creatEn.id + ')')
         }
       } catch (e: any) { console.log('    [Translator] eșuat: ' + e.message) }
@@ -173,7 +175,7 @@ async function main() {
       console.log('    EROARE: ' + e.message)
     }
   }
-  console.log('\n=== GATA: ' + publicate + ' articole medicale publicate ===\n')
+  console.log('\n=== GATA: ' + publicate + ' ciorne medicale create ===\n')
   process.exit(0)
 }
 main().catch((err) => { console.error('\nEROARE FATALĂ:', err.message); process.exit(1) })

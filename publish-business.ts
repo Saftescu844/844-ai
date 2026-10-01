@@ -98,15 +98,15 @@ async function main() {
   for (const s of stiri.slice(0, 5)) console.log('      [' + s.scor + '/10] ' + s.titlu.substring(0, 55))
   console.log('')
 
-  const deProiectat = stiri.slice(0, Math.max(MAX_ARTICOLE * 5, 10)) // candidați mai mulți; ne oprim la MAX_ARTICOLE create efectiv
+  const deProiectat = stiri.slice(0, Math.max(MAX_ARTICOLE * 5, 10)) // candidați mai mulți; ne oprim la MAX_ARTICOLE publicate efectiv
   console.log('[3] Încerc până la ' + deProiectat.length + ' candidați, țintă ' + MAX_ARTICOLE + ' articole...\n')
 
   let publicate = 0
   for (const stire of deProiectat) {
-    if (publicate >= MAX_ARTICOLE) break // oprire când am creat efectiv suficiente, nu doar încercat
+    if (publicate >= MAX_ARTICOLE) break // oprire când am publicat efectiv suficiente, nu doar încercat
     console.log('  → [' + stire.scor + '/10] "' + stire.titlu.substring(0, 50) + '..." (' + stire.sursa + ')')
     const existent = stire.link ? await payload.find({ collection: 'articole', where: { sursaLink: { equals: stire.link } }, limit: 1 }) : { docs: [] as any[] }
-    if (existent.docs.length > 0) { console.log('    deja există, sar peste'); continue }
+    if (existent.docs.length > 0) { console.log('    deja publicat, sar peste'); continue }
 
     const prompt =
       'Ești jurnalist de business la 844-ai.ro. Scrie un articol ORIGINAL în română despre AI în afaceri, pe baza acestei știri.\n\n' +
@@ -125,12 +125,13 @@ async function main() {
 
       const creat = await payload.create({
         collection: 'articole',
+        draft: true,
         data: {
           titlu: art.titlu, slug: slug(art.titlu), limba: 'ro', pilon: categorieId, tip: 'stire-auto',
           excerpt: (art.excerpt || '').substring(0, 298), continut: htmlToLexical(art.continut),
           sursaNume: stire.sursa, sursaLink: stire.link,
           tags: (art.tags || []).map((t: string) => ({ tag: t })),
-          status: 'draft',
+          editorialStatus: 'review',
           generatAutomat: true, numarConfirmari: 1,
         } as any,
       })
@@ -142,18 +143,19 @@ async function main() {
         if (tradus) {
           const creatEn = await payload.create({
             collection: 'articole',
+            draft: true,
             data: {
               titlu: tradus.titlu, slug: slugEn(tradus.titlu), limba: 'en', pilon: categorieId, tip: 'stire-auto',
               excerpt: (tradus.excerpt || '').substring(0, 298), continut: tradus.continut,
               sursaNume: stire.sursa, sursaLink: stire.link,
               tags: (art.tags || []).map((t: string) => ({ tag: t })),
-              status: 'draft',
+              editorialStatus: 'review',
               generatAutomat: true, numarConfirmari: 1,
               versiuneAlternativa: creat.id,
               metaTitle: (tradus.metaTitle || '').substring(0, 58), metaDescription: (tradus.metaDescription || '').substring(0, 158),
             } as any,
           })
-          await payload.update({ collection: 'articole', id: creat.id, data: { versiuneAlternativa: creatEn.id } as any })
+          await payload.update({ collection: 'articole', id: creat.id, draft: true, data: { versiuneAlternativa: creatEn.id } as any })
           console.log('    ✓ TRADUS (ID ' + creatEn.id + ')')
         }
       } catch (e: any) { console.log('    [Translator] eșuat: ' + e.message) }
@@ -161,7 +163,7 @@ async function main() {
       console.log('    EROARE: ' + e.message)
     }
   }
-  console.log('\n=== GATA: ' + publicate + ' ciorne RO Afaceri create ===\n')
+  console.log('\n=== GATA: ' + publicate + ' ciorne Afaceri create pentru revizuire ===\n')
   process.exit(0)
 }
 main().catch((err) => { console.error('\nEROARE FATALĂ:', err.message); process.exit(1) })

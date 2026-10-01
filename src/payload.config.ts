@@ -1,11 +1,15 @@
 import { buildConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
+import { migrations } from './migrations'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 // === Colecții ===
 import { Articole } from './collections/Articole'
+import { FlashAI } from './collections/FlashAI'
+import { FlashEngineRuns } from './collections/FlashEngineRuns'
+import { Autori } from './collections/Autori'
 import { Surse } from './collections/Surse'
 import { Useri } from './collections/Useri'
 import sharp from 'sharp'
@@ -20,18 +24,32 @@ import {
   Media,
   Newsletter,
 } from './collections/RestulColectiilor'
+import { SiteSettings } from './globals/SiteSettings'
+import { searchInfrastructurePlugin } from './search/searchPlugin'
+import { EvaluateFlashEngineTask } from './lib/flash/jobs/evaluateFlashEngineTask'
+import { brevoEmailAdapter } from './lib/brevo-email-adapter'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 export default buildConfig({
+  email: brevoEmailAdapter(),
+
   plugins: [
+    searchInfrastructurePlugin,
     s3Storage({
-      collections: {
+            collections: {
         media: {
           disablePayloadAccessControl: true,
           generateFileURL: ({ filename }) => {
-            return `https://hyapqvnubhwkwmwudeit.supabase.co/storage/v1/object/public/media/${filename}`
+            const mediaPublicBaseUrl =
+              process.env.MEDIA_PUBLIC_BASE_URL?.replace(/\/+$/, '')
+
+            if (!mediaPublicBaseUrl) {
+              throw new Error('MEDIA_PUBLIC_BASE_URL nu este configurată')
+            }
+
+            return `${mediaPublicBaseUrl}/${filename}`
           },
         },
       },
@@ -47,6 +65,13 @@ export default buildConfig({
       },
     }),
   ],
+  // === GraphQL ===
+  // API-ul GraphQL nu este utilizat de aplicație.
+  // Îl dezactivăm pentru a reduce suprafața publică expusă.
+  graphQL: {
+    disable: true,
+  },
+
   // === Autentificare: colecția Useri ===
   admin: {
     user: 'useri',
@@ -56,9 +81,29 @@ export default buildConfig({
   // === Editor de conținut ===
   editor: lexicalEditor(),
 
+  // === Job runner Payload ===
+  // Rulează joburile deja puse în coada implicită.
+  // Scheduling-ul recurent automat rămâne dezactivat.
+  jobs: {
+    tasks: [
+      EvaluateFlashEngineTask,
+    ],
+
+    autoRun: [
+      {
+        queue: 'default',
+        limit: 10,
+        disableScheduling: true,
+      },
+    ],
+  },
+
   // === Toate colecțiile platformei ===
   collections: [
     Articole,
+    FlashAI,
+    FlashEngineRuns,
+    Autori,
     Surse,
     Categorii,
     Useri,
@@ -70,11 +115,15 @@ export default buildConfig({
     Newsletter,
     Media,
   ],
+  globals: [SiteSettings],
 
   // === Bază de date: PostgreSQL pe Supabase ===
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL || '' },
-    push: process.env.NODE_ENV !== 'production',
+    prodMigrations: migrations,
+    // Activare explicită doar pentru baze locale temporare.
+    // Staging și producția folosesc exclusiv migrații controlate.
+    push: process.env.PAYLOAD_DB_PUSH === 'true',
   }),
 
   // === Localizare la nivel de câmp (pentru Tool-uri, Roadmaps, Cursuri) ===

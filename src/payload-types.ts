@@ -68,6 +68,9 @@ export interface Config {
   blocks: {};
   collections: {
     articole: Articole;
+    'flash-ai': FlashAi;
+    'flash-engine-runs': FlashEngineRun;
+    autori: Autori;
     surse: Surse;
     categorii: Categorii;
     useri: Useri;
@@ -78,7 +81,9 @@ export interface Config {
     'callouri-ue': CallouriUe;
     newsletter: Newsletter;
     media: Media;
+    search: Search;
     'payload-kv': PayloadKv;
+    'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -86,6 +91,9 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     articole: ArticoleSelect<false> | ArticoleSelect<true>;
+    'flash-ai': FlashAiSelect<false> | FlashAiSelect<true>;
+    'flash-engine-runs': FlashEngineRunsSelect<false> | FlashEngineRunsSelect<true>;
+    autori: AutoriSelect<false> | AutoriSelect<true>;
     surse: SurseSelect<false> | SurseSelect<true>;
     categorii: CategoriiSelect<false> | CategoriiSelect<true>;
     useri: UseriSelect<false> | UseriSelect<true>;
@@ -96,7 +104,9 @@ export interface Config {
     'callouri-ue': CallouriUeSelect<false> | CallouriUeSelect<true>;
     newsletter: NewsletterSelect<false> | NewsletterSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
+    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -105,15 +115,26 @@ export interface Config {
     defaultIDType: number;
   };
   fallbackLocale: ('false' | 'none' | 'null') | false | null | ('ro' | 'en') | ('ro' | 'en')[];
-  globals: {};
-  globalsSelect: {};
+  globals: {
+    'site-settings': SiteSetting;
+  };
+  globalsSelect: {
+    'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+  };
   locale: 'ro' | 'en';
   widgets: {
     collections: CollectionsWidget;
   };
   user: Useri;
   jobs: {
-    tasks: unknown;
+    tasks: {
+      evaluateFlashEngine: TaskEvaluateFlashEngine;
+      schedulePublish: TaskSchedulePublish;
+      inline: {
+        input: unknown;
+        output: unknown;
+      };
+    };
     workflows: unknown;
   };
 }
@@ -243,12 +264,36 @@ export interface Articole {
         id?: string | null;
       }[]
     | null;
-  status: 'draft' | 'review' | 'published' | 'blocked';
+  /**
+   * Autorul principal al articolului. Relația nu înlocuiește rolurile generale din profilul autorului.
+   */
+  autorPrincipal?: (number | null) | Autori;
+  /**
+   * Coautorii articolului, în ordinea în care trebuie considerați editorial.
+   */
+  coautori?: (number | Autori)[] | null;
+  /**
+   * Persoana care a realizat verificarea editorială a articolului.
+   */
+  verificatorEditorial?: (number | null) | Autori;
+  /**
+   * Verificator medical, utilizat numai când articolul necesită o astfel de validare.
+   */
+  verificatorMedical?: (number | null) | Autori;
+  /**
+   * Experți sau evaluatori care au contribuit editorial la articol.
+   */
+  contributoriExperti?: (number | Autori)[] | null;
+  editorialStatus: 'draft' | 'review' | 'approved' | 'blocked';
   /**
    * Știre excepțională / breaking news.
    */
   esteBreaking?: boolean | null;
   publishedAt?: string | null;
+  /**
+   * Completează doar când articolul a primit o actualizare editorială semnificativă pentru cititor.
+   */
+  significantUpdatedAt?: string | null;
   /**
    * Hash de deduplicare tematică.
    */
@@ -300,7 +345,15 @@ export interface Media {
    * Hash pentru deduplicare (blacklist imagini repetate).
    */
   hashMD5?: string | null;
-  sursaImagine?: ('pexels' | 'pixabay' | 'unsplash' | 'proprie') | null;
+  sursaImagine?: ('pexels' | 'pixabay' | 'unsplash' | 'proprie' | 'alta') | null;
+  /**
+   * Bifează doar dacă dreptul 844-ai.ro de a publica imaginea a fost verificat.
+   */
+  dreptUtilizareConfirmat?: boolean | null;
+  /**
+   * Opțional. Credit / atribuire pentru imagine, când sursa sau licența o cere.
+   */
+  credit?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -350,11 +403,25 @@ export interface Surse {
    * URL-ul de bază al sursei.
    */
   url: string;
+  /**
+   * Primary = instituția, organizația sau autorul care produce informația originală.
+   */
+  sourceRole: 'primary' | 'secondary';
+  /**
+   * Nivel intern de încredere. O sursă nouă pornește conservator ca restricted.
+   */
+  editorialTrust: 'high' | 'standard' | 'restricted';
+  citationMode: 'paraphrase' | 'shortQuote';
+  /**
+   * Permite Flash Engine să preia materiale din această sursă. Implicit dezactivat.
+   */
+  allowIngestion?: boolean | null;
+  /**
+   * Nu garantează publicarea automată. Permite doar intrarea în evaluarea AUTO, dacă toate celelalte reguli sunt îndeplinite.
+   */
+  allowAutoPublish?: boolean | null;
   nivelIncredere: 'primar' | 'secundar' | 'speculativ';
   tipCitarePermis: 'citat-scurt' | 'parafrazare' | 'frontiera';
-  /**
-   * Dacă Auto-Publisher poate genera articole din această sursă. Speculativ = de obicei false.
-   */
   permiteAutoGenerare?: boolean | null;
   /**
    * Pilonii pentru care e relevantă această sursă.
@@ -366,6 +433,259 @@ export interface Surse {
   feedRSS?: string | null;
   regiune?: ('global' | 'europa' | 'romania') | null;
   activa?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "autori".
+ */
+export interface Autori {
+  id: number;
+  profileType: 'person' | 'editorialSystem';
+  fullName: string;
+  /**
+   * Identificator stabil pentru ruta publică. După creare nu se regenerează automat din nume.
+   */
+  slug: string;
+  publicTitle?: string | null;
+  primaryAffiliation?: string | null;
+  profileImage?: (number | null) | Media;
+  /**
+   * Recomandată pentru publicare și utilizată în carduri și antetul profilului.
+   */
+  shortBio?: string | null;
+  /**
+   * Editor controlat: paragrafe, H2/H3, formatare de bază, linkuri, liste și citate.
+   */
+  biography?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  platformRoleDescription?: string | null;
+  /**
+   * Numai o localizare generală, precum orașul sau țara. Nu introduceți adrese private.
+   */
+  publicLocation?: string | null;
+  displayOrder?: number | null;
+  /**
+   * Cel puțin un rol va deveni obligatoriu la publicarea profilului.
+   */
+  editorialRoles?:
+    | (
+        | 'author'
+        | 'coauthor'
+        | 'editorialReviewer'
+        | 'medicalReviewer'
+        | 'technicalReviewer'
+        | 'toolEvaluator'
+        | 'courseAuthor'
+        | 'instructor'
+        | 'contentCurator'
+        | 'externalExpert'
+      )[]
+    | null;
+  expertiseAreas?:
+    | {
+        name: string;
+        description?: string | null;
+        /**
+         * Indicator intern. Nu va fi inclus în datele publice.
+         */
+        verified?: boolean | null;
+        order?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  specialties?:
+    | {
+        label: string;
+        description?: string | null;
+        order?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  contributionTypes?:
+    | (
+        | 'articles'
+        | 'flashAI'
+        | 'courses'
+        | 'roadmaps'
+        | 'toolReviews'
+        | 'euCalls'
+        | 'medicalContent'
+        | 'editorialReview'
+      )[]
+    | null;
+  /**
+   * Indicator controlat intern. La publicare necesită o calificare verificată și neexpirată.
+   */
+  isMedicalReviewer?: boolean | null;
+  /**
+   * Descrie limitele domeniului în care persoana poate verifica informații medicale.
+   */
+  medicalReviewScope?: string | null;
+  credentials?:
+    | {
+        credentialType:
+          | 'academicDegree'
+          | 'professionalTitle'
+          | 'medicalLicense'
+          | 'certification'
+          | 'training'
+          | 'membership'
+          | 'other';
+        title: string;
+        institution?: string | null;
+        country?: string | null;
+        yearObtained?: number | null;
+        yearExpires?: number | null;
+        identifier?: string | null;
+        verificationUrl?: string | null;
+        /**
+         * Calificarea poate fi expusă public numai dacă este și verificată.
+         */
+        publiclyVisible?: boolean | null;
+        verified?: boolean | null;
+        verifiedAt?: string | null;
+        order?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  professionalIdentifiers?:
+    | {
+        type?:
+          | ('orcid' | 'researcherId' | 'professionalRegistry' | 'medicalRegistry' | 'institutionalProfile' | 'other')
+          | null;
+        value: string;
+        publiclyVisible?: boolean | null;
+        verificationUrl?: string | null;
+        verified?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  verificationStatus: 'pending' | 'partiallyVerified' | 'verified' | 'expired' | 'rejected';
+  verifiedAt?: string | null;
+  verifiedBy?: (number | null) | Useri;
+  verificationSource?: string | null;
+  nextVerificationDue?: string | null;
+  verificationNotes?: string | null;
+  documentsReviewed?: boolean | null;
+  /**
+   * Se completează numai cu acordul explicit al persoanei.
+   */
+  publicEmail?: string | null;
+  website?: string | null;
+  institutionalProfile?: string | null;
+  orcidUrl?: string | null;
+  socialLinks?:
+    | {
+        platform:
+          | 'linkedin'
+          | 'github'
+          | 'youtube'
+          | 'x'
+          | 'facebook'
+          | 'instagram'
+          | 'researchGate'
+          | 'googleScholar'
+          | 'other';
+        label?: string | null;
+        url: string;
+        enabled?: boolean | null;
+        order?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  conflictOfInterestStatement?: string | null;
+  affiliationsAndSponsorships?:
+    | {
+        organization: string;
+        relationshipType:
+          | 'employment'
+          | 'consulting'
+          | 'researchFunding'
+          | 'sponsorship'
+          | 'partnership'
+          | 'advisoryRole'
+          | 'ownership'
+          | 'speakerFee'
+          | 'other';
+        description?: string | null;
+        startDate?: string | null;
+        endDate?: string | null;
+        currentlyActive?: boolean | null;
+        /**
+         * Se păstrează activ numai pentru relațiile relevante pentru transparența editorială.
+         */
+        publiclyVisible?: boolean | null;
+        verified?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  aiUseDisclosure?: string | null;
+  /**
+   * Va fi obligatoriu logic înainte de trecerea profilului în starea publicată.
+   */
+  publicationConsent?: boolean | null;
+  consentConfirmedAt?: string | null;
+  consentConfirmedBy?: (number | null) | Useri;
+  consentScope?: string | null;
+  profileImageConsent?: boolean | null;
+  publicContactConsent?: boolean | null;
+  consentWithdrawnAt?: string | null;
+  consentNotes?: string | null;
+  /**
+   * Numai administratorul poate modifica starea profilului în prima implementare.
+   */
+  status: 'draft' | 'pendingVerification' | 'verified' | 'published' | 'inactive' | 'archived';
+  /**
+   * Este completată automat la prima trecere în starea Publicat.
+   */
+  publishedAt?: string | null;
+  lastReviewedAt?: string | null;
+  nextReviewDue?: string | null;
+  inactiveAt?: string | null;
+  archivedAt?: string | null;
+  /**
+   * Câmp intern pentru trasabilitatea verificării editoriale.
+   */
+  reviewedBy?: (number | null) | Useri;
+  /**
+   * Obligatoriu logic atunci când profilul este în starea Arhivat.
+   */
+  archivalReason?: string | null;
+  /**
+   * Relație internă opțională. Asocierea nu acordă drepturi de acces și nu creează automat un profil public.
+   */
+  linkedUser?: (number | null) | Useri;
+  /**
+   * Opțional. Frontendul va utiliza fallbackul aprobat când lipsește.
+   */
+  metaTitle?: string | null;
+  /**
+   * Opțional. Frontendul va utiliza biografia scurtă ca fallback.
+   */
+  metaDescription?: string | null;
+  /**
+   * Opțional. Fallback: fotografia autorului, apoi imaginea globală din SiteSettings.
+   */
+  socialImage?: (number | null) | Media;
+  /**
+   * Frontendul va forța noindex pentru orice profil care nu este în starea Published.
+   */
+  robots: 'indexFollow' | 'noindexFollow' | 'noindexNofollow';
   updatedAt: string;
   createdAt: string;
 }
@@ -406,19 +726,203 @@ export interface Useri {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "flash-ai".
+ */
+export interface FlashAi {
+  id: number;
+  titlu: string;
+  slug: string;
+  limba: 'ro' | 'en';
+  /**
+   * Flash-ul echivalent în cealaltă limbă.
+   */
+  versiuneAlternativa?: (number | null) | FlashAi;
+  pilon: number | Categorii;
+  flashType: 'announcement' | 'research' | 'regulation' | 'product' | 'business' | 'incident' | 'update' | 'other';
+  excerpt?: string | null;
+  /**
+   * Țintă editorială Flash: aproximativ 500–1000 de cuvinte.
+   */
+  continut: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  imaginePrincipala?: (number | null) | Media;
+  surseFlash?:
+    | {
+        sursa?: (number | null) | Surse;
+        url: string;
+        sourcePublishedAt?: string | null;
+        primary?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  informationStatus: 'official' | 'confirmed' | 'emerging' | 'preliminary' | 'disputed' | 'unverified';
+  riskLevel: 'low' | 'medium' | 'high';
+  isHealthRelated?: boolean | null;
+  medicalEvidenceType?:
+    | (
+        | 'notApplicable'
+        | 'preclinical'
+        | 'clinicalStudy'
+        | 'systematicReview'
+        | 'guidelineOrConsensus'
+        | 'regulatoryDecision'
+        | 'realWorldEvidence'
+        | 'productOrCompanyClaim'
+        | 'other'
+      )
+    | null;
+  clinicalValidationStatus?:
+    | (
+        | 'notApplicable'
+        | 'notValidated'
+        | 'underEvaluation'
+        | 'limitedEvidence'
+        | 'validatedForSpecificUse'
+        | 'authorizedOrApproved'
+        | 'unclear'
+      )
+    | null;
+  disclaimerTypes?:
+    | (
+        | 'medicalInformational'
+        | 'emergingEvidence'
+        | 'notClinicallyValidated'
+        | 'regulatoryStatusLimitedOrUnclear'
+        | 'specialistDecision'
+      )[]
+    | null;
+  specialistQuestions?:
+    | {
+        question: string;
+        id?: string | null;
+      }[]
+    | null;
+  autorPrincipal?: (number | null) | Autori;
+  verificatorEditorial?: (number | null) | Autori;
+  verificatorMedical?: (number | null) | Autori;
+  relatedArticle?: (number | null) | Articole;
+  relatedFlash?: (number | null) | FlashAi;
+  editorialStatus: 'draft' | 'review' | 'approved' | 'blocked';
+  automationDecision: 'autoPublish' | 'review' | 'blocked';
+  decisionReason?: string | null;
+  eventFingerprint?: string | null;
+  sourceFingerprint?: string | null;
+  generatAutomat?: boolean | null;
+  publishedAt?: string | null;
+  significantUpdatedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * Jurnal tehnic read-only pentru execuțiile Flash Engine. Nu reprezintă autoritatea de publicare.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "flash-engine-runs".
+ */
+export interface FlashEngineRun {
+  id: number;
+  /**
+   * Relația curentă către Flash. Poate deveni null dacă documentul Flash este șters.
+   */
+  flash?: (number | null) | FlashAi;
+  /**
+   * ID-ul original al Flash-ului evaluat, păstrat independent de existența ulterioară a documentului.
+   */
+  flashIdSnapshot: number;
+  /**
+   * Identificator unic al unei execuții Flash Engine.
+   */
+  runId: string;
+  status: 'running' | 'completed' | 'failed';
+  /**
+   * Providerul semantic utilizat de această execuție.
+   */
+  provider: string;
+  model: string;
+  /**
+   * Versiunea logică sau revizia Flash Engine folosită pentru evaluare.
+   */
+  engineVersion: string;
+  startedAt: string;
+  completedAt?: string | null;
+  decision?: ('autoPublish' | 'review' | 'blocked') | null;
+  /**
+   * Codurile structurate returnate de Decision Engine.
+   */
+  reasons?:
+    | {
+        reason: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Snapshot structurat al intrării finale în Decision Engine.
+   */
+  decisionInputSnapshot?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Rezumat auditabil al componentelor runtime. Nu stochează pagini sursă sau chunks brute.
+   */
+  evidenceSummary?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  errorCode?: string | null;
+  /**
+   * Mesaj tehnic sanitizat. Nu se stochează chei API sau răspunsuri provider brute.
+   */
+  errorMessage?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "comentarii".
  */
 export interface Comentarii {
   id: number;
   continut: string;
   autor: number | Useri;
-  articol: number | Articole;
+  /**
+   * Țintă comentariu pentru conținut editorial clasic. Se setează articol SAU Flash AI, niciodată ambele.
+   */
+  articol?: (number | null) | Articole;
+  /**
+   * Țintă comentariu pentru Flash AI. Se setează Flash AI SAU articol, niciodată ambele.
+   */
+  flash?: (number | null) | FlashAi;
   /**
    * Moderare din ziua 1 — comentariile apar public doar după aprobare.
    */
   status: 'asteptare' | 'aprobat' | 'respins';
   /**
-   * Pentru thread-uri (răspuns la alt comentariu).
+   * Pentru thread-uri. Părintele trebuie să aparțină aceleiași ținte (articol sau Flash AI).
    */
   raspunsLa?: (number | null) | Comentarii;
   updatedAt: string;
@@ -639,7 +1143,36 @@ export interface Newsletter {
    * Double opt-in confirmat.
    */
   confirmat?: boolean | null;
+  /**
+   * Metadată internă pentru cooldown-ul emailurilor de confirmare.
+   */
+  confirmationLastSentAt?: string | null;
   userAsociat?: (number | null) | Useri;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This is a collection of automatically created search results. These results are used by the global site search and will be updated automatically as documents in the CMS are created or updated.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "search".
+ */
+export interface Search {
+  id: number;
+  title?: string | null;
+  priority?: number | null;
+  doc: {
+    relationTo: 'articole';
+    value: number | Articole;
+  };
+  excerpt?: string | null;
+  keywords?: string | null;
+  url?: string | null;
+  language?: ('ro' | 'en') | null;
+  editorialStatus?: ('draft' | 'review' | 'approved' | 'blocked') | null;
+  articleType?: ('stire-auto' | 'analiza' | 'frontiera' | 'ghid') | null;
+  publishedAt?: string | null;
+  isPublic?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -662,6 +1195,98 @@ export interface PayloadKv {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs".
+ */
+export interface PayloadJob {
+  id: number;
+  /**
+   * Input data provided to the job
+   */
+  input?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  taskStatus?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  completedAt?: string | null;
+  totalTried?: number | null;
+  /**
+   * If hasError is true this job will not be retried
+   */
+  hasError?: boolean | null;
+  /**
+   * If hasError is true, this is the error that caused it
+   */
+  error?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Task execution log
+   */
+  log?:
+    | {
+        executedAt: string;
+        completedAt: string;
+        taskSlug: 'inline' | 'evaluateFlashEngine' | 'schedulePublish';
+        taskID: string;
+        input?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        output?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        state: 'failed' | 'succeeded';
+        error?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  taskSlug?: ('inline' | 'evaluateFlashEngine' | 'schedulePublish') | null;
+  queue?: string | null;
+  waitUntil?: string | null;
+  processing?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -670,6 +1295,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'articole';
         value: number | Articole;
+      } | null)
+    | ({
+        relationTo: 'flash-ai';
+        value: number | FlashAi;
+      } | null)
+    | ({
+        relationTo: 'autori';
+        value: number | Autori;
       } | null)
     | ({
         relationTo: 'surse';
@@ -710,6 +1343,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'search';
+        value: number | Search;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -792,9 +1429,15 @@ export interface ArticoleSelect<T extends boolean = true> {
         tag?: T;
         id?: T;
       };
-  status?: T;
+  autorPrincipal?: T;
+  coautori?: T;
+  verificatorEditorial?: T;
+  verificatorMedical?: T;
+  contributoriExperti?: T;
+  editorialStatus?: T;
   esteBreaking?: T;
   publishedAt?: T;
+  significantUpdatedAt?: T;
   clusterHash?: T;
   unghi?: T;
   generatAutomat?: T;
@@ -808,11 +1451,220 @@ export interface ArticoleSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "flash-ai_select".
+ */
+export interface FlashAiSelect<T extends boolean = true> {
+  titlu?: T;
+  slug?: T;
+  limba?: T;
+  versiuneAlternativa?: T;
+  pilon?: T;
+  flashType?: T;
+  excerpt?: T;
+  continut?: T;
+  imaginePrincipala?: T;
+  surseFlash?:
+    | T
+    | {
+        sursa?: T;
+        url?: T;
+        sourcePublishedAt?: T;
+        primary?: T;
+        id?: T;
+      };
+  informationStatus?: T;
+  riskLevel?: T;
+  isHealthRelated?: T;
+  medicalEvidenceType?: T;
+  clinicalValidationStatus?: T;
+  disclaimerTypes?: T;
+  specialistQuestions?:
+    | T
+    | {
+        question?: T;
+        id?: T;
+      };
+  autorPrincipal?: T;
+  verificatorEditorial?: T;
+  verificatorMedical?: T;
+  relatedArticle?: T;
+  relatedFlash?: T;
+  editorialStatus?: T;
+  automationDecision?: T;
+  decisionReason?: T;
+  eventFingerprint?: T;
+  sourceFingerprint?: T;
+  generatAutomat?: T;
+  publishedAt?: T;
+  significantUpdatedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "flash-engine-runs_select".
+ */
+export interface FlashEngineRunsSelect<T extends boolean = true> {
+  flash?: T;
+  flashIdSnapshot?: T;
+  runId?: T;
+  status?: T;
+  provider?: T;
+  model?: T;
+  engineVersion?: T;
+  startedAt?: T;
+  completedAt?: T;
+  decision?: T;
+  reasons?:
+    | T
+    | {
+        reason?: T;
+        id?: T;
+      };
+  decisionInputSnapshot?: T;
+  evidenceSummary?: T;
+  errorCode?: T;
+  errorMessage?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "autori_select".
+ */
+export interface AutoriSelect<T extends boolean = true> {
+  profileType?: T;
+  fullName?: T;
+  slug?: T;
+  publicTitle?: T;
+  primaryAffiliation?: T;
+  profileImage?: T;
+  shortBio?: T;
+  biography?: T;
+  platformRoleDescription?: T;
+  publicLocation?: T;
+  displayOrder?: T;
+  editorialRoles?: T;
+  expertiseAreas?:
+    | T
+    | {
+        name?: T;
+        description?: T;
+        verified?: T;
+        order?: T;
+        id?: T;
+      };
+  specialties?:
+    | T
+    | {
+        label?: T;
+        description?: T;
+        order?: T;
+        id?: T;
+      };
+  contributionTypes?: T;
+  isMedicalReviewer?: T;
+  medicalReviewScope?: T;
+  credentials?:
+    | T
+    | {
+        credentialType?: T;
+        title?: T;
+        institution?: T;
+        country?: T;
+        yearObtained?: T;
+        yearExpires?: T;
+        identifier?: T;
+        verificationUrl?: T;
+        publiclyVisible?: T;
+        verified?: T;
+        verifiedAt?: T;
+        order?: T;
+        id?: T;
+      };
+  professionalIdentifiers?:
+    | T
+    | {
+        type?: T;
+        value?: T;
+        publiclyVisible?: T;
+        verificationUrl?: T;
+        verified?: T;
+        id?: T;
+      };
+  verificationStatus?: T;
+  verifiedAt?: T;
+  verifiedBy?: T;
+  verificationSource?: T;
+  nextVerificationDue?: T;
+  verificationNotes?: T;
+  documentsReviewed?: T;
+  publicEmail?: T;
+  website?: T;
+  institutionalProfile?: T;
+  orcidUrl?: T;
+  socialLinks?:
+    | T
+    | {
+        platform?: T;
+        label?: T;
+        url?: T;
+        enabled?: T;
+        order?: T;
+        id?: T;
+      };
+  conflictOfInterestStatement?: T;
+  affiliationsAndSponsorships?:
+    | T
+    | {
+        organization?: T;
+        relationshipType?: T;
+        description?: T;
+        startDate?: T;
+        endDate?: T;
+        currentlyActive?: T;
+        publiclyVisible?: T;
+        verified?: T;
+        id?: T;
+      };
+  aiUseDisclosure?: T;
+  publicationConsent?: T;
+  consentConfirmedAt?: T;
+  consentConfirmedBy?: T;
+  consentScope?: T;
+  profileImageConsent?: T;
+  publicContactConsent?: T;
+  consentWithdrawnAt?: T;
+  consentNotes?: T;
+  status?: T;
+  publishedAt?: T;
+  lastReviewedAt?: T;
+  nextReviewDue?: T;
+  inactiveAt?: T;
+  archivedAt?: T;
+  reviewedBy?: T;
+  archivalReason?: T;
+  linkedUser?: T;
+  metaTitle?: T;
+  metaDescription?: T;
+  socialImage?: T;
+  robots?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "surse_select".
  */
 export interface SurseSelect<T extends boolean = true> {
   nume?: T;
   url?: T;
+  sourceRole?: T;
+  editorialTrust?: T;
+  citationMode?: T;
+  allowIngestion?: T;
+  allowAutoPublish?: T;
   nivelIncredere?: T;
   tipCitarePermis?: T;
   permiteAutoGenerare?: T;
@@ -876,6 +1728,7 @@ export interface ComentariiSelect<T extends boolean = true> {
   continut?: T;
   autor?: T;
   articol?: T;
+  flash?: T;
   status?: T;
   raspunsLa?: T;
   updatedAt?: T;
@@ -977,6 +1830,7 @@ export interface NewsletterSelect<T extends boolean = true> {
   limba?: T;
   segment?: T;
   confirmat?: T;
+  confirmationLastSentAt?: T;
   userAsociat?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -989,6 +1843,8 @@ export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   hashMD5?: T;
   sursaImagine?: T;
+  dreptUtilizareConfirmat?: T;
+  credit?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -1037,11 +1893,61 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "search_select".
+ */
+export interface SearchSelect<T extends boolean = true> {
+  title?: T;
+  priority?: T;
+  doc?: T;
+  excerpt?: T;
+  keywords?: T;
+  url?: T;
+  language?: T;
+  editorialStatus?: T;
+  articleType?: T;
+  publishedAt?: T;
+  isPublic?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
   key?: T;
   data?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs_select".
+ */
+export interface PayloadJobsSelect<T extends boolean = true> {
+  input?: T;
+  taskStatus?: T;
+  completedAt?: T;
+  totalTried?: T;
+  hasError?: T;
+  error?: T;
+  log?:
+    | T
+    | {
+        executedAt?: T;
+        completedAt?: T;
+        taskSlug?: T;
+        taskID?: T;
+        input?: T;
+        output?: T;
+        state?: T;
+        error?: T;
+        id?: T;
+      };
+  taskSlug?: T;
+  queue?: T;
+  waitUntil?: T;
+  processing?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1077,6 +1983,429 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings".
+ */
+export interface SiteSetting {
+  id: number;
+  identity: {
+    /**
+     * Denumirea completă a platformei.
+     */
+    siteName: string;
+    /**
+     * Denumirea compactă utilizată în interfață.
+     */
+    shortName: string;
+    /**
+     * Mesajul scurt care descrie platforma.
+     */
+    tagline?: string | null;
+    logoPrimary?: (number | null) | Media;
+    logoAlternative?: (number | null) | Media;
+    favicon?: (number | null) | Media;
+  };
+  navigation?: {
+    primaryNavigation?:
+      | {
+          label: string;
+          linkType: 'internal' | 'external';
+          href: string;
+          openInNewTab?: boolean | null;
+          showInDesktop?: boolean | null;
+          showInMobile?: boolean | null;
+          enabled?: boolean | null;
+          id?: string | null;
+        }[]
+      | null;
+    headerActions?:
+      | {
+          label: string;
+          actionType: 'link' | 'search' | 'languageSwitcher' | 'login';
+          href?: string | null;
+          style: 'link' | 'secondary' | 'primary';
+          enabled?: boolean | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  languageSettings: {
+    availableLanguages: {
+      code: 'ro' | 'en';
+      label: string;
+      shortLabel: string;
+      enabled?: boolean | null;
+      order: number;
+      id?: string | null;
+    }[];
+    defaultLanguage: 'ro' | 'en';
+    showLanguageSwitcher?: boolean | null;
+  };
+  trustBar?: {
+    enabled?: boolean | null;
+    items?:
+      | {
+          label: string;
+          icon?: ('verified' | 'sources' | 'updated' | 'transparent' | 'independent' | 'medicalReview') | null;
+          description?: string | null;
+          enabled?: boolean | null;
+          order: number;
+          id?: string | null;
+        }[]
+      | null;
+    /**
+     * Textul linkului către pagina metodologiei.
+     */
+    methodologyLabel?: string | null;
+    /**
+     * Rută internă, de exemplu /ro/metodologie.
+     */
+    methodologyHref?: string | null;
+  };
+  methodology?: {
+    enabled?: boolean | null;
+    title?: string | null;
+    summary?: string | null;
+    pageLabel?: string | null;
+    /**
+     * Rută internă, de exemplu /ro/metodologie.
+     */
+    pageHref?: string | null;
+    principles?:
+      | {
+          title: string;
+          description: string;
+          enabled?: boolean | null;
+          order: number;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  newsletter?: {
+    enabled?: boolean | null;
+    title?: string | null;
+    description?: string | null;
+    emailLabel?: string | null;
+    emailPlaceholder?: string | null;
+    submitLabel?: string | null;
+    consentText?: string | null;
+    successMessage?: string | null;
+    alreadySubscribedMessage?: string | null;
+    invalidEmailMessage?: string | null;
+    genericErrorMessage?: string | null;
+    privacyLabel?: string | null;
+    /**
+     * Rută internă, de exemplu /ro/confidentialitate.
+     */
+    privacyHref?: string | null;
+  };
+  footer?: {
+    footerEnabled?: boolean | null;
+    footerIntro?: string | null;
+    footerSections?:
+      | {
+          title: string;
+          enabled?: boolean | null;
+          order: number;
+          links?:
+            | {
+                label: string;
+                linkType: 'internal' | 'external';
+                href: string;
+                openInNewTab?: boolean | null;
+                enabled?: boolean | null;
+                order: number;
+                id?: string | null;
+              }[]
+            | null;
+          id?: string | null;
+        }[]
+      | null;
+    copyrightText?: string | null;
+  };
+  contact?: {
+    enabled?: boolean | null;
+    contactTitle?: string | null;
+    /**
+     * Adresa afișată public pentru contact.
+     */
+    publicEmail?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    contactPageLabel?: string | null;
+    /**
+     * Rută internă, de exemplu /ro/contact.
+     */
+    contactPageHref?: string | null;
+  };
+  socialLinks?:
+    | {
+        platform: 'facebook' | 'linkedin' | 'youtube' | 'instagram' | 'x' | 'tiktok' | 'github';
+        label?: string | null;
+        url: string;
+        enabled?: boolean | null;
+        order: number;
+        id?: string | null;
+      }[]
+    | null;
+  legalLinks: {
+    label: string;
+    href: string;
+    enabled?: boolean | null;
+    order: number;
+    id?: string | null;
+  }[];
+  editorialDefaults?: {
+    readMoreLabel?: string | null;
+    latestArticlesLabel?: string | null;
+    viewAllLabel?: string | null;
+    updatedLabel?: string | null;
+    verifiedLabel?: string | null;
+    readingTimeLabel?: string | null;
+    sourceLabel?: string | null;
+    correctionsLabel?: string | null;
+    sponsoredLabel?: string | null;
+    aiDisclosureLabel?: string | null;
+  };
+  accessibility?: {
+    skipToContentLabel?: string | null;
+    openMenuLabel?: string | null;
+    closeMenuLabel?: string | null;
+    searchLabel?: string | null;
+    languageSwitcherLabel?: string | null;
+    externalLinkLabel?: string | null;
+    previousPageLabel?: string | null;
+    nextPageLabel?: string | null;
+    loadingLabel?: string | null;
+    errorLabel?: string | null;
+  };
+  metadata: {
+    defaultMetaTitle?: string | null;
+    defaultMetaDescription?: string | null;
+    defaultShareImage?: (number | null) | Media;
+    siteAuthor?: string | null;
+    publisherName?: string | null;
+    /**
+     * Formatul implicit utilizat la distribuirea paginilor.
+     */
+    twitterCardType: 'summary' | 'summary_large_image';
+    /**
+     * Paginile private și tehnice vor suprascrie această setare în cod.
+     */
+    robotsDefault: 'indexFollow' | 'noindexNofollow';
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings_select".
+ */
+export interface SiteSettingsSelect<T extends boolean = true> {
+  identity?:
+    | T
+    | {
+        siteName?: T;
+        shortName?: T;
+        tagline?: T;
+        logoPrimary?: T;
+        logoAlternative?: T;
+        favicon?: T;
+      };
+  navigation?:
+    | T
+    | {
+        primaryNavigation?:
+          | T
+          | {
+              label?: T;
+              linkType?: T;
+              href?: T;
+              openInNewTab?: T;
+              showInDesktop?: T;
+              showInMobile?: T;
+              enabled?: T;
+              id?: T;
+            };
+        headerActions?:
+          | T
+          | {
+              label?: T;
+              actionType?: T;
+              href?: T;
+              style?: T;
+              enabled?: T;
+              id?: T;
+            };
+      };
+  languageSettings?:
+    | T
+    | {
+        availableLanguages?:
+          | T
+          | {
+              code?: T;
+              label?: T;
+              shortLabel?: T;
+              enabled?: T;
+              order?: T;
+              id?: T;
+            };
+        defaultLanguage?: T;
+        showLanguageSwitcher?: T;
+      };
+  trustBar?:
+    | T
+    | {
+        enabled?: T;
+        items?:
+          | T
+          | {
+              label?: T;
+              icon?: T;
+              description?: T;
+              enabled?: T;
+              order?: T;
+              id?: T;
+            };
+        methodologyLabel?: T;
+        methodologyHref?: T;
+      };
+  methodology?:
+    | T
+    | {
+        enabled?: T;
+        title?: T;
+        summary?: T;
+        pageLabel?: T;
+        pageHref?: T;
+        principles?:
+          | T
+          | {
+              title?: T;
+              description?: T;
+              enabled?: T;
+              order?: T;
+              id?: T;
+            };
+      };
+  newsletter?:
+    | T
+    | {
+        enabled?: T;
+        title?: T;
+        description?: T;
+        emailLabel?: T;
+        emailPlaceholder?: T;
+        submitLabel?: T;
+        consentText?: T;
+        successMessage?: T;
+        alreadySubscribedMessage?: T;
+        invalidEmailMessage?: T;
+        genericErrorMessage?: T;
+        privacyLabel?: T;
+        privacyHref?: T;
+      };
+  footer?:
+    | T
+    | {
+        footerEnabled?: T;
+        footerIntro?: T;
+        footerSections?:
+          | T
+          | {
+              title?: T;
+              enabled?: T;
+              order?: T;
+              links?:
+                | T
+                | {
+                    label?: T;
+                    linkType?: T;
+                    href?: T;
+                    openInNewTab?: T;
+                    enabled?: T;
+                    order?: T;
+                    id?: T;
+                  };
+              id?: T;
+            };
+        copyrightText?: T;
+      };
+  contact?:
+    | T
+    | {
+        enabled?: T;
+        contactTitle?: T;
+        publicEmail?: T;
+        phone?: T;
+        address?: T;
+        contactPageLabel?: T;
+        contactPageHref?: T;
+      };
+  socialLinks?:
+    | T
+    | {
+        platform?: T;
+        label?: T;
+        url?: T;
+        enabled?: T;
+        order?: T;
+        id?: T;
+      };
+  legalLinks?:
+    | T
+    | {
+        label?: T;
+        href?: T;
+        enabled?: T;
+        order?: T;
+        id?: T;
+      };
+  editorialDefaults?:
+    | T
+    | {
+        readMoreLabel?: T;
+        latestArticlesLabel?: T;
+        viewAllLabel?: T;
+        updatedLabel?: T;
+        verifiedLabel?: T;
+        readingTimeLabel?: T;
+        sourceLabel?: T;
+        correctionsLabel?: T;
+        sponsoredLabel?: T;
+        aiDisclosureLabel?: T;
+      };
+  accessibility?:
+    | T
+    | {
+        skipToContentLabel?: T;
+        openMenuLabel?: T;
+        closeMenuLabel?: T;
+        searchLabel?: T;
+        languageSwitcherLabel?: T;
+        externalLinkLabel?: T;
+        previousPageLabel?: T;
+        nextPageLabel?: T;
+        loadingLabel?: T;
+        errorLabel?: T;
+      };
+  metadata?:
+    | T
+    | {
+        defaultMetaTitle?: T;
+        defaultMetaDescription?: T;
+        defaultShareImage?: T;
+        siteAuthor?: T;
+        publisherName?: T;
+        twitterCardType?: T;
+        robotsDefault?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "collections_widget".
  */
 export interface CollectionsWidget {
@@ -1084,6 +2413,43 @@ export interface CollectionsWidget {
     [k: string]: unknown;
   };
   width: 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskEvaluateFlashEngine".
+ */
+export interface TaskEvaluateFlashEngine {
+  input: {
+    flashId: number;
+    model: string;
+    allowProviderRequests: boolean;
+  };
+  output: {
+    runId: string;
+    decision: 'autoPublish' | 'review' | 'blocked';
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSchedulePublish".
+ */
+export interface TaskSchedulePublish {
+  input: {
+    type?: ('publish' | 'unpublish') | null;
+    locale?: string | null;
+    doc?:
+      | ({
+          relationTo: 'articole';
+          value: number | Articole;
+        } | null)
+      | ({
+          relationTo: 'flash-ai';
+          value: number | FlashAi;
+        } | null);
+    global?: string | null;
+    user?: (number | null) | Useri;
+  };
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -50,3 +50,6 @@ node_modules/
 /playwright/.cache/
 test.env
 .env.backup-inainte-de-schimbare
+
+# Local temporary files and database backups
+.tmp/

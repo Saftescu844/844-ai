@@ -1,0 +1,580 @@
+import type {
+  FlashAutomationDecision,
+  FlashDecisionInput,
+  FlashDecisionReason,
+} from '../decisionEngine'
+
+import type {
+  FlashRuntimeEvidenceComponent,
+} from '../runtimeEvidence/runtimeEvidenceAggregator'
+
+import type {
+  FlashSemanticEvidenceProducerFailureReason,
+} from '../semanticEvidence/semanticEvidenceProducer'
+
+import type {
+  FlashProviderTransportFailureCategory,
+} from '../resilience/providerTransportFailure'
+
+import {
+  classifyFlashProducerFailureRecovery,
+  type FlashProducerRecoveryDisposition,
+} from '../resilience/classifyProducerFailureRecovery'
+
+export type FlashEngineRunProducerStatus =
+  | 'completed'
+  | 'failed'
+  | 'notRun'
+
+type ProducerResult =
+  | {
+      ok: true
+    }
+  | {
+      ok: false
+
+      reason:
+        FlashSemanticEvidenceProducerFailureReason
+
+      transportCategory?:
+        FlashProviderTransportFailureCategory
+    }
+  | null
+
+type RequiredProducerResult =
+  Exclude<
+    ProducerResult,
+    null
+  >
+
+/**
+ * Contract structural minim pentru proiecția de audit.
+ *
+ * Rezultatul complet al runtime-ului factual este
+ * compatibil cu acest contract, dar adapterul vede și
+ * persistă numai informația explicit necesară auditului.
+ */
+export interface FlashEngineRunAuditProjectionInput {
+  factualEvidenceSetComplete:
+    boolean
+
+  factualSourceCorpus: {
+    complete:
+      boolean
+
+    documents:
+      readonly unknown[]
+  }
+
+  factualChunks:
+    readonly unknown[]
+
+  factualClaimExtractionProduction:
+    ProducerResult
+
+  factualVerificationProduction:
+    ProducerResult
+
+  semanticRuntime: {
+    contradictionProduction:
+      ProducerResult
+
+    safetyProduction:
+      RequiredProducerResult
+
+    medicalInterpretationProduction:
+      RequiredProducerResult
+
+    extraordinaryClaimProduction:
+      RequiredProducerResult
+
+    regulatoryStatusProduction:
+      RequiredProducerResult
+
+    runtime: {
+      runtimeDecision: {
+        aggregatedEvidence: {
+          complete:
+            boolean
+
+          missingComponents:
+            FlashRuntimeEvidenceComponent[]
+        }
+
+        decisionInput:
+          FlashDecisionInput
+
+        decision: {
+          decision:
+            FlashAutomationDecision
+
+          reasons:
+            FlashDecisionReason[]
+        }
+      }
+    }
+  }
+}
+
+export interface FlashEngineRunCompletedAuditProjection {
+  decision:
+    FlashAutomationDecision
+
+  reasons:
+    {
+      reason:
+        FlashDecisionReason
+    }[]
+
+  decisionInputSnapshot:
+    FlashDecisionInput
+
+  evidenceSummary: {
+    factual: {
+      evidenceSetComplete:
+        boolean
+
+      sourceCorpusComplete:
+        boolean
+
+      sourceDocumentCount:
+        number
+
+      chunkCount:
+        number
+
+      claimExtraction:
+        FlashEngineRunProducerStatus
+
+      claimExtractionFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
+      claimExtractionTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
+      claimExtractionRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+
+      verification:
+        FlashEngineRunProducerStatus
+
+      verificationFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
+      verificationTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
+      verificationRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+    }
+
+    semantic: {
+      contradictions:
+        FlashEngineRunProducerStatus
+
+      contradictionsFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
+      contradictionsTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
+      contradictionsRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+
+      safety:
+        FlashEngineRunProducerStatus
+
+      safetyFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
+      safetyTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
+      safetyRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+
+      medicalInterpretation:
+        FlashEngineRunProducerStatus
+
+      medicalInterpretationFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
+      medicalInterpretationTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
+      medicalInterpretationRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+
+      extraordinaryClaim:
+        FlashEngineRunProducerStatus
+
+      extraordinaryClaimFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
+      extraordinaryClaimTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
+      extraordinaryClaimRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+
+      regulatoryStatus:
+        FlashEngineRunProducerStatus
+
+      regulatoryStatusFailureReason:
+        FlashSemanticEvidenceProducerFailureReason | null
+
+      regulatoryStatusTransportCategory:
+        FlashProviderTransportFailureCategory | null
+
+      regulatoryStatusRecoveryDisposition:
+        FlashProducerRecoveryDisposition | null
+    }
+
+    runtime: {
+      aggregatedEvidenceComplete:
+        boolean
+
+      engineCertain:
+        boolean
+
+      missingComponents:
+        FlashRuntimeEvidenceComponent[]
+    }
+  }
+}
+
+function producerStatus(
+  result:
+    ProducerResult,
+): FlashEngineRunProducerStatus {
+  if (result === null) {
+    return 'notRun'
+  }
+
+  return result.ok
+    ? 'completed'
+    : 'failed'
+}
+
+function producerFailureReason(
+  result:
+    ProducerResult,
+): FlashSemanticEvidenceProducerFailureReason | null {
+  if (
+    result === null ||
+    result.ok
+  ) {
+    return null
+  }
+
+  return result.reason
+}
+
+function producerTransportCategory(
+  result:
+    ProducerResult,
+): FlashProviderTransportFailureCategory | null {
+  if (
+    result === null ||
+    result.ok
+  ) {
+    return null
+  }
+
+  return result.transportCategory ??
+    null
+}
+
+function producerRecoveryDisposition(
+  result:
+    ProducerResult,
+): FlashProducerRecoveryDisposition | null {
+  const reason =
+    producerFailureReason(
+      result,
+    )
+
+  return reason === null
+    ? null
+    : classifyFlashProducerFailureRecovery(
+        reason,
+        producerTransportCategory(
+          result,
+        ),
+      )
+}
+
+/**
+ * Construiește proiecția persistentă pentru un run
+ * finalizat cu succes la nivel de orchestrare.
+ *
+ * Intenționat NU copiază:
+ * - textul documentelor sursă;
+ * - factual chunks / evidenceText;
+ * - semanticDocument;
+ * - răspunsuri brute ale providerului;
+ * - obiectele complete ale producerilor.
+ */
+export function buildFlashEngineRunCompletedAuditProjection(
+  input:
+    FlashEngineRunAuditProjectionInput,
+): FlashEngineRunCompletedAuditProjection {
+  const runtimeDecision =
+    input
+      .semanticRuntime
+      .runtime
+      .runtimeDecision
+
+  return {
+    decision:
+      runtimeDecision
+        .decision
+        .decision,
+
+    reasons:
+      runtimeDecision
+        .decision
+        .reasons
+        .map(
+          reason => ({
+            reason,
+          }),
+        ),
+
+    decisionInputSnapshot:
+      runtimeDecision
+        .decisionInput,
+
+    evidenceSummary: {
+      factual: {
+        evidenceSetComplete:
+          input
+            .factualEvidenceSetComplete,
+
+        sourceCorpusComplete:
+          input
+            .factualSourceCorpus
+            .complete,
+
+        sourceDocumentCount:
+          input
+            .factualSourceCorpus
+            .documents
+            .length,
+
+        chunkCount:
+          input
+            .factualChunks
+            .length,
+
+        claimExtraction:
+          producerStatus(
+            input
+              .factualClaimExtractionProduction,
+          ),
+
+        claimExtractionFailureReason:
+          producerFailureReason(
+            input
+              .factualClaimExtractionProduction,
+          ),
+
+        claimExtractionTransportCategory:
+          producerTransportCategory(
+            input
+              .factualClaimExtractionProduction,
+          ),
+
+        claimExtractionRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .factualClaimExtractionProduction,
+          ),
+
+        verification:
+          producerStatus(
+            input
+              .factualVerificationProduction,
+          ),
+
+        verificationFailureReason:
+          producerFailureReason(
+            input
+              .factualVerificationProduction,
+          ),
+
+        verificationTransportCategory:
+          producerTransportCategory(
+            input
+              .factualVerificationProduction,
+          ),
+
+        verificationRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .factualVerificationProduction,
+          ),
+      },
+
+      semantic: {
+        contradictions:
+          producerStatus(
+            input
+              .semanticRuntime
+              .contradictionProduction,
+          ),
+
+        contradictionsFailureReason:
+          producerFailureReason(
+            input
+              .semanticRuntime
+              .contradictionProduction,
+          ),
+
+        contradictionsTransportCategory:
+          producerTransportCategory(
+            input
+              .semanticRuntime
+              .contradictionProduction,
+          ),
+
+        contradictionsRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .semanticRuntime
+              .contradictionProduction,
+          ),
+
+        safety:
+          producerStatus(
+            input
+              .semanticRuntime
+              .safetyProduction,
+          ),
+
+        safetyFailureReason:
+          producerFailureReason(
+            input
+              .semanticRuntime
+              .safetyProduction,
+          ),
+
+        safetyTransportCategory:
+          producerTransportCategory(
+            input
+              .semanticRuntime
+              .safetyProduction,
+          ),
+
+        safetyRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .semanticRuntime
+              .safetyProduction,
+          ),
+
+        medicalInterpretation:
+          producerStatus(
+            input
+              .semanticRuntime
+              .medicalInterpretationProduction,
+          ),
+
+        medicalInterpretationFailureReason:
+          producerFailureReason(
+            input
+              .semanticRuntime
+              .medicalInterpretationProduction,
+          ),
+
+        medicalInterpretationTransportCategory:
+          producerTransportCategory(
+            input
+              .semanticRuntime
+              .medicalInterpretationProduction,
+          ),
+
+        medicalInterpretationRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .semanticRuntime
+              .medicalInterpretationProduction,
+          ),
+
+        extraordinaryClaim:
+          producerStatus(
+            input
+              .semanticRuntime
+              .extraordinaryClaimProduction,
+          ),
+
+        extraordinaryClaimFailureReason:
+          producerFailureReason(
+            input
+              .semanticRuntime
+              .extraordinaryClaimProduction,
+          ),
+
+        extraordinaryClaimTransportCategory:
+          producerTransportCategory(
+            input
+              .semanticRuntime
+              .extraordinaryClaimProduction,
+          ),
+
+        extraordinaryClaimRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .semanticRuntime
+              .extraordinaryClaimProduction,
+          ),
+
+        regulatoryStatus:
+          producerStatus(
+            input
+              .semanticRuntime
+              .regulatoryStatusProduction,
+          ),
+
+        regulatoryStatusFailureReason:
+          producerFailureReason(
+            input
+              .semanticRuntime
+              .regulatoryStatusProduction,
+          ),
+
+        regulatoryStatusTransportCategory:
+          producerTransportCategory(
+            input
+              .semanticRuntime
+              .regulatoryStatusProduction,
+          ),
+
+        regulatoryStatusRecoveryDisposition:
+          producerRecoveryDisposition(
+            input
+              .semanticRuntime
+              .regulatoryStatusProduction,
+          ),
+      },
+
+      runtime: {
+        aggregatedEvidenceComplete:
+          runtimeDecision
+            .aggregatedEvidence
+            .complete,
+
+        engineCertain:
+          runtimeDecision
+            .decisionInput
+            .engineCertain,
+
+        missingComponents: [
+          ...runtimeDecision
+            .aggregatedEvidence
+            .missingComponents,
+        ],
+      },
+    },
+  }
+}

@@ -1,5 +1,16 @@
 import type { DefaultNodeTypes, SerializedUploadNode, SerializedBlockNode } from '@payloadcms/richtext-lexical'
 import type { JSXConvertersFunction } from '@payloadcms/richtext-lexical/react'
+import { richTextTextState } from '@/lib/richtext-text-state'
+
+
+const NODE_STATE_KEY = '$'
+
+function hyphenToCamel(value: string): string {
+  return value.replace(
+    /-([a-z])/g,
+    (_, letter: string) => letter.toUpperCase(),
+  )
+}
 
 function ImagineCuAliniere({ node }: { node: SerializedUploadNode }) {
   const doc: any = node.value
@@ -104,6 +115,34 @@ function TableBlockRender({ node }: { node: SerializedBlockNode }) {
 
 export const jsxConvertersCuImagini: JSXConvertersFunction<DefaultNodeTypes> = ({ defaultConverters }) => ({
   ...defaultConverters,
+  text: (args: any) => {
+    const rendered =
+      typeof defaultConverters.text === 'function'
+        ? defaultConverters.text(args)
+        : args.node.text
+
+    const nodeState = args.node?.[NODE_STATE_KEY] as
+      | Record<string, string>
+      | undefined
+
+    if (!nodeState) return rendered
+
+    const styles: Record<string, string> = {}
+
+    for (const [stateKey, stateValue] of Object.entries(nodeState)) {
+      const css = (richTextTextState as any)[stateKey]?.[stateValue]?.css
+
+      if (!css) continue
+
+      for (const [property, value] of Object.entries(css)) {
+        styles[hyphenToCamel(property)] = String(value)
+      }
+    }
+
+    return Object.keys(styles).length > 0
+      ? <span style={styles as any}>{rendered}</span>
+      : rendered
+  },
   upload: ({ node }: any) => <ImagineCuAliniere node={node} />,
   blocks: {
     video: ({ node }: any) => <VideoBlockRender node={node} />,
