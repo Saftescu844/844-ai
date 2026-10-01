@@ -44,13 +44,13 @@ describe(
           'FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_OK',
         )
         expect(source).toContain(
-          'FLASH_PREPERSISTENCE_EDITORIAL_GENERATION_RO',
+          'FLASH_PREPERSISTENCE_EDITORIAL_GENERATION_${targetLanguage.toUpperCase()}',
         )
         expect(source).toContain(
-          'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_RO',
+          'FLASH_PREPERSISTENCE_EDITORIAL_QUALITY_REVIEW_${targetLanguage.toUpperCase()}',
         )
         expect(source).toContain(
-          'FLASH_PREPERSISTENCE_EDITORIAL_LEXICAL_RO',
+          'FLASH_PREPERSISTENCE_EDITORIAL_LEXICAL_${targetLanguage.toUpperCase()}',
         )
         expect(source).toContain(
           'retrieveFlashSource',
@@ -108,6 +108,9 @@ describe(
         )
         expect(source).toContain(
           '--confirmed-event-id',
+        )
+        expect(source).toContain(
+          '--target-language',
         )
         expect(source).toContain(
           'confirmedBodyIdentity',
@@ -336,13 +339,16 @@ describe(
           'requires the REG-001U verified supporting-source pack contract to pass',
         )
         expect(stdout).toContain(
-          'after successful classification, requests one original Romanian REG-001T editorial draft',
+          '--target-language ro|en',
+        )
+        expect(stdout).toContain(
+          'after successful classification, requests one original REG-001T editorial draft in --target-language (default ro)',
         )
         expect(stdout).toContain(
           'strict 500–1000-word contract',
         )
         expect(stdout).toContain(
-          'after successful generation, runs one bounded source-fidelity / Romanian QA pass',
+          'after successful generation, runs one bounded source-fidelity QA pass in the same target language',
         )
         expect(stdout).toContain(
           'QA may return a shorter source-faithful diagnostic editorial',
