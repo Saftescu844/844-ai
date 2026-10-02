@@ -19,7 +19,8 @@
     "db:migrate:create": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=production payload migrate:create",
     "db:migrate:status": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=development payload migrate:status",
     "db:migrate:up": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=development payload migrate",
-    "db:migrate:down": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=development payload migrate:down"
+    "db:migrate:down": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=development payload migrate:down",
+    "db:production:onboarding": "cross-env PAYLOAD_DB_PUSH=false NODE_ENV=production tsx scripts/production-cutover-onboarding.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
