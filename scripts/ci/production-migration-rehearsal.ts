@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 
 import * as baseline from '../../src/migrations/20260730_185012_baseline_current_schema'
 import { migrations } from '../../src/migrations'
+import { applyProductionMigrationOnboarding } from '../../src/lib/productionMigrationOnboarding'
 
 const { Client, Pool } = pg
 
@@ -185,84 +186,54 @@ async function prepare(): Promise<void> {
 
     // One-time migration-history onboarding rehearsal.
     //
-    // This happens while the legacy schema still exists, so "status" remains
-    // the exact authority used by the live legacy application. Aligning
-    // _status at this point cannot change legacy public visibility, but makes
-    // the database ready for the modern model where _status is authoritative.
-    await pool.query('BEGIN')
+    // This uses the exact helper intended for the controlled production
+    // cutover, so CI validates the same transaction and guards.
+    const onboarding =
+      await applyProductionMigrationOnboarding(
+        pool,
+      )
 
-    try {
-      const preflight = await pool.query<{
-        dev_markers: number
-        baseline_markers: number
-        published_rows: number
-        published_without_date: number
-      }>(`
-        SELECT
-          (
-            SELECT count(*)::int
-            FROM public.payload_migrations
-            WHERE name = 'dev' AND batch = -1
-          ) AS dev_markers,
-          (
-            SELECT count(*)::int
-            FROM public.payload_migrations
-            WHERE name = '20260730_185012_baseline_current_schema'
-          ) AS baseline_markers,
-          (
-            SELECT count(*)::int
-            FROM public.articole
-            WHERE status = 'published'
-          ) AS published_rows,
-          (
-            SELECT count(*)::int
-            FROM public.articole
-            WHERE status = 'published'
-              AND published_at IS NULL
-          ) AS published_without_date
-      `)
+    assert.equal(
+      onboarding
+        .preflight
+        .published_rows,
+      2,
+    )
 
-      assert.deepEqual(preflight.rows[0], {
-        dev_markers: 1,
-        baseline_markers: 0,
-        published_rows: 2,
-        published_without_date: 0,
-      })
+    assert.equal(
+      onboarding
+        .preflight
+        .published_without_date,
+      0,
+    )
 
-      await pool.query(`
-        UPDATE public.articole
-        SET _status = status
-        WHERE _status IS DISTINCT FROM status
-      `)
+    assert.equal(
+      onboarding
+        .preflight
+        .mismatches,
+      2,
+    )
 
-      const aligned = await pool.query<{ mismatches: number }>(`
-        SELECT count(*)::int AS mismatches
-        FROM public.articole
-        WHERE _status IS DISTINCT FROM status
-      `)
+    assert.equal(
+      onboarding
+        .aligned_rows,
+      2,
+    )
 
-      assert.equal(aligned.rows[0]?.mismatches, 0)
+    assert.deepEqual(
+      onboarding
+        .postflight,
+      {
+        dev_markers:
+          0,
 
-      const removed = await pool.query(`
-        DELETE FROM public.payload_migrations
-        WHERE name = 'dev'
-          AND batch = -1
-      `)
+        baseline_markers:
+          1,
 
-      assert.equal(removed.rowCount, 1, 'Expected exactly one legacy dev migration marker')
-
-      await pool.query(`
-        INSERT INTO public.payload_migrations
-          (name, batch, updated_at, created_at)
-        VALUES
-          ('20260730_185012_baseline_current_schema', 1, now(), now())
-      `)
-
-      await pool.query('COMMIT')
-    } catch (error) {
-      await pool.query('ROLLBACK')
-      throw error
-    }
+        mismatches:
+          0,
+      },
+    )
   } finally {
     await pool.end()
   }
