@@ -1,5 +1,9 @@
 import { APIError, type CollectionBeforeOperationHook, type CollectionConfig } from 'payload'
 import {
+  accountVerificationHTML,
+  accountVerificationSubject,
+} from '@/lib/account-email'
+import {
   accountLanguage,
   passwordResetHTML,
   passwordResetSubject,
@@ -207,7 +211,17 @@ export const Useri: CollectionConfig = {
   slug: 'useri',
   labels: { singular: 'User', plural: 'Useri' },
   auth: {
-    verify: true, // verificare email la înregistrare
+    verify: {
+      generateEmailSubject: ({ user }) =>
+        accountVerificationSubject(
+          accountLanguage(user),
+        ),
+      generateEmailHTML: ({ token, user }) =>
+        accountVerificationHTML(
+          token || '',
+          accountLanguage(user),
+        ),
+    },
     forgotPassword: {
       expiration: 60 * 60 * 1000,
       generateEmailSubject: (args) =>
