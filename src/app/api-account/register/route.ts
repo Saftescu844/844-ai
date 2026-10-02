@@ -1,4 +1,3 @@
-import { trimiteConfirmareCont } from '@/lib/account-email'
 import {
   createHttpRequestContext,
   finalizeHttpResponse,
@@ -158,14 +157,10 @@ export async function POST(req: Request) {
     )
   }
 
-  let userId: number | string | null = null
-
   try {
-    const user = await payload.create({
+    await payload.create({
       collection: 'useri',
       overrideAccess: true,
-      showHiddenFields: true,
-      disableVerificationEmail: true,
       data: {
         email,
         password: parola,
@@ -174,25 +169,8 @@ export async function POST(req: Request) {
         nivelAbonament: 'gratuit',
         limbaPreferata: limba,
         abonatNewsletter: false,
-        _verified: false,
       },
     })
-
-    userId = user.id
-
-    const token = user._verificationToken
-
-    if (!token) {
-      throw new Error(
-        'Payload verification token missing',
-      )
-    }
-
-    await trimiteConfirmareCont(
-      email,
-      token,
-      limba,
-    )
 
     return reply(
       raspunsPublic(),
@@ -202,21 +180,6 @@ export async function POST(req: Request) {
       requestContext,
       'ACCOUNT_REGISTER_CREATE_OR_SEND_FAILED',
     )
-
-    if (userId !== null) {
-      try {
-        await payload.delete({
-          collection: 'useri',
-          id: userId,
-          overrideAccess: true,
-        })
-      } catch {
-        logHttpInternalFailure(
-          requestContext,
-          'ACCOUNT_REGISTER_CLEANUP_FAILED',
-        )
-      }
-    }
 
     return reply(
       raspunsPublic(),
