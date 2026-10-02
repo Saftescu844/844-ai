@@ -10,6 +10,10 @@ import {
   brevoRecipients,
 } from '../../src/lib/brevo-email-adapter'
 import {
+  accountVerificationHTML,
+  accountVerificationSubject,
+} from '../../src/lib/account-email'
+import {
   accountLanguage,
   passwordResetHTML,
   passwordResetSubject,
@@ -18,6 +22,45 @@ import {
   claimPasswordRecoveryAttempt,
   passwordRecoveryRateLimitKey,
 } from '../../src/lib/password-recovery-rate-limit'
+
+describe('account verification email', () => {
+  it('builds a Romanian verification link with the encoded token', () => {
+    const html =
+      accountVerificationHTML(
+        'abc+/=',
+        'ro',
+        'https://staging.example',
+      )
+
+    expect(
+      accountVerificationSubject('ro'),
+    ).toBe(
+      'Confirmă contul tău 844-ai.ro',
+    )
+
+    expect(html).toContain(
+      'https://staging.example/ro/confirmare-cont?token=abc%2B%2F%3D',
+    )
+  })
+
+  it('builds the English verification email variant', () => {
+    expect(
+      accountVerificationSubject('en'),
+    ).toBe(
+      'Confirm your 844-ai.ro account',
+    )
+
+    expect(
+      accountVerificationHTML(
+        'token',
+        'en',
+        'https://staging.example',
+      ),
+    ).toContain(
+      'https://staging.example/en/confirmare-cont?token=token',
+    )
+  })
+})
 
 describe('U14.7I password recovery email', () => {
   it('builds Romanian reset content with the encoded token', () => {
