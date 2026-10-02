@@ -13,9 +13,6 @@ const mocks =
       payloadClient:
         vi.fn(),
 
-      trimiteConfirmareCont:
-        vi.fn(),
-
       claimPublicRegistrationAttempt:
         vi.fn(),
     }),
@@ -26,14 +23,6 @@ vi.mock(
   () => ({
     payloadClient:
       mocks.payloadClient,
-  }),
-)
-
-vi.mock(
-  '@/lib/account-email',
-  () => ({
-    trimiteConfirmareCont:
-      mocks.trimiteConfirmareCont,
   }),
 )
 
@@ -144,6 +133,109 @@ describe(
           camp:
             'email',
         })
+      },
+    )
+
+    it(
+      'uses Payload native verification email on successful registration',
+      async () => {
+        const create =
+          vi.fn().mockResolvedValue({
+            id: 42,
+          })
+
+        const payload = {
+          db: {
+            pool: {
+              query:
+                vi.fn(),
+            },
+          },
+          find:
+            vi.fn().mockResolvedValue({
+              docs: [],
+            }),
+          create,
+        }
+
+        mocks.payloadClient
+          .mockResolvedValue(
+            payload,
+          )
+
+        mocks.claimPublicRegistrationAttempt
+          .mockResolvedValue(
+            true,
+          )
+
+        const response =
+          await POST(
+            request({
+              email:
+                'alice@example.com',
+              parola:
+                'long-password',
+              nume:
+                'Alice',
+              limba:
+                'ro',
+            }),
+          )
+
+        expect(
+          response.status,
+        ).toBe(
+          200,
+        )
+
+        await expect(
+          response.json(),
+        ).resolves.toEqual({
+          ok:
+            true,
+          rezultat:
+            'verifica_emailul',
+        })
+
+        expect(create).toHaveBeenCalledTimes(1)
+
+        const createArgs =
+          create.mock.calls[0]?.[0]
+
+        expect(createArgs).toMatchObject({
+          collection:
+            'useri',
+          overrideAccess:
+            true,
+          data: {
+            email:
+              'alice@example.com',
+            password:
+              'long-password',
+            nume:
+              'Alice',
+            rol:
+              'cititor',
+            nivelAbonament:
+              'gratuit',
+            limbaPreferata:
+              'ro',
+            abonatNewsletter:
+              false,
+          },
+        })
+
+        expect(
+          createArgs,
+        ).not.toHaveProperty(
+          'disableVerificationEmail',
+        )
+
+        expect(
+          createArgs.data,
+        ).not.toHaveProperty(
+          '_verified',
+        )
       },
     )
 
