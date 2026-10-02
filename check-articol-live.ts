@@ -3,7 +3,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 async function main() {
   const payload = await getPayload({ config })
-  const r = await payload.find({ collection: 'articole', where: { status: { equals: 'published' } }, limit: 1, sort: '-createdAt' })
+  const r = await payload.find({ collection: 'articole', where: { _status: { equals: 'published' } }, limit: 1, sort: '-createdAt' })
   console.log(r.docs[0]?.slug)
   process.exit(0)
 }

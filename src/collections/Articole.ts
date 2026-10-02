@@ -1,7 +1,121 @@
-import type { CollectionConfig } from 'payload'
-import { lexicalEditor, UploadFeature, BlocksFeature } from '@payloadcms/richtext-lexical'
+import { APIError, type CollectionBeforeOperationHook, type CollectionConfig } from 'payload'
+import {
+  lexicalEditor,
+  UploadFeature,
+  BlocksFeature,
+  FixedToolbarFeature,
+  TextStateFeature,
+} from '@payloadcms/richtext-lexical'
 import { VideoBlock, CalloutBlock, TableBlock } from '@/lib/richtext-blocks'
+import { richTextTextState } from '@/lib/richtext-text-state'
 
+const enforceArticlePublicationRBAC: CollectionBeforeOperationHook<'articole'> = ({
+  args,
+  operation,
+  req,
+}) => {
+  const role = req.user?.rol
+
+  // Restaurarea unei versiuni poate înlocui direct documentul live.
+  // Este rezervată exclusiv administratorilor.
+  if (operation === 'restoreVersion') {
+    if (role !== 'admin') {
+      throw new APIError('Doar administratorii pot restaura versiuni de articole.', 403)
+    }
+
+    return
+  }
+
+  // Ștergerea rămâne o operație exclusiv administrativă chiar și pentru
+  // apelurile Local API care ar folosi overrideAccess.
+  if (operation === 'delete' || operation === 'deleteByID') {
+    if (role !== 'admin') {
+      throw new APIError('Doar administratorii pot șterge articole.', 403)
+    }
+
+    return
+  }
+
+  if (operation !== 'create' && operation !== 'update' && operation !== 'updateByID') {
+    return
+  }
+
+  const { data } = args
+
+  const attemptsPublication =
+    data?._status === 'published' ||
+    args.publishAllLocales === true ||
+    Boolean(args.publishSpecificLocale)
+
+  const attemptsUnpublish = 'unpublishAllLocales' in args && args.unpublishAllLocales === true
+
+  // Publicarea și retragerea din public sunt întotdeauna decizii de admin.
+  if ((attemptsPublication || attemptsUnpublish) && role !== 'admin') {
+    throw new APIError('Doar administratorii pot publica sau retrage articole din public.', 403)
+  }
+
+  if (role === 'admin') {
+    return
+  }
+
+  // Orice alt actor — editor sau automatizare internă — poate scrie
+  // exclusiv în fluxul nativ de draft. Astfel nu poate modifica direct
+  // versiunea publică a unui articol deja publicat.
+  if (args.draft !== true) {
+    throw new APIError('Modificările non-admin trebuie salvate exclusiv ca draft.', 403)
+  }
+}
+const protectArticleCommentDependencies: CollectionBeforeOperationHook<'articole'> = async ({
+  args,
+  operation,
+  req,
+}) => {
+  if (operation !== 'delete' && operation !== 'deleteByID') {
+    return
+  }
+
+  // enforceArticlePublicationRBAC, care rulează înaintea acestui hook,
+  // rezervă deja ștergerea exclusiv administratorilor.
+  if (req.user?.rol !== 'admin') {
+    return
+  }
+
+  let targetIDs: Array<number | string> = []
+
+  if ('id' in args && (typeof args.id === 'string' || typeof args.id === 'number')) {
+    targetIDs = [args.id]
+  } else if ('where' in args && args.where) {
+    const targets = await req.payload.find({
+      collection: 'articole',
+      depth: 0,
+      overrideAccess: true,
+      pagination: false,
+      req,
+      where: args.where,
+    })
+
+    targetIDs = targets.docs.map((doc) => doc.id)
+  }
+
+  if (targetIDs.length === 0) {
+    return
+  }
+
+  const { totalDocs: dependentComments } = await req.payload.count({
+    collection: 'comentarii',
+    overrideAccess: true,
+    req,
+    where: {
+      articol: {
+        in: targetIDs,
+      },
+    },
+  })
+
+  if (dependentComments > 0) {
+    throw new APIError('Articolul nu poate fi șters cât timp există comentarii asociate.', 409)
+  }
+}
 // ============================================================
 //  ARTICOLE — colecția centrală, susține toți cei 5 piloni
 //  Bilingv prin DOCUMENTE SEPARATE per limbă (nu localized fields).
@@ -13,17 +127,49 @@ export const Articole: CollectionConfig = {
   labels: { singular: 'Articol', plural: 'Articole' },
   admin: {
     useAsTitle: 'titlu',
-    defaultColumns: ['titlu', 'pilon', 'tip', 'limba', 'status', 'publishedAt'],
+    defaultColumns: ['titlu', 'pilon', 'tip', 'limba', 'editorialStatus', '_status', 'publishedAt'],
+    preview: (doc) => {
+      const id = doc.id
+      const lang = doc.limba
+
+      if ((typeof id !== 'string' && typeof id !== 'number') || (lang !== 'ro' && lang !== 'en')) {
+        return null
+      }
+
+      const siteURL = process.env.SITE_URL?.replace(/\/$/, '')
+
+      if (!siteURL) {
+        return null
+      }
+
+      return `${siteURL}/${lang}/preview/articol/${encodeURIComponent(String(id))}`
+    },
     group: 'Conținut',
   },
   access: {
-    // public poate citi doar articolele publicate
+    // Adminii și editorii pot vedea întregul flux editorial.
+    // Publicul, contributorii și cititorii văd doar articolele publicate.
     read: ({ req: { user } }) => {
-      if (user) return true
-      return { status: { equals: 'published' } }
+      if (user?.rol === 'admin' || user?.rol === 'editor') return true
+      return { _status: { equals: 'published' } }
     },
+    create: ({ req: { user } }) => user?.rol === 'admin' || user?.rol === 'editor',
+    update: ({ data, req: { user } }) => {
+      if (user?.rol === 'admin') return true
+      if (user?.rol !== 'editor') return false
+
+      // Payload verifică separat dreptul de publicare trimițând
+      // `_status: 'published'`. Editorul poate salva drafturi,
+      // dar nu primește permisiunea nativă de Publish.
+      return data?._status !== 'published'
+    },
+    delete: ({ req: { user } }) => user?.rol === 'admin',
   },
-  versions: { drafts: true }, // draft & publish nativ
+  versions: {
+    drafts: {
+      schedulePublish: true,
+    },
+  }, // draft, publish și scheduling nativ
   fields: [
     {
       name: 'titlu',
@@ -140,6 +286,8 @@ export const Articole: CollectionConfig = {
       editor: lexicalEditor({
         features: ({ defaultFeatures }) => [
           ...defaultFeatures,
+          FixedToolbarFeature(),
+          TextStateFeature({ state: richTextTextState }),
           UploadFeature({
             collections: {
               media: {
@@ -229,15 +377,66 @@ export const Articole: CollectionConfig = {
       type: 'array',
       fields: [{ name: 'tag', type: 'text' }],
     },
+    // === Identitate și responsabilitate editorială ===
     {
-      name: 'status',
+      name: 'autorPrincipal',
+      type: 'relationship',
+      relationTo: 'autori',
+      maxDepth: 0,
+      admin: {
+        description:
+          'Autorul principal al articolului. Relația nu înlocuiește rolurile generale din profilul autorului.',
+      },
+    },
+    {
+      name: 'coautori',
+      type: 'relationship',
+      relationTo: 'autori',
+      hasMany: true,
+      maxDepth: 0,
+      admin: {
+        description: 'Coautorii articolului, în ordinea în care trebuie considerați editorial.',
+      },
+    },
+    {
+      name: 'verificatorEditorial',
+      type: 'relationship',
+      relationTo: 'autori',
+      maxDepth: 0,
+      admin: {
+        description: 'Persoana care a realizat verificarea editorială a articolului.',
+      },
+    },
+    {
+      name: 'verificatorMedical',
+      type: 'relationship',
+      relationTo: 'autori',
+      maxDepth: 0,
+      admin: {
+        description:
+          'Verificator medical, utilizat numai când articolul necesită o astfel de validare.',
+      },
+    },
+    {
+      name: 'contributoriExperti',
+      type: 'relationship',
+      relationTo: 'autori',
+      hasMany: true,
+      maxDepth: 0,
+      admin: {
+        description: 'Experți sau evaluatori care au contribuit editorial la articol.',
+      },
+    },
+
+    {
+      name: 'editorialStatus',
       type: 'select',
       required: true,
       defaultValue: 'draft',
       options: [
-        { label: 'Draft', value: 'draft' },
+        { label: 'Draft editorial', value: 'draft' },
         { label: 'În revizuire', value: 'review' },
-        { label: 'Publicat', value: 'published' },
+        { label: 'Aprobat', value: 'approved' },
         { label: 'Blocat (compliance)', value: 'blocked' },
       ],
       index: true,
@@ -252,6 +451,16 @@ export const Articole: CollectionConfig = {
       name: 'publishedAt',
       type: 'date',
       admin: { position: 'sidebar' },
+    },
+    {
+      name: 'significantUpdatedAt',
+      label: 'Actualizare editorială semnificativă',
+      type: 'date',
+      admin: {
+        position: 'sidebar',
+        description:
+          'Completează doar când articolul a primit o actualizare editorială semnificativă pentru cititor.',
+      },
     },
     // === Metadate tehnice de la Auto-Publisher ===
     {
@@ -292,6 +501,7 @@ export const Articole: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeOperation: [enforceArticlePublicationRBAC, protectArticleCommentDependencies],
     beforeValidate: [
       ({ data, originalDoc }) => {
         // slugificare automată: rulează DOAR dacă slug-ul lipsește sau e invalid.
@@ -323,11 +533,38 @@ export const Articole: CollectionConfig = {
       },
     ],
     beforeChange: [
-      ({ data }) => {
-        // setează publishedAt automat la prima publicare
-        if (data.status === 'published' && !data.publishedAt) {
-          data.publishedAt = new Date().toISOString()
+      ({ data, originalDoc, req }) => {
+        if (!data) return data
+
+        // `approved` și `blocked` sunt stări rezervate administratorului.
+        // Un draft modificat de editor sau de o automatizare trebuie să
+        // reintre în fluxul editorial și nu poate moșteni aprobarea anterioară.
+        if (req.user?.rol !== 'admin') {
+          const effectiveEditorialStatus = data.editorialStatus ?? originalDoc?.editorialStatus
+
+          if (effectiveEditorialStatus === 'approved' || effectiveEditorialStatus === 'blocked') {
+            data.editorialStatus = 'review'
+          }
         }
+
+        return data
+      },
+      ({ data, originalDoc }) => {
+        if (!data) return data
+
+        // `_status` este singura autoritate pentru publicarea reală.
+        const nextPublicationStatus = data._status ?? originalDoc?._status
+
+        if (nextPublicationStatus === 'published') {
+          // Orice document publicat este, prin definiție, aprobat editorial.
+          data.editorialStatus = 'approved'
+
+          // Păstrăm data primei publicări; editările ulterioare nu o rescriu.
+          if (!data.publishedAt && !originalDoc?.publishedAt) {
+            data.publishedAt = new Date().toISOString()
+          }
+        }
+
         return data
       },
       ({ data, originalDoc }) => {

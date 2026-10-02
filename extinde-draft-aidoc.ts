@@ -77,16 +77,17 @@ async function main() {
     subcategorie: 'diagnostic',
     sursaNume: 'STAT News, FDA, Aidoc, Spitalul Universitar Basel, npj Digital Medicine (surse multiple)',
     sursaLink: 'https://www.statnews.com/2026/01/21/fda-clears-aidoc-tool-detect-multiple-conditions-from-ct-scan/',
-    status: 'draft',
+    editorialStatus: 'draft',
   }
 
   if (existent.docs.length > 0) {
     const id = (existent.docs[0] as any).id
-    await payload.update({ collection: 'articole', id, data: date })
+    await payload.update({ collection: 'articole', id, draft: true, data: date })
     console.log('\n✓ DRAFT EXTINS (actualizat ID ' + id + ')')
   } else {
     await payload.create({
       collection: 'articole',
+      draft: true,
       data: { ...date, slug: 'aidoc-ai-radiologie-prezentare-' + Date.now().toString(36), limba: 'ro', pilon: categorieId, tip: 'analiza', generatAutomat: false, numarConfirmari: 1, tags: [{ tag: 'radiologie' }, { tag: 'Aidoc' }, { tag: 'FDA' }] } as any,
     })
     console.log('\n✓ DRAFT NOU creat')

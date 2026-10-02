@@ -1,5 +1,6 @@
-import type { CollectionConfig } from 'payload'
+import { APIError, type CollectionConfig, type Where } from 'payload'
 import { lexicalEditor, UploadFeature } from '@payloadcms/richtext-lexical'
+import { applyCommentCreateDefaults, commentTargetWhere, resolveCommentTarget } from '@/lib/comments/comment-target'
 
 // ============================================================
 //  CATEGORII — cei 5 piloni de conținut
@@ -8,6 +9,12 @@ export const Categorii: CollectionConfig = {
   slug: 'categorii',
   labels: { singular: 'Categorie', plural: 'Categorii' },
   admin: { useAsTitle: 'nume', group: 'Conținut' },
+  access: {
+    read: ({ req: { user } }) => Boolean(user),
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'nume', type: 'text', required: true },
     { name: 'slug', type: 'text', required: true, unique: true, index: true },
@@ -41,25 +48,118 @@ export const Comentarii: CollectionConfig = {
   labels: { singular: 'Comentariu', plural: 'Comentarii' },
   admin: {
     useAsTitle: 'continut',
-    defaultColumns: ['continut', 'autor', 'articol', 'status'],
+    defaultColumns: ['continut', 'autor', 'articol', 'flash', 'status'],
     group: 'Comunitate',
   },
   access: {
     read: ({ req: { user } }) => {
-      if (user) return true
-      return { status: { equals: 'aprobat' } } // public vede doar aprobate
+      if (user?.rol === 'admin') return true
+      return { status: { equals: 'aprobat' } } // non-admin vede doar aprobate
     },
     create: ({ req: { user } }) => Boolean(user), // doar userii înregistrați
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
+  hooks: {
+    beforeValidate: [
+      ({ data, originalDoc, req, operation }) => {
+        if (!data) {
+          return data
+        }
+
+        const target =
+          resolveCommentTarget(
+            data as Record<string, unknown>,
+            originalDoc as Record<string, unknown> | null,
+          )
+
+        if (!target) {
+          throw new APIError(
+            'Comentariul trebuie asociat exact unui articol sau unui Flash AI.',
+            400,
+          )
+        }
+
+        if (
+          operation !== 'create' ||
+          !req.user
+        ) {
+          return data
+        }
+
+        return applyCommentCreateDefaults(
+          data as Record<string, unknown>,
+          {
+            id: req.user.id,
+            rol: req.user.rol,
+          },
+        )
+      },
+    ],
   },
   fields: [
     { name: 'continut', type: 'textarea', required: true, maxLength: 2000 },
-    { name: 'autor', type: 'relationship', relationTo: 'useri', required: true },
-    { name: 'articol', type: 'relationship', relationTo: 'articole', required: true, index: true },
+    {
+      name: 'autor',
+      type: 'relationship',
+      relationTo: 'useri',
+      required: true,
+      access: {
+        create: ({ req: { user } }) => user?.rol === 'admin',
+        update: ({ req: { user } }) => user?.rol === 'admin',
+      },
+    },
+    {
+      name: 'articol',
+      type: 'relationship',
+      relationTo: 'articole',
+      index: true,
+      filterOptions: ({ user }) => {
+        if (user?.rol === 'admin') {
+          return true
+        }
+
+        return {
+          _status: {
+            equals: 'published',
+          },
+        }
+      },
+      admin: {
+        description:
+          'Țintă comentariu pentru conținut editorial clasic. Se setează articol SAU Flash AI, niciodată ambele.',
+      },
+    },
+    {
+      name: 'flash',
+      type: 'relationship',
+      relationTo: 'flash-ai',
+      index: true,
+      filterOptions: ({ user }) => {
+        if (user?.rol === 'admin') {
+          return true
+        }
+
+        return {
+          _status: {
+            equals: 'published',
+          },
+        }
+      },
+      admin: {
+        description:
+          'Țintă comentariu pentru Flash AI. Se setează Flash AI SAU articol, niciodată ambele.',
+      },
+    },
     {
       name: 'status',
       type: 'select',
       required: true,
       defaultValue: 'asteptare',
+      access: {
+        create: ({ req: { user } }) => user?.rol === 'admin',
+        update: ({ req: { user } }) => user?.rol === 'admin',
+      },
       options: [
         { label: 'În așteptare', value: 'asteptare' },
         { label: 'Aprobat', value: 'aprobat' },
@@ -72,7 +172,38 @@ export const Comentarii: CollectionConfig = {
       name: 'raspunsLa',
       type: 'relationship',
       relationTo: 'comentarii',
-      admin: { description: 'Pentru thread-uri (răspuns la alt comentariu).' },
+      filterOptions: ({ data, user }): boolean | Where => {
+        const target =
+          resolveCommentTarget(
+            data as Record<string, unknown> | null,
+          )
+
+        if (!target) {
+          return false
+        }
+
+        const targetWhere =
+          commentTargetWhere(target) as Where
+
+        if (user?.rol === 'admin') {
+          return targetWhere
+        }
+
+        return {
+          and: [
+            targetWhere,
+            {
+              status: {
+                equals: 'aprobat',
+              },
+            },
+          ],
+        }
+      },
+      admin: {
+        description:
+          'Pentru thread-uri. Părintele trebuie să aparțină aceleiași ținte (articol sau Flash AI).',
+      },
     },
   ],
 }
@@ -90,9 +221,12 @@ export const Tooluri: CollectionConfig = {
   },
   access: {
     read: ({ req: { user } }) => {
-      if (user) return true
+      if (user?.rol === 'admin') return true
       return { activ: { equals: true } }
     },
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
   },
   fields: [
     { name: 'nume', type: 'text', required: true },
@@ -164,7 +298,12 @@ export const Roadmaps: CollectionConfig = {
   slug: 'roadmaps',
   labels: { singular: 'Roadmap', plural: 'Roadmaps' },
   admin: { useAsTitle: 'titlu', group: 'Conținut' },
-  access: { read: () => true },
+  access: {
+    read: ({ req: { user } }) => user?.rol === 'admin',
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'titlu', type: 'text', required: true, localized: true },
     { name: 'slug', type: 'text', required: true, unique: true, index: true },
@@ -213,6 +352,9 @@ export const Cursuri: CollectionConfig = {
       if (user?.nivelAbonament === 'complet') return true
       return { gratuit: { equals: true } }
     },
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
   },
   fields: [
     { name: 'titlu', type: 'text', required: true, localized: true },
@@ -282,7 +424,15 @@ export const CallouriUE: CollectionConfig = {
     defaultColumns: ['titlu', 'program', 'deadline', 'eligibilRomania'],
     group: 'Comunitate',
   },
-  access: { read: () => true },
+  access: {
+    read: ({ req: { user } }) => {
+      if (user?.rol === 'admin') return true
+      return { activ: { equals: true } }
+    },
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'titlu', type: 'text', required: true },
     {
@@ -323,7 +473,12 @@ export const Media: CollectionConfig = {
   slug: 'media',
   labels: { singular: 'Media', plural: 'Media' },
   admin: { group: 'Sistem' },
-  access: { read: () => true },
+  access: {
+    read: () => true,
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   upload: {
     imageSizes: [
       { name: 'thumbnail', width: 400, height: 300, position: 'centre' },
@@ -353,7 +508,29 @@ export const Media: CollectionConfig = {
         { label: 'Pixabay', value: 'pixabay' },
         { label: 'Unsplash', value: 'unsplash' },
         { label: 'Proprie', value: 'proprie' },
+        { label: 'Altă sursă', value: 'alta' },
       ],
+    },
+    {
+      name: 'dreptUtilizareConfirmat',
+      type: 'checkbox',
+      defaultValue: false,
+      access: {
+        read: ({ req: { user } }) =>
+          user?.rol === 'admin',
+      },
+      admin: {
+        description:
+          'Bifează doar dacă dreptul 844-ai.ro de a publica imaginea a fost verificat.',
+      },
+    },
+    {
+      name: 'credit',
+      type: 'text',
+      admin: {
+        description:
+          'Opțional. Credit / atribuire pentru imagine, când sursa sau licența o cere.',
+      },
     },
   ],
 }
@@ -369,7 +546,12 @@ export const Newsletter: CollectionConfig = {
     defaultColumns: ['email', 'limba', 'segment', 'confirmat'],
     group: 'Comunitate',
   },
-  access: { read: ({ req: { user } }) => Boolean(user), create: () => true },
+  access: {
+    read: ({ req: { user } }) => user?.rol === 'admin',
+    create: ({ req: { user } }) => user?.rol === 'admin',
+    update: ({ req: { user } }) => user?.rol === 'admin',
+    delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
   fields: [
     { name: 'email', type: 'email', required: true, unique: true, index: true },
     {
@@ -397,6 +579,14 @@ export const Newsletter: CollectionConfig = {
       type: 'checkbox',
       defaultValue: false,
       admin: { description: 'Double opt-in confirmat.' },
+    },
+    {
+      name: 'confirmationLastSentAt',
+      type: 'date',
+      admin: {
+        hidden: true,
+        description: 'Metadată internă pentru cooldown-ul emailurilor de confirmare.',
+      },
     },
     { name: 'userAsociat', type: 'relationship', relationTo: 'useri' },
   ],

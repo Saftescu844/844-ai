@@ -105,7 +105,7 @@ export default async function PaginaConfidentialitate(props: {
           <ul style={s.ul}>
             <li>Acces la datele deținute despre tine</li>
             <li>Rectificarea datelor inexacte</li>
-            <li>Ștergerea datelor („dreptul de a fi uitat")</li>
+            <li>Ștergerea datelor („dreptul de a fi uitat&quot;)</li>
             <li>Restricționarea prelucrării</li>
             <li>Portabilitatea datelor</li>
             <li>Opoziția la prelucrarea bazată pe interes legitim</li>
@@ -193,7 +193,7 @@ export default async function PaginaConfidentialitate(props: {
             </li>
             <li>
               Technical data/logs: for the period strictly necessary for security purposes, per our
-              infrastructure providers' policies.
+              infrastructure providers&apos; policies.
             </li>
           </ul>
 
@@ -232,7 +232,7 @@ export default async function PaginaConfidentialitate(props: {
           <ul style={s.ul}>
             <li>Access to the data we hold about you</li>
             <li>Rectification of inaccurate data</li>
-            <li>Erasure ("right to be forgotten")</li>
+            <li>Erasure (&quot;right to be forgotten&quot;)</li>
             <li>Restriction of processing</li>
             <li>Data portability</li>
             <li>Objection to processing based on legitimate interest</li>

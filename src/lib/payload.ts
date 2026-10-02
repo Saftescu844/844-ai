@@ -1,5 +1,6 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
+import { cache } from 'react'
 
 const LIMBI_VALIDE = ['ro', 'en']
 
@@ -7,12 +8,27 @@ export async function payloadClient() {
   return await getPayload({ config })
 }
 
+export async function getSiteSettings(limba: string) {
+  if (limba !== 'ro' && limba !== 'en') return null
+
+  const payload = await payloadClient()
+
+  return await payload.findGlobal({
+    slug: 'site-settings',
+    locale: limba,
+    fallbackLocale: false,
+    depth: 1,
+  })
+}
+
+export const getCachedSiteSettings = cache(getSiteSettings)
+
 export async function getArticole(limba: string, optiuni: { limit?: number } = {}) {
   if (!LIMBI_VALIDE.includes(limba)) return { docs: [] as any[] }
   const payload = await payloadClient()
   return await payload.find({
     collection: 'articole',
-    where: { and: [ { limba: { equals: limba } }, { status: { equals: 'published' } } ] },
+    where: { and: [ { limba: { equals: limba } }, { _status: { equals: 'published' } } ] },
     limit: optiuni.limit || 12,
     sort: '-publishedAt',
     depth: 1,
@@ -24,7 +40,56 @@ export async function getArticol(slug: string, limba: string) {
   const payload = await payloadClient()
   const r = await payload.find({
     collection: 'articole',
-    where: { and: [ { slug: { equals: slug } }, { limba: { equals: limba } }, { status: { equals: 'published' } } ] },
+    where: { and: [ { slug: { equals: slug } }, { limba: { equals: limba } }, { _status: { equals: 'published' } } ] },
+    limit: 1,
+    depth: 2,
+  })
+  return r.docs[0] || null
+}
+
+
+export async function getFlashAi(limba: string, optiuni: { limit?: number } = {}) {
+  if (!LIMBI_VALIDE.includes(limba)) return { docs: [] as any[] }
+  const payload = await payloadClient()
+  return await payload.find({
+    collection: 'flash-ai',
+    where: { and: [ { limba: { equals: limba } }, { _status: { equals: 'published' } } ] },
+    limit: optiuni.limit || 12,
+    sort: '-publishedAt',
+    depth: 2,
+  })
+}
+
+export async function getFlashAiPilon(limba: string, pilonSlug: string) {
+  if (!LIMBI_VALIDE.includes(limba)) return { docs: [] as any[] }
+  const payload = await payloadClient()
+  return await payload.find({
+    collection: 'flash-ai',
+    where: {
+      and: [
+        { limba: { equals: limba } },
+        { _status: { equals: 'published' } },
+        { 'pilon.slug': { equals: pilonSlug } },
+      ],
+    },
+    limit: 24,
+    sort: '-publishedAt',
+    depth: 2,
+  })
+}
+
+export async function getFlashAiBySlug(slug: string, limba: string) {
+  if (!LIMBI_VALIDE.includes(limba)) return null
+  const payload = await payloadClient()
+  const r = await payload.find({
+    collection: 'flash-ai',
+    where: {
+      and: [
+        { slug: { equals: slug } },
+        { limba: { equals: limba } },
+        { _status: { equals: 'published' } },
+      ],
+    },
     limit: 1,
     depth: 2,
   })
@@ -51,7 +116,7 @@ export async function getArticolePilon(limba: string, pilonSlug: string) {
   const payload = await payloadClient()
   return await payload.find({
     collection: 'articole',
-    where: { and: [ { limba: { equals: limba } }, { status: { equals: 'published' } }, { 'pilon.slug': { equals: pilonSlug } } ] },
+    where: { and: [ { limba: { equals: limba } }, { _status: { equals: 'published' } }, { 'pilon.slug': { equals: pilonSlug } } ] },
     limit: 24,
     sort: '-publishedAt',
     depth: 1,
@@ -65,7 +130,7 @@ export async function getArticoleSanatate(limba: string, subcategorie?: string) 
   const payload = await payloadClient()
   const conditii: any[] = [
     { limba: { equals: limba } },
-    { status: { equals: 'published' } },
+    { _status: { equals: 'published' } },
     { 'pilon.slug': { equals: 'sanatate' } },
   ]
   if (subcategorie && SUBCATEGORII_SANATATE.includes(subcategorie)) {
@@ -85,7 +150,7 @@ export async function getArticoleEducatie(limba: string, subcategorie?: string) 
   const payload = await payloadClient()
   const conditii: any[] = [
     { limba: { equals: limba } },
-    { status: { equals: 'published' } },
+    { _status: { equals: 'published' } },
     { 'pilon.slug': { equals: 'educatie' } },
   ]
   const SUBCATEGORII_EDU = ['invatare-ai', 'institutii', 'instrumente-edu', 'cercetare', 'cariere']
@@ -101,28 +166,32 @@ export async function getArticoleEducatie(limba: string, subcategorie?: string) 
   })
 }
 
-export async function getRoadmaps(limba: string) {
-  if (!['ro', 'en'].includes(limba)) return { docs: [] as any[] }
-  const payload = await payloadClient()
-  return await payload.find({ collection: 'roadmaps', locale: limba as any, limit: 24, depth: 1 })
-}
-
-export async function getRoadmap(slug: string, limba: string) {
-  if (!['ro', 'en'].includes(limba)) return null
-  const payload = await payloadClient()
-  const r = await payload.find({ collection: 'roadmaps', where: { slug: { equals: slug } }, locale: limba as any, limit: 1, depth: 1 })
-  return r.docs[0] || null
-}
-
 export async function getCursuri(limba: string) {
   if (!['ro', 'en'].includes(limba)) return { docs: [] as any[] }
   const payload = await payloadClient()
-  return await payload.find({ collection: 'cursuri', locale: limba as any, limit: 24, depth: 1 })
+  return await payload.find({
+    collection: 'cursuri',
+    where: { gratuit: { equals: true } },
+    locale: limba as any,
+    limit: 24,
+    depth: 1,
+  })
 }
 
 export async function getCurs(slug: string, limba: string) {
   if (!['ro', 'en'].includes(limba)) return null
   const payload = await payloadClient()
-  const r = await payload.find({ collection: 'cursuri', where: { slug: { equals: slug } }, locale: limba as any, limit: 1, depth: 1 })
+  const r = await payload.find({
+    collection: 'cursuri',
+    where: {
+      and: [
+        { slug: { equals: slug } },
+        { gratuit: { equals: true } },
+      ],
+    },
+    locale: limba as any,
+    limit: 1,
+    depth: 1,
+  })
   return r.docs[0] || null
 }

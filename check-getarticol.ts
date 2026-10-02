@@ -10,7 +10,7 @@ async function main() {
         and: [
           { slug: { equals: 'railway-atrage-100-de-milioane-de-dolari-pentru-a-provoca-aws-cu-o-inf-mr6dgyla' } },
           { limba: { equals: 'ro' } },
-          { status: { equals: 'published' } },
+          { _status: { equals: 'published' } },
         ],
       },
       limit: 1,

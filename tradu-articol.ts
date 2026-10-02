@@ -36,36 +36,52 @@ async function main() {
   const metaTitleSigur = (tradus.metaTitle || '').substring(0, 58)
   const hashNou = calculeazaHash(art.continut)
 
-  // dacă există deja o versiune EN legată, o ștergem (retraducere)
-  if (art.versiuneAlternativa) {
-    try {
-      const idVechi = typeof art.versiuneAlternativa === 'object' ? art.versiuneAlternativa.id : art.versiuneAlternativa
-      await payload.delete({ collection: 'articole', id: idVechi })
-      console.log('✓ Șters EN vechi (ID ' + idVechi + ')')
-    } catch (e) { console.log('(nu s-a putut șterge EN vechi, continuăm)') }
-  }
+  const dateEn = {
+    titlu: tradus.titlu, slug: slugEn(tradus.titlu), limba: 'en', pilon: art.pilon,
+    subcategorie: art.subcategorie, tip: art.tip,
+    excerpt: tradus.excerpt, continut: tradus.continut,
+    sursaNume: art.sursaNume, sursaLink: art.sursaLink,
+    producator: art.producator, linkProducator: art.linkProducator,
+    tags: tagsCurate, editorialStatus: 'review',
+    generatAutomat: false, numarConfirmari: 1,
+    versiuneAlternativa: art.id,
+    metaTitle: metaTitleSigur, metaDescription: metaDescSigura,
+  } as any
 
-  const creatEn = await payload.create({
-    collection: 'articole',
-    data: {
-      titlu: tradus.titlu, slug: slugEn(tradus.titlu), limba: 'en', pilon: art.pilon,
-      subcategorie: art.subcategorie, tip: art.tip,
-      excerpt: tradus.excerpt, continut: tradus.continut,
-      sursaNume: art.sursaNume, sursaLink: art.sursaLink,
-      producator: art.producator, linkProducator: art.linkProducator,
-      tags: tagsCurate, status: art.status, publishedAt: new Date().toISOString(),
-      generatAutomat: false, numarConfirmari: 1,
-      versiuneAlternativa: art.id,
-      metaTitle: metaTitleSigur, metaDescription: metaDescSigura,
-    } as any,
-  })
+  let creatEn: any
+
+  // Dacă EN există deja, păstrăm documentul și versiunea publicată curentă.
+  // Noua traducere este salvată ca draft pentru revizuire umană.
+  if (art.versiuneAlternativa) {
+    const idEn =
+      typeof art.versiuneAlternativa === 'object'
+        ? art.versiuneAlternativa.id
+        : art.versiuneAlternativa
+
+    creatEn = await payload.update({
+      collection: 'articole',
+      id: idEn,
+      draft: true,
+      data: dateEn,
+    })
+
+    console.log('✓ EN existent actualizat ca draft pentru revizuire (ID ' + idEn + ')')
+  } else {
+    creatEn = await payload.create({
+      collection: 'articole',
+      draft: true,
+      data: dateEn,
+    })
+
+    console.log('✓ EN nou creat ca draft pentru revizuire (ID ' + creatEn.id + ')')
+  }
 
   await payload.update({
     collection: 'articole', id: art.id,
     data: { versiuneAlternativa: creatEn.id, continutHashTradus: hashNou, necesitaRetraducere: false } as any,
   })
 
-  console.log('\n✓ Tradus (ID EN: ' + creatEn.id + ') | Slug: ' + creatEn.slug)
+  console.log('\n✓ Traducere EN pregătită pentru revizuire (ID: ' + creatEn.id + ') | Slug: ' + creatEn.slug)
   console.log('✓ Hash salvat pe RO, necesitaRetraducere resetat la false\n')
   process.exit(0)
 }
