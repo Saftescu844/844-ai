@@ -18,7 +18,7 @@ export default async function PaginaConfidentialitate(props: {
     <article style={{ maxWidth: 760, margin: '0 auto', padding: '2rem 0' }}>
       <h1 style={s.h1}>{lang === 'ro' ? 'Politica de Confidențialitate' : 'Privacy Policy'}</h1>
       <p style={s.meta}>
-        {lang === 'ro' ? 'Ultima actualizare: 21 iulie 2026' : 'Last updated: July 21, 2026'}
+        {lang === 'ro' ? 'Ultima actualizare: 3 octombrie 2026' : 'Last updated: October 3, 2026'}
       </p>
 
       {lang === 'ro' ? (
@@ -37,9 +37,10 @@ export default async function PaginaConfidentialitate(props: {
           <h2 style={s.h2}>2. Ce date colectăm, în ce scop și pe ce temei legal</h2>
           <p style={s.p}>
             <strong>2.1. Abonarea la newsletter.</strong> Colectăm adresa de email, limba preferată
-            și segmentul de interes ales. Scop: trimiterea newsletter-ului. Temei legal:
-            consimțământul tău explicit (art. 6 alin. 1 lit. a GDPR), pe care îl poți retrage
-            oricând.
+            și segmentul de abonare (formularul public folosește segmentul general), starea
+            confirmării și data ultimei trimiteri de confirmare. Scop: confirmarea abonării prin
+            email și trimiterea newsletter-ului prin Brevo. Temei legal: consimțământul tău explicit
+            (art. 6 alin. 1 lit. a GDPR), pe care îl poți retrage oricând.
           </p>
           <p style={s.p}>
             <strong>2.2. Vizitarea site-ului.</strong> Infrastructura noastră tehnică înregistrează
@@ -49,9 +50,11 @@ export default async function PaginaConfidentialitate(props: {
           </p>
           <p style={s.p}>
             <strong>2.3. Conținut video încorporat.</strong> Unele articole includ video-uri YouTube
-            sau Vimeo. La încărcarea paginii, aceste platforme pot seta cookie-uri și primi date
-            tehnice despre vizita ta. Temei legal: consimțământul tău, prin banner-ul de cookie-uri.
-            Detalii complete în <a href={`/${lang}/politica-cookie-uri`}>Politica de Cookie-uri</a>.
+            sau Vimeo. Implementarea actuală încarcă direct playerul, care poate primi adresa IP și
+            date despre browser și poate seta cookie-uri înainte de redare. În prezent nu există un
+            mecanism de consimțământ care să blocheze încărcarea. Prelucrarea opțională prin aceste
+            servicii necesită acord prealabil; această politică nu reprezintă acordul tău. Detalii
+            complete în <a href={`/${lang}/politica-cookie-uri`}>Politica de Cookie-uri</a>.
           </p>
           <p style={s.p}>
             <strong>2.4. Ce nu colectăm momentan.</strong> Nu folosim instrumente de analiză de
@@ -59,10 +62,40 @@ export default async function PaginaConfidentialitate(props: {
             va fi actualizată înainte de activare.
           </p>
 
+          <p style={s.p}>
+            <strong>2.5. Conturi.</strong> Prelucrăm emailul, numele afișat, limba preferată, datele
+            de autentificare protejate, starea verificării emailului și datele sesiunii pentru
+            crearea contului, conectare, verificarea adresei și recuperarea parolei. Temei:
+            executarea serviciului solicitat (art. 6 alin. 1 lit. b GDPR); prevenirea abuzurilor se
+            bazează pe interesul legitim de a proteja serviciul (lit. f). Emailurile de verificare
+            și recuperare sunt trimise prin Brevo. Crearea contului nu înseamnă abonare automată la
+            newsletter.
+          </p>
+          <p style={s.p}>
+            <strong>2.6. Comentarii.</strong> Păstrăm textul, autorul, data, articolul sau Flash AI
+            asociat, răspunsurile și starea moderării. Scop: publicarea contribuției solicitate
+            (art. 6 alin. 1 lit. b GDPR) și moderarea pentru protejarea comunității (lit. f). După
+            aprobare, textul, numele afișat și data devin publice. Adresa de email nu este afișată
+            de interfața publică de comentarii. Nu include date medicale, parole sau date personale
+            ale altor persoane în comentarii.
+          </p>
+
           <h2 style={s.h2}>3. Cât timp păstrăm datele</h2>
           <ul style={s.ul}>
             <li>
-              Abonații newsletter: cât timp rămâi abonat, plus maximum 30 de zile de la dezabonare.
+              Conturi: pe durata utilizării contului, până la soluționarea unei cereri de ștergere;
+              datele necesare soluționării unui incident sau îndeplinirii obligațiilor legale pot fi
+              păstrate separat cât timp este necesar.
+            </li>
+            <li>
+              Comentarii: cât timp sunt publicate sau necesare moderării; cererile de ștergere sunt
+              analizate individual, inclusiv legătura cu autorul. Ștergerea contului și ștergerea
+              comentariilor sunt operațiuni distincte.
+            </li>
+            <li>
+              Abonații newsletter: cât timp rămâi abonat. Confirmarea dezabonării șterge
+              înregistrarea din baza activă; copiile de siguranță și evidențele de livrare ale
+              furnizorului au cicluri de păstrare separate.
             </li>
             <li>
               Date tehnice/log-uri: perioada strict necesară scopurilor de securitate, conform
@@ -91,14 +124,33 @@ export default async function PaginaConfidentialitate(props: {
                 <td style={s.td}>UE (Frankfurt)</td>
               </tr>
               <tr>
+                <td style={s.td}>Brevo</td>
+                <td style={s.td}>
+                  {lang === 'ro'
+                    ? 'Emailuri de confirmare, recuperare și newsletter; adresă destinatar, conținut și metadate de livrare'
+                    : 'Confirmation, recovery and newsletter emails; recipient address, content and delivery metadata'}
+                </td>
+                <td style={s.td}>
+                  <a href="https://www.brevo.com/legal/privacypolicy/">
+                    {lang === 'ro'
+                      ? 'Conform condițiilor Brevo și ale subcontractanților săi'
+                      : 'Under Brevo and subprocessor terms'}
+                  </a>
+                </td>
+              </tr>
+              <tr>
                 <td style={s.td}>YouTube / Vimeo</td>
                 <td style={s.td}>Conținut video încorporat</td>
-                <td style={s.td}>SUA (doar la vizionare video)</td>
+                <td style={s.td}>Posibil în afara SEE, de la încărcarea playerului</td>
               </tr>
             </tbody>
           </table>
           <p style={s.p}>
-            Nu vindem și nu închiriem datele tale către terți în scopuri comerciale.
+            Nu vindem și nu închiriem datele tale către terți în scopuri comerciale. Regiunile
+            Amsterdam și Frankfurt descriu găzduirea principală configurată, nu toate operațiunile
+            de suport sau subcontractanții furnizorilor. Orice transfer în afara SEE necesită
+            garanțiile aplicabile din capitolul V GDPR; condițiile contractuale, subcontractanții și
+            mecanismele de transfer trebuie verificate înainte de activarea unor servicii noi.
           </p>
 
           <h2 style={s.h2}>5. Drepturile tale</h2>
@@ -113,8 +165,10 @@ export default async function PaginaConfidentialitate(props: {
           </ul>
           <p style={s.p}>
             Pentru exercitarea acestor drepturi:{' '}
-            <a href="mailto:privacy@844-ai.ro">privacy@844-ai.ro</a>. Răspundem în maximum 30 de
-            zile.
+            <a href="mailto:privacy@844-ai.ro">privacy@844-ai.ro</a>. Răspundem fără întârzieri
+            nejustificate, de regulă în cel mult o lună de la primirea cererii. Pentru cereri
+            complexe sau numeroase, termenul poate fi prelungit cu încă două luni; te informăm în
+            prima lună despre prelungire și motive.
           </p>
 
           <h2 style={s.h2}>6. Dreptul de a depune plângere</h2>
@@ -129,7 +183,7 @@ export default async function PaginaConfidentialitate(props: {
           <h2 style={s.h2}>7. Securitatea datelor</h2>
           <p style={s.p}>
             Folosim conexiune criptată (HTTPS), acces restricționat la panoul de administrare și
-            backup-uri periodice ale bazei de date.
+            măsuri de control al autentificării și de prevenire a abuzurilor.
           </p>
 
           <h2 style={s.h2}>8. Cookie-uri</h2>
@@ -164,8 +218,10 @@ export default async function PaginaConfidentialitate(props: {
           <h2 style={s.h2}>2. What data we collect, why, and on what legal basis</h2>
           <p style={s.p}>
             <strong>2.1. Newsletter subscription.</strong> We collect your email address, preferred
-            language, and chosen interest segment. Purpose: sending the newsletter. Legal basis:
-            your explicit consent (GDPR Art. 6(1)(a)), which you can withdraw at any time.
+            language, subscription segment (the public form uses the general segment), confirmation
+            status, and last confirmation email date. Purpose: email subscription confirmation and
+            newsletter delivery through Brevo. Legal basis: your explicit consent (GDPR Art.
+            6(1)(a)), which you can withdraw at any time.
           </p>
           <p style={s.p}>
             <strong>2.2. Visiting the site.</strong> Our technical infrastructure automatically logs
@@ -175,8 +231,10 @@ export default async function PaginaConfidentialitate(props: {
           </p>
           <p style={s.p}>
             <strong>2.3. Embedded video content.</strong> Some articles include YouTube or Vimeo
-            videos. When such a page loads, these platforms may set cookies and receive technical
-            data about your visit. Legal basis: your consent, via the cookie banner. Full details in
+            videos. The current implementation loads the player directly; it may receive your IP
+            address and browser information and set cookies before playback. There is currently no
+            consent mechanism blocking this loading. Optional processing through these services
+            requires prior consent; this policy does not constitute your consent. Full details in
             our <a href={`/${lang}/politica-cookie-uri`}>Cookie Policy</a>.
           </p>
           <p style={s.p}>
@@ -185,11 +243,40 @@ export default async function PaginaConfidentialitate(props: {
             any such tool is activated.
           </p>
 
+          <p style={s.p}>
+            <strong>2.5. Accounts.</strong> We process your email, display name, preferred language,
+            protected authentication data, email verification status, and session data to create and
+            manage your account, sign in, verify your address, and recover your password. Basis:
+            performance of the service you request (GDPR Art. 6(1)(b)); abuse prevention relies on
+            our legitimate interest in protecting the service (Art. 6(1)(f)). Brevo sends
+            verification and password recovery emails. Creating an account does not automatically
+            subscribe you to the newsletter.
+          </p>
+          <p style={s.p}>
+            <strong>2.6. Comments.</strong> We store the text, author, date, related article or
+            Flash AI, replies, and moderation status. Purpose: publishing your requested
+            contribution (GDPR Art. 6(1)(b)) and moderation to protect the community (Art. 6(1)(f)).
+            Once approved, the text, display name, and date are public. The public comments
+            interface does not display your email. Do not include medical data, passwords, or other
+            people&apos;s personal data in comments.
+          </p>
+
           <h2 style={s.h2}>3. How long we keep your data</h2>
           <ul style={s.ul}>
             <li>
-              Newsletter subscribers: for as long as you remain subscribed, plus up to 30 days after
-              unsubscribing.
+              Accounts: while the account is used, until an erasure request is handled; data needed
+              for incidents or legal obligations may be retained separately for as long as
+              necessary.
+            </li>
+            <li>
+              Comments: while published or needed for moderation; erasure requests are reviewed
+              individually, including the author relationship. Account deletion and comment deletion
+              are separate operations.
+            </li>
+            <li>
+              Newsletter subscribers: while you remain subscribed. Confirming unsubscribe deletes
+              the active database record; backups and provider delivery records have separate
+              retention cycles.
             </li>
             <li>
               Technical data/logs: for the period strictly necessary for security purposes, per our
@@ -218,14 +305,33 @@ export default async function PaginaConfidentialitate(props: {
                 <td style={s.td}>EU (Frankfurt)</td>
               </tr>
               <tr>
+                <td style={s.td}>Brevo</td>
+                <td style={s.td}>
+                  {lang === 'ro'
+                    ? 'Emailuri de confirmare, recuperare și newsletter; adresă destinatar, conținut și metadate de livrare'
+                    : 'Confirmation, recovery and newsletter emails; recipient address, content and delivery metadata'}
+                </td>
+                <td style={s.td}>
+                  <a href="https://www.brevo.com/legal/privacypolicy/">
+                    {lang === 'ro'
+                      ? 'Conform condițiilor Brevo și ale subcontractanților săi'
+                      : 'Under Brevo and subprocessor terms'}
+                  </a>
+                </td>
+              </tr>
+              <tr>
                 <td style={s.td}>YouTube / Vimeo</td>
                 <td style={s.td}>Embedded video content</td>
-                <td style={s.td}>USA (only when viewing video)</td>
+                <td style={s.td}>Potentially outside the EEA, when the player loads</td>
               </tr>
             </tbody>
           </table>
           <p style={s.p}>
-            We do not sell or rent your data to third parties for commercial purposes.
+            We do not sell or rent your data to third parties for commercial purposes. Amsterdam and
+            Frankfurt describe the configured primary hosting regions, not all provider support or
+            subprocessor operations. Transfers outside the EEA require applicable safeguards under
+            GDPR Chapter V; contracts, subprocessors, and transfer mechanisms must be reviewed
+            before activating new services.
           </p>
 
           <h2 style={s.h2}>5. Your rights</h2>
@@ -240,7 +346,9 @@ export default async function PaginaConfidentialitate(props: {
           </ul>
           <p style={s.p}>
             To exercise these rights: <a href="mailto:privacy@844-ai.ro">privacy@844-ai.ro</a>. We
-            respond within 30 days.
+            respond without undue delay, normally within one month of receipt. For complex or
+            numerous requests, the period may be extended by two further months; we notify you
+            within the first month and explain why.
           </p>
 
           <h2 style={s.h2}>6. Right to lodge a complaint</h2>
@@ -253,8 +361,8 @@ export default async function PaginaConfidentialitate(props: {
 
           <h2 style={s.h2}>7. Data security</h2>
           <p style={s.p}>
-            We use encrypted connections (HTTPS), restricted access to the admin panel, and periodic
-            database backups.
+            We use encrypted connections (HTTPS), restricted access to the admin panel, and
+            authentication and abuse prevention controls.
           </p>
 
           <h2 style={s.h2}>8. Cookies</h2>
