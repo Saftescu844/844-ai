@@ -165,13 +165,24 @@ export default async function LangLayout(props: {
   const showLanguageSwitcher =
     siteSettings?.languageSettings.showLanguageSwitcher !== false
 
+  const configuredHeaderActions =
+    siteSettings?.navigation?.headerActions ?? []
+
+  const configuredSearchAction = configuredHeaderActions.find(
+    (action) => action.actionType === 'search',
+  )
+
   const searchAction =
-    siteSettings?.navigation?.headerActions?.find(
-      (action) =>
-        action.enabled !== false &&
-        action.actionType === 'search' &&
-        Boolean(action.label?.trim()),
-    ) ?? null
+    configuredHeaderActions.length === 0
+      ? {
+          label: lang === 'ro' ? 'Căutare' : 'Search',
+          style: 'link' as const,
+        }
+      : configuredSearchAction &&
+          configuredSearchAction.enabled !== false &&
+          Boolean(configuredSearchAction.label?.trim())
+        ? configuredSearchAction
+        : null
 
   const fallbackSiteName = '844-ai.ro'
   const fallbackTagline =
