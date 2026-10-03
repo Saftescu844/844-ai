@@ -1,4 +1,23 @@
+import type { Metadata } from 'next'
 import { getArticole, getFlashAi } from '@/lib/payload'
+
+export async function generateMetadata(props: {
+  params: Promise<{ lang: string }>
+}): Promise<Metadata> {
+  const { lang } = await props.params
+
+  if (lang !== 'ro' && lang !== 'en') return {}
+
+  return {
+    alternates: {
+      canonical: `/${lang}`,
+      languages: {
+        ro: '/ro',
+        en: '/en',
+      },
+    },
+  }
+}
 
 function etichetaArticol(tip: string, lang: string) {
   if (tip === 'analiza') return lang === 'ro' ? 'Analiză' : 'Analysis'
