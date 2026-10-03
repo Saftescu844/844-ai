@@ -50,11 +50,12 @@ export default async function PaginaConfidentialitate(props: {
           </p>
           <p style={s.p}>
             <strong>2.3. Conținut video încorporat.</strong> Unele articole includ video-uri YouTube
-            sau Vimeo. Implementarea actuală încarcă direct playerul, care poate primi adresa IP și
-            date despre browser și poate seta cookie-uri înainte de redare. În prezent nu există un
-            mecanism de consimțământ care să blocheze încărcarea. Prelucrarea opțională prin aceste
-            servicii necesită acord prealabil; această politică nu reprezintă acordul tău. Detalii
-            complete în <a href={`/${lang}/politica-cookie-uri`}>Politica de Cookie-uri</a>.
+            sau Vimeo. Playerul extern este blocat până când alegi „Accept și încarc videoclipul”.
+            După acceptare, furnizorul primește adresa IP și informații despre browser și poate
+            utiliza cookie-uri sau alte tehnologii. Temei: consimțământul tău (art. 6 alin. 1 lit. a
+            GDPR), separat pentru fiecare videoclip. Îl poți retrage de la butonul de lângă player,
+            care oprește redarea și elimină playerul. Detalii complete în{' '}
+            <a href={`/${lang}/politica-cookie-uri`}>Politica de Cookie-uri</a>.
           </p>
           <p style={s.p}>
             <strong>2.4. Ce nu colectăm momentan.</strong> Nu folosim instrumente de analiză de
@@ -231,11 +232,12 @@ export default async function PaginaConfidentialitate(props: {
           </p>
           <p style={s.p}>
             <strong>2.3. Embedded video content.</strong> Some articles include YouTube or Vimeo
-            videos. The current implementation loads the player directly; it may receive your IP
-            address and browser information and set cookies before playback. There is currently no
-            consent mechanism blocking this loading. Optional processing through these services
-            requires prior consent; this policy does not constitute your consent. Full details in
-            our <a href={`/${lang}/politica-cookie-uri`}>Cookie Policy</a>.
+            videos. The external player is blocked until you choose “Accept and load video”. After
+            acceptance, the provider receives your IP address and browser information and may use
+            cookies or other technologies. Basis: your consent (GDPR Art. 6(1)(a)), separately for
+            each video. You can withdraw it using the button next to the player, which stops
+            playback and removes the player. Full details in our{' '}
+            <a href={`/${lang}/politica-cookie-uri`}>Cookie Policy</a>.
           </p>
           <p style={s.p}>
             <strong>2.4. What we do not collect at this time.</strong> We do not use traffic
