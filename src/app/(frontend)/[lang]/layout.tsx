@@ -257,22 +257,22 @@ export default async function LangLayout(props: {
   return (
     <html lang={lang}>
       <body>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1rem' }}>
-      <header style={{ borderBottom: '1px solid #e5e5e5', paddingBottom: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 14, paddingBottom: 10 }}>
-          <a href={`/${lang}`} style={{ textDecoration: 'none', color: '#1a1a1a', lineHeight: 1.2 }}>
-            <div style={{ fontSize: 19, fontWeight: 700 }}>
+        <div className="site-shell">
+      <header className="site-header">
+        <div className="site-header__top">
+          <Link href={`/${lang}`} className="site-brand">
+            <div className="site-brand__mark">
               {siteName === '844-ai.ro' ? (
                 <>
-                  <span style={{ color: '#C41E3A' }}>844-ai</span>
-                  <span style={{ color: '#1a1a1a' }}>.ro</span>
+                  <span className="site-brand__mark-primary">844-ai</span>
+                  <span>.ro</span>
                 </>
               ) : (
                 siteName
               )}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#555' }}>{tagline}</div>
-          </a>
+            <div className="site-brand__tagline">{tagline}</div>
+          </Link>
           {(searchAction || showLanguageSwitcher) && (
             <div
               style={{
@@ -337,7 +337,7 @@ export default async function LangLayout(props: {
             </div>
           )}
         </div>
-        <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 18, paddingBottom: 4 }}>
+        <nav className="site-nav" aria-label={lang === 'ro' ? 'Navigație principală' : 'Primary navigation'}>
           {primaryNavigation.map((item) => {
             const visibilityClass =
               item.showInDesktop && item.showInMobile
@@ -353,12 +353,6 @@ export default async function LangLayout(props: {
                 className={visibilityClass}
                 target={item.openInNewTab ? '_blank' : undefined}
                 rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
-                style={{
-                  textDecoration: 'none',
-                  color: '#185FA5',
-                  fontSize: 14,
-                  fontWeight: 500,
-                }}
               >
                 {item.label}
               </a>
@@ -366,7 +360,7 @@ export default async function LangLayout(props: {
           })}
         </nav>
       </header>
-      <main style={{ paddingTop: 10 }}>{props.children}</main>
+      <main className="site-main">{props.children}</main>
       {footerEnabled && (
         <footer style={{ borderTop: '1px solid #e5e5e5', padding: '2rem 0 1.5rem', marginTop: 40, fontSize: 13, color: '#666' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, marginBottom: 20 }}>
