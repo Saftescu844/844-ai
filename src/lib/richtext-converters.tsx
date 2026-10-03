@@ -1,3 +1,4 @@
+import ExternalVideo from '@/components/ExternalVideo'
 import type { DefaultNodeTypes, SerializedUploadNode, SerializedBlockNode } from '@payloadcms/richtext-lexical'
 import type { JSXConvertersFunction } from '@payloadcms/richtext-lexical/react'
 import { richTextTextState } from '@/lib/richtext-text-state'
@@ -36,25 +37,12 @@ function ImagineCuAliniere({ node }: { node: SerializedUploadNode }) {
   )
 }
 
-function videoEmbed(url: string): string | null {
-  if (!url) return null
-  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/)
-  if (yt) return 'https://www.youtube.com/embed/' + yt[1]
-  const vm = url.match(/vimeo\.com\/(\d+)/)
-  if (vm) return 'https://player.vimeo.com/video/' + vm[1]
-  return null
-}
-
 function VideoBlockRender({ node }: { node: SerializedBlockNode }) {
   const fields: any = node.fields || {}
-  const embed = videoEmbed(fields.url || '')
-  if (!embed) return null
   return (
     <div style={{ margin: '24px 0' }}>
       {fields.titlu && <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{fields.titlu}</h3>}
-      <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 10 }}>
-        <iframe src={embed} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title={fields.titlu || 'Video'} />
-      </div>
+      <ExternalVideo url={fields.url || ''} title={fields.titlu || 'Video'} />
     </div>
   )
 }

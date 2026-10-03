@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import ExternalVideo from '@/components/ExternalVideo'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
 
@@ -29,9 +30,7 @@ export default function LectiiAcordeon({ lectii, lang }: { lectii: any[]; lang: 
             {activ && (
               <div style={{ padding: '0 18px 18px' }}>
                 {lectie.videoURL && (
-                  <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 8, marginBottom: 12 }}>
-                    <iframe src={lectie.videoURL} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }} allowFullScreen title={lectie.titlu} />
-                  </div>
+                  <ExternalVideo url={lectie.videoURL} title={lectie.titlu} lang={lang} />
                 )}
                 {lectie.continut && (
                   <div style={{ fontSize: 15, lineHeight: 1.6, color: '#333' }}>

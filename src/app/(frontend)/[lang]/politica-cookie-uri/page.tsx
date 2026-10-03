@@ -39,10 +39,12 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
             <a href={`/${lang}/politica-confidentialitate`}>Politica de confidențialitate</a>.
           </p>
           <p style={s.p}>
-            <strong>Cookie-uri de la terți — conținut video încorporat.</strong> Anumite articole
-            includ video-uri de pe YouTube sau Vimeo. La încărcarea unei astfel de pagini, aceste
-            platforme pot seta cookie-uri — inclusiv înainte de a apăsa play — pentru redarea
-            video-ului și, potrivit politicilor lor proprii, în scopuri de analiză sau publicitate.
+            <strong>Cookie-uri de la terți — conținut video încorporat.</strong> Videoclipurile
+            YouTube și Vimeo sunt blocate inițial. Înainte de acord, playerul nu trimite cereri
+            furnizorului și nu încarcă imagini de previzualizare externe. După acceptare, furnizorul
+            poate primi date tehnice și utiliza cookie-uri sau alte tehnologii, inclusiv pentru
+            analiză ori publicitate. Folosim modul de confidențialitate îmbunătățită YouTube și
+            opțiunea Vimeo de limitare a urmăririi; acestea nu înlocuiesc acordul.
           </p>
 
           <table style={s.table}>
@@ -84,11 +86,11 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
           </table>
 
           <p style={s.p}>
-            Implementarea actuală încarcă direct playerul video. În prezent nu există un banner de
-            consimțământ sau un mecanism care să blocheze playerul până la acord. Prin urmare, nu
-            putem afirma că aceste cookie-uri se încarcă doar după acceptare. Încărcarea opțională a
-            serviciilor video trebuie condiționată de acord înainte de lansarea largă. Citirea
-            acestei politici nu constituie consimțământ.
+            Pentru fiecare videoclip poți alege „Accept și încarc videoclipul” sau „Nu accept”.
+            Refuzul păstrează playerul blocat și nu împiedică citirea paginii. Acordul se aplică
+            doar acelui videoclip cât timp este afișat; nu este salvat în cookie-uri sau în stocarea
+            browserului și nu autorizează automat alte videoclipuri. La reîncărcarea paginii sau
+            redeschiderea unei lecții este necesar un nou acord.
           </p>
 
           <p style={s.p}>
@@ -99,10 +101,12 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
 
           <h2 style={s.h2}>Cum îți gestionezi preferințele</h2>
           <p style={s.p}>
-            Poți controla, bloca sau șterge cookie-urile din setările browserului. Blocarea
-            cookie-urilor necesare poate împiedica autentificarea. Site-ul nu oferă momentan un link
-            „Setări cookie-uri” și nu memorează o alegere de consimțământ pentru video. Controalele
-            browserului nu înlocuiesc obligația site-ului de a cere acordul prealabil.
+            Lângă fiecare player încărcat găsești butonul „Retrag acordul și opresc videoclipul”.
+            Acesta elimină playerul și oprește redarea. Nu poate șterge datele deja primite de
+            furnizor sau cookie-urile sale; le poți gestiona din setările browserului și prin
+            controalele furnizorului. Blocarea cookie-urilor strict necesare poate împiedica
+            autentificarea. Nu folosim un banner general pentru acordul video: alegerea se face
+            direct lângă fiecare videoclip.
           </p>
 
           <h2 style={s.h2}>Modificări</h2>
@@ -136,10 +140,12 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
             processing details.
           </p>
           <p style={s.p}>
-            <strong>Third-party cookies — embedded video content.</strong> Some articles include
-            YouTube or Vimeo videos. When such a page loads, these platforms may set cookies — even
-            before you press play — to enable video playback and, per their own policies, for
-            analytics or advertising purposes.
+            <strong>Third-party cookies — embedded video content.</strong> YouTube and Vimeo videos
+            are initially blocked. Before consent, the player makes no requests to the provider and
+            loads no external preview images. After acceptance, the provider may receive technical
+            data and use cookies or other technologies, including for analytics or advertising. We
+            use YouTube privacy-enhanced mode and Vimeo&apos;s tracking-limiting option; these do
+            not replace consent.
           </p>
 
           <table style={s.table}>
@@ -181,10 +187,11 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
           </table>
 
           <p style={s.p}>
-            The current implementation loads the video player directly. There is currently no
-            consent banner or mechanism blocking the player until consent. We therefore cannot claim
-            that these cookies load only after acceptance. Optional video services must be gated by
-            consent before the wider launch. Reading this policy does not constitute consent.
+            For each video you can choose “Accept and load video” or “Decline”. Declining keeps the
+            player blocked and does not prevent reading the page. Consent applies only to that video
+            while it is displayed; it is not saved in cookies or browser storage and does not
+            automatically authorize other videos. Reloading the page or reopening a lesson requires
+            fresh consent.
           </p>
 
           <p style={s.p}>
@@ -195,10 +202,11 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
 
           <h2 style={s.h2}>Managing your preferences</h2>
           <p style={s.p}>
-            You can control, block, or delete cookies in your browser settings. Blocking necessary
-            cookies may prevent sign-in. The site does not currently offer a Cookie Settings link or
-            store a video consent choice. Browser controls do not replace the site&apos;s duty to
-            obtain prior consent.
+            Each loaded player has a “Withdraw consent and stop video” button. It removes the player
+            and stops playback. It cannot erase data already received by the provider or its
+            cookies; manage these in your browser settings and through the provider&apos;s controls.
+            Blocking strictly necessary cookies may prevent sign-in. We do not use a general video
+            consent banner: the choice is made next to each video.
           </p>
 
           <h2 style={s.h2}>Changes</h2>
