@@ -15,7 +15,7 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
     <article style={{ maxWidth: 760, margin: '0 auto', padding: '2rem 0' }}>
       <h1 style={s.h1}>{lang === 'ro' ? 'Politica de Cookie-uri' : 'Cookie Policy'}</h1>
       <p style={s.meta}>
-        {lang === 'ro' ? 'Ultima actualizare: 21 iulie 2026' : 'Last updated: July 21, 2026'}
+        {lang === 'ro' ? 'Ultima actualizare: 3 octombrie 2026' : 'Last updated: October 3, 2026'}
       </p>
 
       {lang === 'ro' ? (
@@ -29,8 +29,14 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
 
           <h2 style={s.h2}>Ce cookie-uri folosim</h2>
           <p style={s.p}>
-            <strong>Cookie-uri strict necesare.</strong> Momentan, 844-ai.ro nu setează cookie-uri
-            proprii pentru funcționarea de bază (navigare, citire articole, abonare newsletter).
+            <strong>Cookie-uri strict necesare.</strong> Autentificarea în cont și în panoul de
+            administrare folosește cookie-ul de sesiune Payload (<code>payload-token</code>) pentru
+            a recunoaște utilizatorul conectat. Durata configurată este de două ore, cu reînnoire la
+            autentificare; deconectarea încheie sesiunea. Cookie-ul nu are scop publicitar.
+            Navigarea și citirea articolelor nu necesită un cont. Cookie-urile strict necesare
+            serviciului solicitat nu necesită acord pentru utilizarea lor; detaliile privind datele
+            sunt în{' '}
+            <a href={`/${lang}/politica-confidentialitate`}>Politica de confidențialitate</a>.
           </p>
           <p style={s.p}>
             <strong>Cookie-uri de la terți — conținut video încorporat.</strong> Anumite articole
@@ -78,21 +84,32 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
           </table>
 
           <p style={s.p}>
-            Aceste cookie-uri se încarcă doar dacă accepți din banner-ul afișat la prima vizită.
-            Dacă refuzi, videoclipurile nu se vor încărca automat.
+            Implementarea actuală încarcă direct playerul video. În prezent nu există un banner de
+            consimțământ sau un mecanism care să blocheze playerul până la acord. Prin urmare, nu
+            putem afirma că aceste cookie-uri se încarcă doar după acceptare. Încărcarea opțională a
+            serviciilor video trebuie condiționată de acord înainte de lansarea largă. Citirea
+            acestei politici nu constituie consimțământ.
+          </p>
+
+          <p style={s.p}>
+            Nu folosim instrumente de analiză a traficului, pixeli publicitari sau reCAPTCHA. Brevo
+            este folosit pe server pentru trimiterea emailurilor; formularul de newsletter nu
+            încarcă un script Brevo în browser.
           </p>
 
           <h2 style={s.h2}>Cum îți gestionezi preferințele</h2>
           <p style={s.p}>
-            Poți schimba oricând alegerea inițială din linkul „Setări cookie-uri&quot; din footer-ul
-            site-ului, sau poți controla/șterge cookie-urile direct din setările browserului tău.
+            Poți controla, bloca sau șterge cookie-urile din setările browserului. Blocarea
+            cookie-urilor necesare poate împiedica autentificarea. Site-ul nu oferă momentan un link
+            „Setări cookie-uri” și nu memorează o alegere de consimțământ pentru video. Controalele
+            browserului nu înlocuiesc obligația site-ului de a cere acordul prealabil.
           </p>
 
           <h2 style={s.h2}>Modificări</h2>
           <p style={s.p}>
             Dacă vom introduce în viitor alte tipuri de cookie-uri, această politică va fi
-            actualizată, iar banner-ul de consimțământ îți va cere din nou acordul pentru noile
-            categorii.
+            actualizată înainte de activare, împreună cu mecanismele necesare de consimțământ și
+            retragere a acordului.
           </p>
 
           <p style={s.p}>
@@ -110,9 +127,13 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
 
           <h2 style={s.h2}>What cookies we use</h2>
           <p style={s.p}>
-            <strong>Strictly necessary cookies.</strong> At this time, 844-ai.ro does not set its
-            own cookies for basic functionality (browsing, reading articles, newsletter
-            subscription).
+            <strong>Strictly necessary cookies.</strong> Account and admin sign-in use the Payload
+            session cookie (<code>payload-token</code>) to recognize the signed-in user. Its
+            lifetime follows the authentication session; signing out ends the session. It is not
+            used for advertising. Browsing and reading articles do not require an account. Cookies
+            strictly necessary for the requested service do not require consent for their use. See
+            the <a href={`/${lang}/politica-confidentialitate`}>Privacy Policy</a> for data
+            processing details.
           </p>
           <p style={s.p}>
             <strong>Third-party cookies — embedded video content.</strong> Some articles include
@@ -160,20 +181,30 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
           </table>
 
           <p style={s.p}>
-            These cookies load only if you accept from the banner shown on your first visit. If you
-            decline, videos will not load automatically.
+            The current implementation loads the video player directly. There is currently no
+            consent banner or mechanism blocking the player until consent. We therefore cannot claim
+            that these cookies load only after acceptance. Optional video services must be gated by
+            consent before the wider launch. Reading this policy does not constitute consent.
+          </p>
+
+          <p style={s.p}>
+            No traffic analytics tools, advertising pixels, or reCAPTCHA were identified in the
+            code. Brevo is used server-side to send emails; the newsletter form does not load a
+            Brevo script in the browser.
           </p>
 
           <h2 style={s.h2}>Managing your preferences</h2>
           <p style={s.p}>
-            You can change your initial choice anytime via the &quot;Cookie Settings&quot; link in the site
-            footer, or control/delete cookies directly from your browser settings.
+            You can control, block, or delete cookies in your browser settings. Blocking necessary
+            cookies may prevent sign-in. The site does not currently offer a Cookie Settings link or
+            store a video consent choice. Browser controls do not replace the site&apos;s duty to
+            obtain prior consent.
           </p>
 
           <h2 style={s.h2}>Changes</h2>
           <p style={s.p}>
             If we introduce other types of cookies in the future, this policy will be updated, and
-            the consent banner will ask for your agreement to the new categories again.
+            the required consent and withdrawal controls will be introduced before activation.
           </p>
 
           <p style={s.p}>
