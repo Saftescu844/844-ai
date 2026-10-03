@@ -428,9 +428,30 @@ export interface Surse {
    */
   pilon?: (number | Categorii)[] | null;
   /**
-   * URL feed RSS, dacă există (pentru Auto-Publisher).
+   * Adresa feedului RSS. Este adresa canonică pentru metoda RSS; nu se duplică în adresa HTML.
    */
   feedRSS?: string | null;
+  /**
+   * Configurează descoperirea viitoare. Nu pornește un scheduler și nu autorizează publicarea.
+   */
+  discoveryMethod: 'disabled' | 'rss' | 'html' | 'research';
+  /**
+   * HTTPS, pe domeniul sursei. Pentru RSS se folosește exclusiv câmpul feed RSS.
+   */
+  discoveryUrl?: string | null;
+  /**
+   * 60 = o oră; 360 = șase ore; 1440 = o zi. Configurație pentru schedulerul viitor.
+   */
+  scanIntervalMinutes: number;
+  maxCandidatesPerScan: number;
+  /**
+   * Limită de selecție, nu cotă de publicare. Aplicarea efectivă necesită schedulerul cu evidența rulărilor.
+   */
+  maxCandidatesPerDay: number;
+  /**
+   * Ce poate susține sursa, când este necesară confirmarea independentă și ce subiecte urmărim.
+   */
+  discoveryNotes?: string | null;
   regiune?: ('global' | 'europa' | 'romania') | null;
   activa?: boolean | null;
   updatedAt: string;
@@ -1670,6 +1691,12 @@ export interface SurseSelect<T extends boolean = true> {
   permiteAutoGenerare?: T;
   pilon?: T;
   feedRSS?: T;
+  discoveryMethod?: T;
+  discoveryUrl?: T;
+  scanIntervalMinutes?: T;
+  maxCandidatesPerScan?: T;
+  maxCandidatesPerDay?: T;
+  discoveryNotes?: T;
   regiune?: T;
   activa?: T;
   updatedAt?: T;
