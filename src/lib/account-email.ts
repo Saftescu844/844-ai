@@ -36,6 +36,8 @@ export function accountVerificationHTML(
         <p style="margin:26px 0">
           <a href="${link}" style="background:#185FA5;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">Confirmă contul</a>
         </p>
+        <p style="font-size:12px;color:#666">Dacă butonul nu funcționează, copiază și deschide acest link în browser:</p>
+        <p style="font-size:12px;word-break:break-all"><a href="${link}" style="color:#185FA5">${link}</a></p>
         <p style="font-size:13px;color:#666">Dacă nu ai creat acest cont, ignoră mesajul.</p>
         <p style="font-size:12px;color:#999;margin-top:28px;border-top:1px solid #eee;padding-top:14px">
           Datele tale sunt prelucrate conform <a href="${site}/ro/politica-confidentialitate" style="color:#185FA5">Politicii de Confidențialitate</a>.
@@ -49,6 +51,8 @@ export function accountVerificationHTML(
         <p style="margin:26px 0">
           <a href="${link}" style="background:#185FA5;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">Confirm account</a>
         </p>
+        <p style="font-size:12px;color:#666">If the button does not work, copy and open this link in your browser:</p>
+        <p style="font-size:12px;word-break:break-all"><a href="${link}" style="color:#185FA5">${link}</a></p>
         <p style="font-size:13px;color:#666">If you did not create this account, simply ignore this message.</p>
         <p style="font-size:12px;color:#999;margin-top:28px;border-top:1px solid #eee;padding-top:14px">
           Your data is processed according to our <a href="${site}/en/politica-confidentialitate" style="color:#185FA5">Privacy Policy</a>.
