@@ -22,5 +22,6 @@ export default function robots(): MetadataRoute.Robots {
         allow: '/',
       },
     ],
+    sitemap: 'https://844-ai.ro/sitemap.xml',
   }
 }

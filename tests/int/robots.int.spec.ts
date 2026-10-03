@@ -36,6 +36,7 @@ describe('robots route', () => {
           allow: '/',
         },
       ],
+      sitemap: 'https://844-ai.ro/sitemap.xml',
     })
   })
 })
