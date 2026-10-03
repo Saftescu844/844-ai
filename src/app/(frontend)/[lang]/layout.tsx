@@ -24,13 +24,13 @@ export async function generateMetadata(props: {
 
   const fallbackTitle =
     lang === 'en'
-      ? '844-ai.ro — Everything that matters in AI, in one place'
-      : '844-ai.ro — Tot ce contează în AI, într-un singur loc'
+      ? '844-ai.ro — Understand AI. Use it. Build the future.'
+      : '844-ai.ro — Înțelege AI. Folosește-l. Construiește viitorul.'
 
   const fallbackDescription =
     lang === 'en'
-      ? 'Romanian AI platform covering AI news, healthcare, education, AI tools and business. Available in Romanian and English.'
-      : 'Platformă românească de referință pentru inteligența artificială: știri AI, sănătate, educație, tool directory și afaceri. Bilingv RO/EN.'
+      ? 'We do not just want to explain the future of AI. We want to help you take part in it: news, education, health, tools and business.'
+      : 'Nu vrem doar să explicăm viitorul AI. Vrem să te ajutăm să participi la el: știri, educație, sănătate, instrumente și afaceri.'
 
   const title = siteSettings?.metadata.defaultMetaTitle?.trim() || fallbackTitle
   const description =
@@ -176,8 +176,8 @@ export default async function LangLayout(props: {
   const fallbackSiteName = '844-ai.ro'
   const fallbackTagline =
     lang === 'en'
-      ? 'Everything that matters in AI, in one place.'
-      : 'Tot ce contează în AI, într-un singur loc.'
+      ? 'Understand AI. Use it. Build the future.'
+      : 'Înțelege AI. Folosește-l. Construiește viitorul.'
 
   const siteName = siteSettings?.identity.siteName?.trim() || fallbackSiteName
   const tagline = siteSettings?.identity.tagline?.trim() || fallbackTagline
