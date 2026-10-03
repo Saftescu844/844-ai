@@ -41,6 +41,9 @@ describe('account verification email', () => {
     expect(html).toContain(
       'https://staging.example/ro/confirmare-cont?token=abc%2B%2F%3D',
     )
+    expect(html).toContain(
+      'Dacă butonul nu funcționează',
+    )
   })
 
   it('builds the English verification email variant', () => {
@@ -50,14 +53,18 @@ describe('account verification email', () => {
       'Confirm your 844-ai.ro account',
     )
 
-    expect(
+    const html =
       accountVerificationHTML(
         'token',
         'en',
         'https://staging.example',
-      ),
-    ).toContain(
+      )
+
+    expect(html).toContain(
       'https://staging.example/en/confirmare-cont?token=token',
+    )
+    expect(html).toContain(
+      'If the button does not work',
     )
   })
 })
