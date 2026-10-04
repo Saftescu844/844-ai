@@ -29,6 +29,7 @@ export interface FlashNormalizedArticleCandidate {
   sourceAdapter?: ResearchArticleAdapter
   provenanceParagraphs?: string[]
   leadKind?: 'article-summary' | 'meta-description'
+  primaryEvidenceUrls?: string[]
 }
 
 const ENGLISH_MONTHS:
@@ -232,6 +233,7 @@ export function normalizeFlashHtmlArticleCandidate(
       sourceAdapter: article.sourceAdapter,
       provenanceParagraphs: [...(article.provenanceParagraphs ?? [])],
       leadKind: article.leadKind,
+      primaryEvidenceUrls: [...(article.primaryEvidenceUrls ?? [])],
     } : {}),
     sourceId:
       source.sourceId,

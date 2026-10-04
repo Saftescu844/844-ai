@@ -11,6 +11,7 @@ export interface FlashHtmlArticleExtraction {
   sourceAdapter?: ResearchArticleAdapter
   provenanceParagraphs?: string[]
   leadKind?: 'article-summary' | 'meta-description'
+  primaryEvidenceUrls?: string[]
 }
 
 function parseHttpUrl(

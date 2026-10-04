@@ -9,11 +9,13 @@ export type FlashExplicitEventIdentitySourceField =
   | 'title'
   | 'lead'
   | 'body'
+  | 'primary_evidence'
 
 export type FlashExplicitEventIdentityAuthority =
   | 'cve'
   | 'doi'
   | 'eur-lex-celex'
+  | 'arxiv'
 
 export interface FlashExplicitEventIdentityCandidate {
   authority:
@@ -69,6 +71,13 @@ function normalizeStableId(
 
   if (authority === 'doi') {
     return trimmed.toLowerCase()
+  }
+
+  if (authority === 'arxiv') {
+    return trimmed
+      .replace(/^arxiv\s*:\s*/i, '')
+      .replace(/v\d+$/i, '')
+      .toLowerCase()
   }
 
   return trimmed.toUpperCase()
@@ -184,9 +193,70 @@ function collectFromField(
   }
 }
 
+
+function collectFromPrimaryEvidenceUrls(
+  target:
+    Map<
+      string,
+      FlashExplicitEventIdentityCandidate
+    >,
+  urls:
+    string[] | undefined,
+): void {
+  for (const value of urls ?? []) {
+    let url: URL
+
+    try {
+      url = new URL(value)
+    } catch {
+      continue
+    }
+
+    const host =
+      url.hostname
+        .toLowerCase()
+        .replace(/^www\./, '')
+        .replace(/\.$/, '')
+
+    const match =
+      /^\/abs\/(\d{4}\.\d{4,5})(?:v\d+)?\/?$/.exec(
+        url.pathname,
+      )
+
+    if (
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      url.port ||
+      host !== 'arxiv.org' ||
+      !match?.[1]
+    ) {
+      continue
+    }
+
+    pushUniqueCandidate(
+      target,
+      {
+        authority:
+          'arxiv',
+        stableId:
+          normalizeStableId(
+            'arxiv',
+            match[1],
+          ),
+        sourceField:
+          'primary_evidence',
+        evidenceText:
+          url.toString(),
+      },
+    )
+  }
+}
+
 /**
  * Extrage numai identificatori expliciți și verificabili
- * textual din candidatul normalizat.
+ * textual din candidatul normalizat sau dintr-un link arXiv primar
+ * extras determinist de adaptorul sursei.
  *
  * Regula de siguranță:
  * - un singur identificator unic din title/lead poate
@@ -229,6 +299,11 @@ export function evaluateExplicitGroundedEventIdentity(
     candidate.bodyText,
   )
 
+  collectFromPrimaryEvidenceUrls(
+    collected,
+    candidate.primaryEvidenceUrls,
+  )
+
   const candidates =
     [...collected.values()]
 
@@ -236,7 +311,8 @@ export function evaluateExplicitGroundedEventIdentity(
     candidates.filter(
       item =>
         item.sourceField === 'title' ||
-        item.sourceField === 'lead',
+        item.sourceField === 'lead' ||
+        item.sourceField === 'primary_evidence',
     )
 
   if (primaryCandidates.length === 1) {

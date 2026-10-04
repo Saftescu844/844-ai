@@ -10,6 +10,7 @@ const google = `<!doctype html><html lang="en"><head></head><body>
 <nav><p>Navigation</p></nav><main id="page-content"><h1>Learning &amp; practice</h1>
 <div class="basic-hero--blog-detail__description"><p>September 17, 2026</p><p>Authors</p></div>
 <div class="blog-summary__summary"><p>A teacher-facing research prototype.</p></div>
+<div class="quick-links"><a href="https://arxiv.org/abs/2609.20738v2?utm_source=test#paper">Tech report</a></div>
 <div class="blog-detail-wrapper"><div class="rich-text"><h2>Study</h2>
 <p>A small <strong>pilot</strong> reports feedback &mdash; not proven learning gains.<script>throw Error('must not run')</script></p>
 <div><p>Further evaluation is planned.<br>Results are preliminary.</p></div></div>
@@ -23,6 +24,7 @@ const mit = `<!doctype html><html lang="en-US"><head><meta name="description" co
 <div class="news-article--images-gallery--nav"><p>Gallery navigation</p></div>
 <div class="news-article--content--body--inner"><div><p>A prototype edits <em>3D</em> models.</p>
 <p>Limitations remain.</p><p>The researchers’ work was supported, in part, by a grant.</p></div></div>
+<p class="article-links">Paper: <a href="https://arxiv.org/abs/2608.28534">paper</a></p>
 </article></main><article class="news-article--recent-news--teaser"><p>Unrelated news</p></article></body></html>`
 function source(url: string): FlashHtmlListingSource {
   return { sourceId: 5, sourceName: 'Test source', registeredSourceUrl: new URL(url).origin,
@@ -43,6 +45,7 @@ describe('Google Research and MIT article adapters', () => {
     ])
     expect(article.provenanceParagraphs).toEqual(['Thanks to the contributors.'])
     expect(article.leadKind).toBe('article-summary')
+    expect(article.primaryEvidenceUrls).toEqual(['https://arxiv.org/abs/2609.20738'])
     expect(article.bodyText).toBe(article.bodyParagraphs.join('\n\n'))
   })
   it('isolates MIT body and preserves funding provenance and meta lead origin', () => {
@@ -51,6 +54,7 @@ describe('Google Research and MIT article adapters', () => {
     expect(article.provenanceParagraphs).toEqual(['The researchers’ work was supported, in part, by a grant.'])
     expect(article.lead).toBe('A model-editing research tool.')
     expect(article.leadKind).toBe('meta-description')
+    expect(article.primaryEvidenceUrls).toEqual(['https://arxiv.org/abs/2608.28534'])
   })
   it.each([[googleUrl, google, '2026-09-17'], [mitUrl, mit, '2026-10-01']])(
     'normalizes %s without changing source text or permissions', (url, html, date) => {
@@ -61,6 +65,7 @@ describe('Google Research and MIT article adapters', () => {
       expect(candidate.sourcePublicationDateRaw).toBe(article.publicationDate)
       expect(candidate.bodyParagraphs).toEqual(article.bodyParagraphs)
       expect(candidate.provenanceParagraphs).toEqual(article.provenanceParagraphs)
+      expect(candidate.primaryEvidenceUrls).toEqual(article.primaryEvidenceUrls)
       expect(candidate.allowAutoPublish).toBe(false)
       expect(candidate.language).toBe('en')
     },
@@ -97,6 +102,13 @@ describe('Google Research and MIT article adapters', () => {
     ['empty body', google.replaceAll('rich-text', 'other-container')],
   ])('fails closed on %s', (_, html) => {
     expect(() => extract(googleUrl, html)).toThrow()
+  })
+  it('fails closed when a source exposes multiple distinct primary arXiv evidence links', () => {
+    const ambiguousGoogle = google.replace(
+      '</div>\n<div class="blog-detail-wrapper">',
+      '<a href="https://arxiv.org/abs/2609.99999">Tech report</a></div>\n<div class="blog-detail-wrapper">',
+    )
+    expect(() => extract(googleUrl, ambiguousGoogle)).toThrow('multiple primary arXiv evidence links')
   })
   it('rejects invalid calendar dates if normalization is called directly', () => {
     const article = extract(mitUrl, mit)
