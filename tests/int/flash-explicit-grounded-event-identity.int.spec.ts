@@ -169,6 +169,57 @@ describe(
     )
 
     it(
+      'grounds an arXiv identifier from a source-adapter primary evidence link',
+      () => {
+        const result =
+          evaluateExplicitGroundedEventIdentity(
+            candidate({
+              primaryEvidenceUrls: [
+                'https://arxiv.org/abs/2609.20738v2?utm_source=test#paper',
+              ],
+            }),
+          )
+
+        expect(result).toMatchObject({
+          status:
+            'grounded',
+          reason:
+            'single_explicit_primary_identifier',
+          identity: {
+            authority:
+              'arxiv',
+            stableId:
+              '2609.20738',
+          },
+        })
+      },
+    )
+
+    it(
+      'marks multiple distinct primary arXiv evidence links as ambiguous',
+      () => {
+        const result =
+          evaluateExplicitGroundedEventIdentity(
+            candidate({
+              primaryEvidenceUrls: [
+                'https://arxiv.org/abs/2609.20738',
+                'https://arxiv.org/abs/2608.28534',
+              ],
+            }),
+          )
+
+        expect(result).toMatchObject({
+          status:
+            'ambiguous',
+          reason:
+            'multiple_explicit_primary_identifiers',
+          identity:
+            null,
+        })
+      },
+    )
+
+    it(
       'keeps a body-only identifier pending because it may be contextual',
       () => {
         const result =
