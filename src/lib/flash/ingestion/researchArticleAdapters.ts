@@ -77,6 +77,69 @@ function insideClass(node: Element, className: string): boolean {
   return false
 }
 
+function normalizeArxivEvidenceUrl(
+  value: string,
+  baseUrl: string,
+): string | null {
+  let url: URL
+
+  try {
+    url = new URL(value, baseUrl)
+  } catch {
+    return null
+  }
+
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.port ||
+    host(url) !== 'arxiv.org'
+  ) {
+    return null
+  }
+
+  const match = /^\/abs\/(\d{4}\.\d{4,5})(?:v\d+)?\/?$/.exec(url.pathname)
+  if (!match?.[1]) return null
+
+  url.pathname = `/abs/${match[1]}`
+  url.search = ''
+  url.hash = ''
+
+  return url.toString()
+}
+
+function extractPrimaryEvidenceUrls(
+  nodes: Element[],
+  adapter: ResearchArticleAdapter,
+  baseUrl: string,
+): string[] {
+  const urls = new Set<string>()
+
+  for (const node of nodes) {
+    if (node.tagName !== 'a') continue
+
+    const linkText = clean(node)
+    const isPrimaryLabel = adapter === 'google-research'
+      ? /^tech report$/i.test(linkText)
+      : /^paper(?:\b|\s*:)/i.test(linkText)
+
+    if (!isPrimaryLabel) continue
+
+    const href = attr(node, 'href')
+    if (!href) continue
+
+    const normalized = normalizeArxivEvidenceUrl(href, baseUrl)
+    if (normalized) urls.add(normalized)
+  }
+
+  if (urls.size > 1) {
+    throw new Error('Research article has multiple primary arXiv evidence links.')
+  }
+
+  return [...urls]
+}
+
 /** Parses inert HTML only: no script execution, resource loading, database, or AI. */
 export function extractResearchArticle(
   registeredSourceUrl: string,
@@ -122,6 +185,7 @@ export function extractResearchArticle(
     target.push(value)
   }
   if (!bodyParagraphs.length) throw new Error('Research article main body has no paragraphs.')
+  const primaryEvidenceUrls = extractPrimaryEvidenceUrls(all, adapter, finalUrlValue)
   const finalUrl = new URL(finalUrlValue)
   finalUrl.hash = ''
   return {
@@ -131,6 +195,7 @@ export function extractResearchArticle(
     bodyParagraphs, bodyText: bodyParagraphs.join('\n\n'),
     sourceAdapter: adapter, provenanceParagraphs,
     leadKind: google ? 'article-summary' : 'meta-description',
+    primaryEvidenceUrls,
   }
 }
 
