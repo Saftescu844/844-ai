@@ -1,16 +1,18 @@
 import { createHash } from 'node:crypto'
 import { extractFlashHtmlArticle } from '../src/lib/flash/ingestion/htmlArticleExtraction'
 import { normalizeFlashHtmlArticleCandidate } from '../src/lib/flash/ingestion/articleCandidateNormalization'
+import { evaluateExplicitGroundedEventIdentity } from '../src/lib/flash/ingestion/explicitGroundedEventIdentity'
+import { buildFlashGroundedEventFingerprint } from '../src/lib/flash/ingestion/groundedEventFingerprint'
 import { retrieveFlashSource } from '../src/lib/flash/runtimeEvidence/sourceRetriever'
 
 // Fixed public samples, not a registry ingestion job. No Payload, models, or persistence.
 const samples = [
   { sourceId: 5, sourceName: 'Google Research', registeredSourceUrl: 'https://research.google/',
     url: 'https://research.google/blog/the-future-of-practice-enabling-teachers-to-create-learning-interactives-with-generative-ui/',
-    date: '2026-09-17' },
+    date: '2026-09-17', arxivId: '2609.20738' },
   { sourceId: 6, sourceName: 'MIT News', registeredSourceUrl: 'https://news.mit.edu/',
     url: 'https://news.mit.edu/2026/instructmesh-tool-lets-users-repair-ai-3d-models-then-fabricate-them-1001',
-    date: '2026-10-01' },
+    date: '2026-10-01', arxivId: '2608.28534' },
 ] as const
 
 async function main(): Promise<void> {
@@ -31,12 +33,22 @@ async function main(): Promise<void> {
       const candidate = normalizeFlashHtmlArticleCandidate({ ...sample, sourceRole: 'primary',
         editorialTrust: 'standard', citationMode: 'paraphrase', allowAutoPublish: false }, article)
       if (candidate.sourcePublicationDate !== sample.date) throw new Error('Sample publication date changed.')
+      const eventIdentity = evaluateExplicitGroundedEventIdentity(candidate)
+      if (eventIdentity.status !== 'grounded' || !eventIdentity.identity) {
+        throw new Error('Sample primary event identity is not grounded.')
+      }
+      if (eventIdentity.identity.authority !== 'arxiv' || eventIdentity.identity.stableId !== sample.arxivId) {
+        throw new Error('Sample primary arXiv identity changed.')
+      }
+      const eventFingerprint = buildFlashGroundedEventFingerprint(eventIdentity.identity)
       console.log(JSON.stringify({ message: 'FLASH_RESEARCH_ARTICLE_PREVIEW', status: 'pass',
         source: sample.sourceName, adapter: candidate.sourceAdapter, httpStatus: result.statusCode,
         title: candidate.title, canonicalUrl: candidate.canonicalUrl,
         publicationDateRaw: candidate.sourcePublicationDateRaw, publicationDate: candidate.sourcePublicationDate,
         paragraphCount: candidate.bodyParagraphs.length, provenanceParagraphCount: candidate.provenanceParagraphs?.length,
-        leadKind: candidate.leadKind, bodyCharacters: candidate.bodyText.length,
+        leadKind: candidate.leadKind, primaryEvidenceUrls: candidate.primaryEvidenceUrls,
+        eventIdentity: eventIdentity.identity, eventFingerprint: eventFingerprint.eventFingerprint,
+        bodyCharacters: candidate.bodyText.length,
         bodySha256: createHash('sha256').update(candidate.bodyText).digest('hex'),
         generated: false, persisted: false, published: false }))
     } catch (error) {
