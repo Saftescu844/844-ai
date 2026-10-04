@@ -113,6 +113,15 @@ describe(
           '--target-language',
         )
         expect(source).toContain(
+          '--read-only-pilot',
+        )
+        expect(source).toContain(
+          'FLASH_READ_ONLY_PILOT_SOURCE_OVERRIDE',
+        )
+        expect(source).toContain(
+          'sourceConfigurationChanged:',
+        )
+        expect(source).toContain(
           'confirmedBodyIdentity',
         )
         expect(source).toContain(
@@ -319,6 +328,15 @@ describe(
         )
         expect(stdout).toContain(
           '--confirmed-event-id',
+        )
+        expect(stdout).toContain(
+          '--read-only-pilot',
+        )
+        expect(stdout).toContain(
+          'allowIngestion=false',
+        )
+        expect(stdout).toContain(
+          'changes no source flags',
         )
         expect(stdout).toContain(
           'exactly one body-only identifier',

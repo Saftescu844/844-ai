@@ -252,21 +252,23 @@ Usage:
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/contents-code-gpai] \
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/signatory-taskforce-gpai-code-practice] \
     [--confirmed-event-id doi:10.1038/s41587-019-0105-3] \
+    [--read-only-pilot] \
     [--target-language ro|en] \
     [--allow-provider-requests --model gpt-5.6-terra] \
     [--qa-retention-diagnostic-output ./tmp/flash-ai-qa-retention-diagnostic.json] \
     [--handoff-output ./tmp/flash-ai-staging-handoff.json]
 
 Behavior:
-  - reads one active source with allowIngestion=true
+  - reads one active source; allowIngestion=true is required by default
+  - explicit --read-only-pilot may use an active source with allowIngestion=false without changing that source configuration
   - retrieves one same-host /en/news/... article
   - runs canonical technical source verification on the registered/concrete/final URLs and retrieval result
   - source verification confirms source identity/retrieval/content availability; it does NOT verify factual truth
   - extracts the REG-001K article fields
   - normalizes them into the REG-001L candidate contract
   - computes the deterministic REG-001N sourceFingerprint from the canonical URL
-  - evaluates explicit CVE / DOI: / CELEX: identifiers from title, lead, and body
-  - only one unique explicit identifier in title/lead can ground event identity
+  - evaluates explicit CVE / DOI: / CELEX: identifiers from title, lead, and body plus source-adapter primary arXiv evidence
+  - only one unique explicit primary identifier in title/lead/source evidence can ground event identity
   - body-only identifiers or multiple primary identifiers keep event identity pending/ambiguous
   - optional --confirmed-event-id may ground exactly one body-only identifier when the operator confirms that exact extracted authority + stable ID
   - confirmation fails closed when the extracted body identity is absent, non-unique, or does not exactly match
@@ -299,6 +301,7 @@ Behavior:
   - generated_flash_content_required is removed only when verified final editorial content is supplied
   - optional --handoff-output writes one projection-free candidate + persistenceReadiness artifact
   - handoff export is fail-closed and refuses overwrite
+  - --read-only-pilot changes no source flags and grants no ingestion/publication permission
   - does NOT create, update, or delete FlashAI
   - does NOT queue or run jobs
   - does NOT publish or unpublish
@@ -514,6 +517,11 @@ async function main() {
       ),
     )
 
+  const readOnlyPilot =
+    hasFlag(
+      '--read-only-pilot',
+    )
+
   if (
     qaRetentionDiagnosticOutput &&
     !allowProviderRequests
@@ -559,12 +567,6 @@ async function main() {
                 true,
             },
           },
-          {
-            allowIngestion: {
-              equals:
-                true,
-            },
-          },
         ],
       },
     })
@@ -574,8 +576,39 @@ async function main() {
 
   if (!source) {
     throw new Error(
-      'No active allowIngestion source found for --source-id.',
+      'No active source found for --source-id.',
     )
+  }
+
+  if (
+    source.allowIngestion !==
+      true &&
+    !readOnlyPilot
+  ) {
+    throw new Error(
+      'Source allowIngestion is disabled. Use --read-only-pilot only for an explicit read-only staging pilot.',
+    )
+  }
+
+  if (
+    readOnlyPilot &&
+    source.allowIngestion !==
+      true
+  ) {
+    console.log(
+      'FLASH_READ_ONLY_PILOT_SOURCE_OVERRIDE',
+    )
+
+    console.log({
+      sourceId:
+        source.id,
+      sourceName:
+        source.nume,
+      allowIngestion:
+        false,
+      sourceConfigurationChanged:
+        false,
+    })
   }
 
   const retrieval =
