@@ -1,3 +1,4 @@
+import { normalizeResearchPublicationDate, researchArticleAdapterForUrl, type ResearchArticleAdapter } from './researchArticleAdapters'
 import type {
   FlashHtmlArticleExtraction,
 } from './htmlArticleExtraction'
@@ -25,6 +26,9 @@ export interface FlashNormalizedArticleCandidate {
   lead: string
   bodyParagraphs: string[]
   bodyText: string
+  sourceAdapter?: ResearchArticleAdapter
+  provenanceParagraphs?: string[]
+  leadKind?: 'article-summary' | 'meta-description'
 }
 
 const ENGLISH_MONTHS:
@@ -152,6 +156,7 @@ function normalizePublicationDate(
 
 function normalizeArticleUrl(
   value: string,
+  registeredSourceUrl: string,
 ): {
   finalUrl: string
   canonicalUrl: string
@@ -169,11 +174,8 @@ function normalizeArticleUrl(
   }
 
   if (
-    !finalUrl.pathname.startsWith(
-      '/en/news/',
-    ) ||
-    finalUrl.pathname ===
-      '/en/news/'
+    !researchArticleAdapterForUrl(registeredSourceUrl, value) &&
+    (!finalUrl.pathname.startsWith('/en/news/') || finalUrl.pathname === '/en/news/')
   ) {
     throw new Error(
       'Flash normalized article URL must be an /en/news/... page.',
@@ -217,9 +219,20 @@ export function normalizeFlashHtmlArticleCandidate(
   const normalizedUrl =
     normalizeArticleUrl(
       article.finalUrl,
+      source.registeredSourceUrl,
     )
 
+  const sourceAdapter = researchArticleAdapterForUrl(source.registeredSourceUrl, article.finalUrl)
+  if (article.sourceAdapter && article.sourceAdapter !== sourceAdapter) {
+    throw new Error('Flash normalized article adapter does not match its registered source.')
+  }
+
   return {
+    ...(article.sourceAdapter ? {
+      sourceAdapter: article.sourceAdapter,
+      provenanceParagraphs: [...(article.provenanceParagraphs ?? [])],
+      leadKind: article.leadKind,
+    } : {}),
     sourceId:
       source.sourceId,
     sourceName:
@@ -244,9 +257,9 @@ export function normalizeFlashHtmlArticleCandidate(
       article.contentType,
     sourcePublicationDateRaw,
     sourcePublicationDate:
-      normalizePublicationDate(
-        sourcePublicationDateRaw,
-      ),
+      sourceAdapter
+        ? normalizeResearchPublicationDate(sourcePublicationDateRaw)
+        : normalizePublicationDate(sourcePublicationDateRaw),
     lead:
       article.lead,
     bodyParagraphs: [
