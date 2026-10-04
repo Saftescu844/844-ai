@@ -1,6 +1,7 @@
 import {
   readFile,
 } from 'node:fs/promises'
+import path from 'node:path'
 
 import {
   describe,
@@ -16,9 +17,9 @@ describe(
       async () => {
         const source =
           await readFile(
-            new URL(
-              '../../scripts/flash-ai-staging-mark-review.ts',
-              import.meta.url,
+            path.resolve(
+              process.cwd(),
+              'scripts/flash-ai-staging-mark-review.ts',
             ),
             'utf8',
           )
