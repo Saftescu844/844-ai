@@ -257,7 +257,8 @@ Usage:
     [--target-language ro|en] \
     [--allow-provider-requests --model gpt-5.6-terra] \
     [--qa-retention-diagnostic-output ./tmp/flash-ai-qa-retention-diagnostic.json] \
-    [--handoff-output ./tmp/flash-ai-staging-handoff.json]
+    [--handoff-output ./tmp/flash-ai-staging-handoff.json] \\
+    [--allow-production-one-shot --expected-production-service-id <railway-service-id>]
 
 Behavior:
   - reads one active source; allowIngestion=true is required by default
@@ -309,60 +310,130 @@ Behavior:
   - does NOT publish or unpublish
 
 Safety:
-  - execution is restricted to the configured Railway STAGING main service or dedicated one-shot preview service
+  - execution defaults to the configured Railway STAGING main service or dedicated one-shot preview service\n  - PRODUCTION read-only preview requires --allow-production-one-shot, the exact production project/environment, service name flash-rss-production-once, and an explicit matching service ID
   - PAYLOAD_DB_PUSH must be exactly false
   - OPENAI_API_KEY is read only after explicit --allow-provider-requests and a non-empty --model
 `)
 }
 
-function assertReadOnlyStagingTarget(
+const FLASH_PRODUCTION_RAILWAY_TARGET = {
+  projectId:
+    '54c46ab1-ebab-491c-bdbe-571a3fce9ceb',
+
+  environmentId:
+    '12b22bbd-469f-4cb8-b418-cc2c8e40af6d',
+
+  serviceName:
+    'flash-rss-production-once',
+} as const
+
+const ALLOW_PRODUCTION_ONE_SHOT_FLAG =
+  '--allow-production-one-shot'
+
+const EXPECTED_PRODUCTION_SERVICE_ID_OPTION =
+  '--expected-production-service-id'
+
+function assertReadOnlyExecutionTarget(
   environment:
     NodeJS.ProcessEnv =
       process.env,
+
+  allowProductionOneShot =
+    false,
+
+  expectedProductionServiceId:
+    string | null =
+      null,
 ): void {
   const mismatches:
     string[] = []
 
-  if (
-    environment
-      .RAILWAY_PROJECT_ID !==
-    FLASH_ENGINE_STAGING_RAILWAY_TARGET
-      .projectId
-  ) {
-    mismatches.push(
-      'RAILWAY_PROJECT_ID',
-    )
-  }
-
-  if (
-    environment
-      .RAILWAY_ENVIRONMENT_ID !==
-    FLASH_ENGINE_STAGING_RAILWAY_TARGET
-      .environmentId
-  ) {
-    mismatches.push(
-      'RAILWAY_ENVIRONMENT_ID',
-    )
-  }
-
-  const allowedServiceIds =
-    new Set([
-      FLASH_ENGINE_STAGING_RAILWAY_TARGET
-        .serviceId,
-      '7be51b73-dc87-4a53-9ad4-879c00aecad6',
-    ])
-
-  if (
-    !environment
-      .RAILWAY_SERVICE_ID ||
-    !allowedServiceIds.has(
+  if (allowProductionOneShot) {
+    if (
       environment
-        .RAILWAY_SERVICE_ID,
-    )
-  ) {
-    mismatches.push(
-      'RAILWAY_SERVICE_ID',
-    )
+        .RAILWAY_PROJECT_ID !==
+      FLASH_PRODUCTION_RAILWAY_TARGET
+        .projectId
+    ) {
+      mismatches.push(
+        'RAILWAY_PROJECT_ID',
+      )
+    }
+
+    if (
+      environment
+        .RAILWAY_ENVIRONMENT_ID !==
+      FLASH_PRODUCTION_RAILWAY_TARGET
+        .environmentId
+    ) {
+      mismatches.push(
+        'RAILWAY_ENVIRONMENT_ID',
+      )
+    }
+
+    if (
+      environment
+        .RAILWAY_SERVICE_NAME !==
+      FLASH_PRODUCTION_RAILWAY_TARGET
+        .serviceName
+    ) {
+      mismatches.push(
+        'RAILWAY_SERVICE_NAME',
+      )
+    }
+
+    if (
+      !expectedProductionServiceId ||
+      environment
+        .RAILWAY_SERVICE_ID !==
+      expectedProductionServiceId
+    ) {
+      mismatches.push(
+        'RAILWAY_SERVICE_ID',
+      )
+    }
+  } else {
+    if (
+      environment
+        .RAILWAY_PROJECT_ID !==
+      FLASH_ENGINE_STAGING_RAILWAY_TARGET
+        .projectId
+    ) {
+      mismatches.push(
+        'RAILWAY_PROJECT_ID',
+      )
+    }
+
+    if (
+      environment
+        .RAILWAY_ENVIRONMENT_ID !==
+      FLASH_ENGINE_STAGING_RAILWAY_TARGET
+        .environmentId
+    ) {
+      mismatches.push(
+        'RAILWAY_ENVIRONMENT_ID',
+      )
+    }
+
+    const allowedServiceIds =
+      new Set([
+        FLASH_ENGINE_STAGING_RAILWAY_TARGET
+          .serviceId,
+        '7be51b73-dc87-4a53-9ad4-879c00aecad6',
+      ])
+
+    if (
+      !environment
+        .RAILWAY_SERVICE_ID ||
+      !allowedServiceIds.has(
+        environment
+          .RAILWAY_SERVICE_ID,
+      )
+    ) {
+      mismatches.push(
+        'RAILWAY_SERVICE_ID',
+      )
+    }
   }
 
   if (
@@ -379,9 +450,14 @@ function assertReadOnlyStagingTarget(
     mismatches.length >
     0
   ) {
+    const target =
+      allowProductionOneShot
+        ? 'controlled PRODUCTION one-shot'
+        : 'configured read-only STAGING target'
+
     throw new Error(
       [
-        'Flash HTML article pre-persistence dedup preview is restricted to the configured read-only STAGING target.',
+        `Flash HTML article pre-persistence dedup preview is restricted to the ${target}.`,
         `Environment mismatch: ${mismatches.join(', ')}.`,
       ].join(
         ' ',
@@ -448,7 +524,21 @@ async function main() {
     return
   }
 
-  assertReadOnlyStagingTarget()
+  const allowProductionOneShot =
+    hasFlag(
+      ALLOW_PRODUCTION_ONE_SHOT_FLAG,
+    )
+
+  const expectedProductionServiceId =
+    readOption(
+      EXPECTED_PRODUCTION_SERVICE_ID_OPTION,
+    )
+
+  assertReadOnlyExecutionTarget(
+    process.env,
+    allowProductionOneShot,
+    expectedProductionServiceId,
+  )
 
   const sourceId =
     parsePositiveInteger(
