@@ -253,6 +253,7 @@ Usage:
     [--supporting-url https://digital-strategy.ec.europa.eu/en/policies/signatory-taskforce-gpai-code-practice] \
     [--confirmed-event-id doi:10.1038/s41587-019-0105-3] \
     [--read-only-pilot] \
+    [--require-grounded-event-identity] \
     [--target-language ro|en] \
     [--allow-provider-requests --model gpt-5.6-terra] \
     [--qa-retention-diagnostic-output ./tmp/flash-ai-qa-retention-diagnostic.json] \
@@ -282,6 +283,7 @@ Behavior:
   - evaluates persistence readiness from source verification, dedup evidence, grounded fingerprints, and optional validated classification
   - reports source-grounded values, classification, deferred decisions, blockers, and review signals
   - REG-001S classification and REG-001T editorial generation/QA are NOT requested by default
+  - optional --require-grounded-event-identity fails closed before provider calls when no grounded event identity exists
   - with --allow-provider-requests and --model, resolves allowed pilons from the source configuration and requests bounded OpenAI classification first
   - provider classification runs only after source verification passes and no canonical/event duplicate blocker exists
   - successful strict REG-001S classification removes classification_required from persistence readiness
@@ -529,6 +531,11 @@ async function main() {
   const readOnlyPilot =
     hasFlag(
       '--read-only-pilot',
+    )
+
+  const requireGroundedEventIdentity =
+    hasFlag(
+      '--require-grounded-event-identity',
     )
 
   if (
@@ -819,6 +826,34 @@ async function main() {
       groundedEventFingerprint
         ?.eventFingerprintStatus ??
       'pending',
+  }
+
+  if (
+    requireGroundedEventIdentity &&
+    !fingerprints
+      .eventFingerprint
+  ) {
+    console.log(
+      'FLASH_PREPERSISTENCE_GROUNDED_EVENT_REQUIRED_SKIP',
+    )
+
+    console.log({
+      sourceId:
+        source.id,
+      canonicalUrl:
+        normalized.canonicalUrl,
+      eventIdentityStatus:
+        eventIdentity.status,
+      targetLanguage,
+      providerRequested:
+        allowProviderRequests,
+      providerCalled:
+        false,
+    })
+
+    throw new Error(
+      'Flash pre-persistence candidate does not have a grounded event identity required by this flow.',
+    )
   }
 
   const dedup =
