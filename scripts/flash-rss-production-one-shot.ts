@@ -188,21 +188,21 @@ function printHelp(): void {
 Flash RSS production one-shot
 
 Usage:
-  PAYLOAD_DB_PUSH=false pnpm exec tsx scripts/flash-rss-production one-shot.ts \\
+  PAYLOAD_DB_PUSH=false pnpm exec tsx scripts/flash-rss-production-one-shot.ts \\
     --model gpt-5.6-terra \\
     --allow-provider-requests \\
     --allow-production-rss-one-shot \\
-    [--source-id 5] \\
-    [--max-items 10] \\
-    [--candidate-url https://example.com/article]
+    --expected-production-service-id <railway-service-id> \\
+    --source-id 5 \\
+    --candidate-url https://example.com/article \\
+    [--max-items 10]
 
 Behavior:
   - reads exactly one explicitly selected active allowIngestion=true RSS source (ID 5 or 6)
-  - fetches at most 10 items per configured source
-  - skips candidates whose source URL is already used by any FlashAI draft/published record
-  - tries at most 3 newest remaining candidates per run
-  - skips candidates without grounded event identity before provider calls
-  - skips candidates blocked by strong duplicate evidence
+  - fetches at most 10 feed items from that source
+  - requires one explicit candidate URL and attempts only that candidate
+  - refuses a candidate URL already used by any FlashAI draft/published record
+  - fails closed when event identity is not grounded or strong duplicate evidence exists
   - generates and QA-checks RO and EN handoffs BEFORE any persistence
   - requires the same grounded event fingerprint for RO and EN
   - atomically creates both drafts, links them reciprocally, and moves both to editorial review
@@ -212,10 +212,12 @@ Behavior:
   - does NOT create a scheduler or cron job
 
 Safety:
-  - execution is restricted to the exact production Railway project/environment and service name flash-rss-production-once
-  - RAILWAY_SERVICE_ID must match the explicit --expected-production-service-id
+  - execution is restricted to the exact production Railway project/environment
+  - service name must be flash-rss-production-once
+  - RAILWAY_SERVICE_ID must match --expected-production-service-id
   - PAYLOAD_DB_PUSH must be exactly false
   - DATABASE_URL must resolve to the known PRODUCTION Supabase project
+  - source allowAutoPublish must be false
   - provider calls require --allow-provider-requests
   - persistence requires --allow-production-rss-one-shot
 `)
