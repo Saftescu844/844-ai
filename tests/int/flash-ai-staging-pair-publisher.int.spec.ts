@@ -217,6 +217,14 @@ describe(
             _status:
               'published',
           },
+          context: {
+            flashAiAuthorizedPublication:
+              true,
+          },
+          context: {
+            flashAiAuthorizedPublication:
+              true,
+          },
           req: {
             transactionID:
               'tx-publish',
