@@ -48,6 +48,21 @@ describe('Google Research and MIT article adapters', () => {
     expect(article.primaryEvidenceUrls).toEqual(['https://arxiv.org/abs/2609.20738'])
     expect(article.bodyText).toBe(article.bodyParagraphs.join('\n\n'))
   })
+  it('accepts Google Paper as a primary arXiv label while ignoring secondary arXiv citations', () => {
+    const paperGoogle = google
+      .replace('>Tech report</a>', '>Paper</a>')
+      .replace(
+        '<p>A small <strong>pilot</strong> reports feedback &mdash; not proven learning gains.',
+        '<p>A small <strong>pilot</strong> reports feedback &mdash; not proven learning gains. <a href="https://arxiv.org/abs/1811.03604">prior work</a>',
+      )
+
+    const article = extract(googleUrl, paperGoogle)
+
+    expect(article.primaryEvidenceUrls).toEqual([
+      'https://arxiv.org/abs/2609.20738',
+    ])
+  })
+
   it('isolates MIT body and preserves funding provenance and meta lead origin', () => {
     const article = extract(mitUrl, mit)
     expect(article.bodyParagraphs).toEqual(['A prototype edits 3D models.', 'Limitations remain.'])
