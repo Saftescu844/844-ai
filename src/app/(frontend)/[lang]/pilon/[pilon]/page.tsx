@@ -1,4 +1,4 @@
-import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri, getFlashAiPilon } from '@/lib/payload'
+import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri, getFlashAiPilon, getFlashAiEducatie } from '@/lib/payload'
 import { notFound } from 'next/navigation'
 
 const PILONI: Record<string, { ro: string; en: string }> = {
@@ -113,8 +113,31 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
   // EDUCAȚIE: submeniuri pe subcategorii
   if (pilon === 'educatie') {
     const { sub } = await props.searchParams
-    const { docs: articole } = await getArticoleEducatie(lang, sub)
-    const { docs: cursuri } = await getCursuri(lang)
+    const [
+      { docs: articole },
+      { docs: flashuri },
+      { docs: cursuri },
+    ] = await Promise.all([
+      getArticoleEducatie(lang, sub),
+      getFlashAiEducatie(lang, sub),
+      getCursuri(lang),
+    ])
+
+    const continut = [
+      ...articole.map((item: any) => ({
+        kind: 'article' as const,
+        item,
+      })),
+      ...flashuri.map((item: any) => ({
+        kind: 'flash' as const,
+        item,
+      })),
+    ].sort(
+      (a, b) =>
+        timestamp(b.item.publishedAt) -
+        timestamp(a.item.publishedAt),
+    )
+
     const SUBMENIURI = [
       { slug: '', ro: 'Toate', en: 'All' },
       { slug: 'invatare-ai', ro: 'Învățare AI', en: 'Learning AI' },
@@ -162,11 +185,15 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
         </nav>
           </>
         )}
-        {articole.length === 0 ? (
-          <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu sunt articole în această secțiune.' : 'No articles in this section yet.'}</p>
+        {continut.length === 0 ? (
+          <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu este conținut în această secțiune.' : 'No content in this section yet.'}</p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 18 }}>
-            {articole.map((a: any) => <CardArticol key={a.id} a={a} lang={lang} />)}
+            {continut.map(({ kind, item }: any) =>
+              kind === 'flash'
+                ? <CardFlash key={`flash-${item.id}`} flash={item} lang={lang} />
+                : <CardArticol key={`article-${item.id}`} a={item} lang={lang} />,
+            )}
           </div>
         )}
       </div>
