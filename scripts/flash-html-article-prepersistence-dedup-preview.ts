@@ -307,7 +307,7 @@ Behavior:
   - does NOT publish or unpublish
 
 Safety:
-  - execution is restricted to the configured Railway STAGING main service
+  - execution is restricted to the configured Railway STAGING main service or dedicated one-shot preview service
   - PAYLOAD_DB_PUSH must be exactly false
   - OPENAI_API_KEY is read only after explicit --allow-provider-requests and a non-empty --model
 `)
@@ -343,11 +343,20 @@ function assertReadOnlyStagingTarget(
     )
   }
 
+  const allowedServiceIds =
+    new Set([
+      FLASH_ENGINE_STAGING_RAILWAY_TARGET
+        .serviceId,
+      '7be51b73-dc87-4a53-9ad4-879c00aecad6',
+    ])
+
   if (
-    environment
-      .RAILWAY_SERVICE_ID !==
-    FLASH_ENGINE_STAGING_RAILWAY_TARGET
-      .serviceId
+    !environment
+      .RAILWAY_SERVICE_ID ||
+    !allowedServiceIds.has(
+      environment
+        .RAILWAY_SERVICE_ID,
+    )
   ) {
     mismatches.push(
       'RAILWAY_SERVICE_ID',
