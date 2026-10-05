@@ -25,6 +25,9 @@ export interface PublishFlashAiStagingPairInput {
 
   enId:
     number
+
+  expectedEventFingerprint?:
+    string
 }
 
 export interface PublishFlashAiStagingPairResult {
@@ -238,6 +241,7 @@ export async function publishFlashAiStagingPair({
   payload,
   roId,
   enId,
+  expectedEventFingerprint,
 }: PublishFlashAiStagingPairInput): Promise<
   PublishFlashAiStagingPairResult
 > {
@@ -318,6 +322,21 @@ export async function publishFlashAiStagingPair({
         roId,
         enId,
       )
+
+    const normalizedExpectedEventFingerprint =
+      normalizeFingerprint(
+        expectedEventFingerprint,
+      )
+
+    if (
+      normalizedExpectedEventFingerprint &&
+      eventFingerprint !==
+        normalizedExpectedEventFingerprint
+    ) {
+      throw new Error(
+        'FlashAI pair publish event fingerprint does not match the explicitly expected event.',
+      )
+    }
 
     const roPublished =
       await payload.update({
