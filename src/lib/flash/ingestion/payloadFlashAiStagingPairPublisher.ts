@@ -6,6 +6,10 @@ import type {
   FlashAi,
 } from '@/payload-types'
 
+import {
+  FLASH_AI_AUTHORIZED_PUBLICATION_CONTEXT,
+} from '@/lib/flash/ingestion/flashAiAuthorizedPublicationContext'
+
 export type FlashAiStagingPairPublisherPayload =
   Pick<
     Payload,
@@ -334,6 +338,9 @@ export async function publishFlashAiStagingPair({
         overrideAccess:
           true,
 
+        context:
+          FLASH_AI_AUTHORIZED_PUBLICATION_CONTEXT,
+
         req,
       })
 
@@ -355,6 +362,9 @@ export async function publishFlashAiStagingPair({
 
         overrideAccess:
           true,
+
+        context:
+          FLASH_AI_AUTHORIZED_PUBLICATION_CONTEXT,
 
         req,
       })
