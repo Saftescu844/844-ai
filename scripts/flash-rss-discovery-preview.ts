@@ -2,12 +2,9 @@ import {
   planFlashRssIngestionSources,
   parseFlashRssCandidates,
 } from '@/lib/flash/ingestion/rssCandidateIngestion'
-
-const MAX_FEED_BYTES =
-  2 * 1024 * 1024
-
-const REQUEST_TIMEOUT_MS =
-  15_000
+import {
+  fetchFlashRssFeedXml,
+} from '@/lib/flash/ingestion/rssFeedRetriever'
 
 function hasFlag(
   name: string,
@@ -141,118 +138,6 @@ function assertReadOnlyStagingTarget(
   }
 }
 
-function normalizedHost(
-  value: string,
-): string {
-  return new URL(
-    value,
-  )
-    .hostname
-    .toLowerCase()
-    .replace(
-      /\.$/,
-      '',
-    )
-    .replace(
-      /^www\./,
-      '',
-    )
-}
-
-async function fetchFeedXml(
-  feedUrl: string,
-  registeredSourceUrl: string,
-): Promise<string> {
-  const controller =
-    new AbortController()
-
-  const timeout =
-    setTimeout(
-      () =>
-        controller.abort(),
-      REQUEST_TIMEOUT_MS,
-    )
-
-  try {
-    const response =
-      await fetch(
-        feedUrl,
-        {
-          signal:
-            controller.signal,
-          redirect:
-            'follow',
-          headers: {
-            accept:
-              'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.1',
-            'user-agent':
-              '844-ai-flash-rss-preview/1.0',
-          },
-        },
-      )
-
-    if (!response.ok) {
-      throw new Error(
-        `RSS retrieval failed with HTTP ${response.status}.`,
-      )
-    }
-
-    if (
-      normalizedHost(
-        response.url,
-      ) !==
-      normalizedHost(
-        registeredSourceUrl,
-      )
-    ) {
-      throw new Error(
-        'RSS retrieval redirected outside the registered source host.',
-      )
-    }
-
-    const contentLength =
-      Number(
-        response.headers.get(
-          'content-length',
-        ),
-      )
-
-    if (
-      Number.isFinite(
-        contentLength,
-      ) &&
-      contentLength >
-        MAX_FEED_BYTES
-    ) {
-      throw new Error(
-        'RSS feed exceeds the preview size limit.',
-      )
-    }
-
-    const buffer =
-      await response
-        .arrayBuffer()
-
-    if (
-      buffer.byteLength >
-      MAX_FEED_BYTES
-    ) {
-      throw new Error(
-        'RSS feed exceeds the preview size limit.',
-      )
-    }
-
-    return new TextDecoder()
-      .decode(
-        buffer,
-      )
-  } finally {
-    clearTimeout(
-      timeout,
-    )
-  }
-}
-
 async function createPayload() {
   const [
     payloadModule,
@@ -372,10 +257,12 @@ async function main(): Promise<void> {
     }
 
     const xml =
-      await fetchFeedXml(
-        plan.feedUrl,
-        plan.registeredSourceUrl,
-      )
+      await fetchFlashRssFeedXml({
+        feedUrl:
+          plan.feedUrl,
+        registeredSourceUrl:
+          plan.registeredSourceUrl,
+      })
 
     const parsed =
       await parseFlashRssCandidates(
