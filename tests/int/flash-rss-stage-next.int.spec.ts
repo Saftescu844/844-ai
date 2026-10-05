@@ -1,0 +1,69 @@
+import {
+  readFile,
+} from 'node:fs/promises'
+import path from 'node:path'
+
+import {
+  describe,
+  expect,
+  it,
+} from 'vitest'
+
+describe(
+  'Flash RSS stage-next orchestrator',
+  () => {
+    it(
+      'is one-shot staging-only and produces review drafts without publication',
+      async () => {
+        const source =
+          await readFile(
+            path.resolve(
+              process.cwd(),
+              'scripts/flash-rss-stage-next.ts',
+            ),
+            'utf8',
+          )
+
+        expect(source).toContain(
+          '7be51b73-dc87-4a53-9ad4-879c00aecad6',
+        )
+
+        expect(source).toContain(
+          '--allow-staging-rss-stage-next',
+        )
+
+        expect(source).toContain(
+          '--allow-provider-requests',
+        )
+
+        expect(source).toContain(
+          "'ro'",
+        )
+
+        expect(source).toContain(
+          "'en'",
+        )
+
+        expect(source).toContain(
+          'createFlashAiAtomicReviewPair',
+        )
+
+        expect(source).toContain(
+          'FLASH_RSS_STAGE_NEXT_OK',
+        )
+
+        expect(source).toContain(
+          'does NOT publish or unpublish',
+        )
+
+        expect(source).toContain(
+          'does NOT enable allowAutoPublish',
+        )
+
+        expect(source).not.toContain(
+          'flash-ai-staging-publish-pair',
+        )
+      },
+    )
+  },
+)
