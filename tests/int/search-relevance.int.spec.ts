@@ -14,11 +14,13 @@ function fixture(
   title: string,
   excerpt = '',
   publishedAt = '2026-01-01T00:00:00.000Z',
+  bodyText = '',
 ): RankableSearchResult {
   return {
     id,
     title,
     excerpt,
+    bodyText,
     publishedAt,
   }
 }
@@ -145,6 +147,34 @@ describe('search relevance', () => {
       [fallbackOnly, excerptMatch],
       'inteligență artificială',
       ['inteligenta', 'artificiala'],
+    )
+
+    expect(ranked.map((doc) => doc.id)).toEqual([
+      1,
+      2,
+    ])
+  })
+
+  it('ranks a body-text match above a fallback-only candidate', () => {
+    const bodyMatch = fixture(
+      1,
+      'Ghid tehnic',
+      'Introducere generală.',
+      '2026-01-01T00:00:00.000Z',
+      'Sistemul folosește medii TEE și jurnalul Rekor pentru verificare.',
+    )
+
+    const fallbackOnly = fixture(
+      2,
+      'Alt ghid tehnic',
+      'Introducere generală.',
+      '2026-06-01T00:00:00.000Z',
+    )
+
+    const ranked = rankSearchResults(
+      [fallbackOnly, bodyMatch],
+      'Rekor',
+      ['rekor'],
     )
 
     expect(ranked.map((doc) => doc.id)).toEqual([

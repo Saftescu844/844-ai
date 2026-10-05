@@ -1,10 +1,12 @@
-import type { Search } from '../payload-types'
 import { normalizeSearchText } from './normalizeSearchText'
 
-export type RankableSearchResult = Pick<
-  Search,
-  'id' | 'title' | 'excerpt' | 'publishedAt'
->
+export type RankableSearchResult = {
+  id: string | number
+  title?: string | null
+  excerpt?: string | null
+  bodyText?: string | null
+  publishedAt?: string | null
+}
 
 type RelevanceVector = {
   exactTitle: number
@@ -12,6 +14,8 @@ type RelevanceVector = {
   titleTokenMatches: number
   excerptPhrase: number
   excerptTokenMatches: number
+  bodyPhrase: number
+  bodyTokenMatches: number
   publishedAt: number
 }
 
@@ -43,6 +47,7 @@ function buildRelevanceVector(
 ): RelevanceVector {
   const title = normalizeSearchText(doc.title ?? '')
   const excerpt = normalizeSearchText(doc.excerpt ?? '')
+  const body = normalizeSearchText(doc.bodyText ?? '')
 
   return {
     exactTitle:
@@ -52,18 +57,49 @@ function buildRelevanceVector(
       title.includes(normalizedQuery)
         ? 1
         : 0,
-    titleTokenMatches: countMatches(title, tokens),
+    titleTokenMatches:
+      countMatches(
+        title,
+        tokens,
+      ),
     excerptPhrase:
       normalizedQuery &&
       excerpt.includes(normalizedQuery)
         ? 1
         : 0,
-    excerptTokenMatches: countMatches(
-      excerpt,
-      tokens,
-    ),
-    publishedAt: publishedAtValue(doc.publishedAt),
+    excerptTokenMatches:
+      countMatches(
+        excerpt,
+        tokens,
+      ),
+    bodyPhrase:
+      normalizedQuery &&
+      body.includes(normalizedQuery)
+        ? 1
+        : 0,
+    bodyTokenMatches:
+      countMatches(
+        body,
+        tokens,
+      ),
+    publishedAt:
+      publishedAtValue(
+        doc.publishedAt,
+      ),
   }
+}
+
+function compareIds(
+  a: string | number,
+  b: string | number,
+) {
+  return String(a).localeCompare(
+    String(b),
+    'en',
+    {
+      numeric: true,
+    },
+  )
 }
 
 export function rankSearchResults<
@@ -73,49 +109,74 @@ export function rankSearchResults<
   query: string,
   queryTokens: string[],
 ): T[] {
-  const normalizedQuery = normalizeSearchText(query)
+  const normalizedQuery =
+    normalizeSearchText(
+      query,
+    )
 
   const tokens = [
     ...new Set(
       queryTokens
-        .map(normalizeSearchText)
+        .map(
+          normalizeSearchText,
+        )
         .filter(Boolean),
     ),
   ]
 
-  const ranked = docs.map((doc) => ({
-    doc,
-    relevance: buildRelevanceVector(
+  const ranked =
+    docs.map(doc => ({
       doc,
-      normalizedQuery,
-      tokens,
-    ),
-  }))
+      relevance:
+        buildRelevanceVector(
+          doc,
+          normalizedQuery,
+          tokens,
+        ),
+    }))
 
-  ranked.sort((a, b) => {
-    const fields: Array<
-      keyof RelevanceVector
-    > = [
-      'exactTitle',
-      'titlePhrase',
-      'titleTokenMatches',
-      'excerptPhrase',
-      'excerptTokenMatches',
-      'publishedAt',
-    ]
+  ranked.sort(
+    (a, b) => {
+      const fields: Array<
+        keyof RelevanceVector
+      > = [
+        'exactTitle',
+        'titlePhrase',
+        'titleTokenMatches',
+        'excerptPhrase',
+        'excerptTokenMatches',
+        'bodyPhrase',
+        'bodyTokenMatches',
+        'publishedAt',
+      ]
 
-    for (const field of fields) {
-      const difference =
-        b.relevance[field] -
-        a.relevance[field]
+      for (
+        const field of
+        fields
+      ) {
+        const difference =
+          b.relevance[
+            field
+          ] -
+          a.relevance[
+            field
+          ]
 
-      if (difference !== 0) {
-        return difference
+        if (
+          difference !== 0
+        ) {
+          return difference
+        }
       }
-    }
 
-    return a.doc.id - b.doc.id
-  })
+      return compareIds(
+        a.doc.id,
+        b.doc.id,
+      )
+    },
+  )
 
-  return ranked.map(({ doc }) => doc)
+  return ranked.map(
+    ({ doc }) => doc,
+  )
 }
