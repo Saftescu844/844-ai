@@ -8,12 +8,27 @@ import {
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
 
+import {
+  isFlashAiAuthorizedPublicationContext,
+} from '@/lib/flash/ingestion/flashAiAuthorizedPublicationContext'
+
 const enforceFlashPublicationRBAC: CollectionBeforeOperationHook<'flash-ai'> = ({
   args,
+  context,
   operation,
   req,
 }) => {
   const role = req.user?.rol
+
+  const authorizedEnginePublication =
+    (
+      operation === 'update' ||
+      operation === 'updateByID'
+    ) &&
+    args.data?._status === 'published' &&
+    isFlashAiAuthorizedPublicationContext(
+      context,
+    )
 
   if (operation === 'restoreVersion') {
     if (role !== 'admin') {
@@ -52,11 +67,13 @@ const enforceFlashPublicationRBAC: CollectionBeforeOperationHook<'flash-ai'> = (
     'unpublishAllLocales' in args &&
     args.unpublishAllLocales === true
 
-  // Până la implementarea Flash Engine-ului controlat,
-  // publicarea directă rămâne rezervată administratorului.
+  // Publicarea directă rămâne rezervată administratorului.
+  // Singura excepție non-user este fluxul intern Flash Engine,
+  // explicit marcat prin context și numai pentru update -> published.
   if (
     (attemptsPublication || attemptsUnpublish) &&
-    role !== 'admin'
+    role !== 'admin' &&
+    !authorizedEnginePublication
   ) {
     throw new APIError(
       'Publicarea Flash este rezervată fluxului autorizat.',
@@ -64,7 +81,12 @@ const enforceFlashPublicationRBAC: CollectionBeforeOperationHook<'flash-ai'> = (
     )
   }
 
-  if (role === 'admin') return
+  if (
+    role === 'admin' ||
+    authorizedEnginePublication
+  ) {
+    return
+  }
 
   if (args.draft !== true) {
     throw new APIError(
