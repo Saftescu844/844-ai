@@ -49,6 +49,22 @@ describe(
         )
 
         expect(source).toContain(
+          '--require-grounded-event-identity',
+        )
+
+        expect(source).toContain(
+          'MAX_ALLOWED_ATTEMPTS',
+        )
+
+        expect(source).toContain(
+          'FLASH_RSS_STAGE_NEXT_SKIPPED',
+        )
+
+        expect(source).toContain(
+          'FLASH_RSS_STAGE_NEXT_NO_ELIGIBLE_CANDIDATE',
+        )
+
+        expect(source).toContain(
           'FLASH_RSS_STAGE_NEXT_OK',
         )
 
