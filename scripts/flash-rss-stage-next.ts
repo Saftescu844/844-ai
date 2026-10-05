@@ -49,6 +49,12 @@ const DEFAULT_MAX_ITEMS =
 const MAX_ALLOWED_ITEMS =
   10
 
+const DEFAULT_MAX_ATTEMPTS =
+  3
+
+const MAX_ALLOWED_ATTEMPTS =
+  3
+
 const CHILD_OUTPUT_LIMIT =
   20 * 1024 * 1024
 
@@ -188,7 +194,9 @@ Behavior:
   - reads active allowIngestion=true RSS sources
   - fetches at most 10 items per configured source
   - skips candidates whose source URL is already used by any FlashAI draft/published record
-  - chooses the newest remaining candidate across selected sources
+  - tries at most 3 newest remaining candidates per run
+  - skips candidates without grounded event identity before provider calls
+  - skips candidates blocked by strong duplicate evidence
   - generates and QA-checks RO and EN handoffs BEFORE any persistence
   - requires the same grounded event fingerprint for RO and EN
   - atomically creates both drafts, links them reciprocally, and moves both to editorial review
@@ -271,6 +279,32 @@ function assertStageNextEnvironment(
   }
 }
 
+type FlashRssCandidateSkipReason =
+  | 'event_identity_not_grounded'
+  | 'strong_duplicate'
+
+class FlashRssCandidateSkipError
+  extends Error {
+  readonly reason:
+    FlashRssCandidateSkipReason
+
+  constructor(
+    reason:
+      FlashRssCandidateSkipReason,
+    message: string,
+  ) {
+    super(
+      message,
+    )
+
+    this.name =
+      'FlashRssCandidateSkipError'
+
+    this.reason =
+      reason
+  }
+}
+
 function runPrePersistenceHandoff({
   sourceId,
   articleUrl,
@@ -300,6 +334,7 @@ function runPrePersistenceHandoff({
         articleUrl,
         '--target-language',
         targetLanguage,
+        '--require-grounded-event-identity',
         '--allow-provider-requests',
         '--model',
         model,
@@ -335,6 +370,43 @@ function runPrePersistenceHandoff({
         .slice(
           -8_000,
         )
+
+    const combinedOutput =
+      [
+        stderr,
+        stdout,
+      ]
+        .filter(
+          Boolean,
+        )
+        .join(
+          '\n',
+        )
+
+    if (
+      combinedOutput.includes(
+        'does not have a grounded event identity required by this flow',
+      ) ||
+      combinedOutput.includes(
+        'requires grounded event identity or a safe review-only pending identity',
+      )
+    ) {
+      throw new FlashRssCandidateSkipError(
+        'event_identity_not_grounded',
+        `Candidate has no grounded event identity: ${articleUrl}`,
+      )
+    }
+
+    if (
+      combinedOutput.includes(
+        'strong duplicate evidence exists',
+      )
+    ) {
+      throw new FlashRssCandidateSkipError(
+        'strong_duplicate',
+        `Candidate is blocked by strong duplicate evidence: ${articleUrl}`,
+      )
+    }
 
     throw new Error(
       [
@@ -488,6 +560,21 @@ async function main(): Promise<void> {
       requestedMaxItems ??
         DEFAULT_MAX_ITEMS,
       MAX_ALLOWED_ITEMS,
+    )
+
+  const requestedMaxAttempts =
+    parseOptionalPositiveInteger(
+      argument(
+        '--max-attempts',
+      ),
+      '--max-attempts',
+    )
+
+  const maxAttempts =
+    Math.min(
+      requestedMaxAttempts ??
+        DEFAULT_MAX_ATTEMPTS,
+      MAX_ALLOWED_ATTEMPTS,
     )
 
   const requestedCandidateUrl =
@@ -671,10 +758,10 @@ async function main(): Promise<void> {
         },
       )
 
-  const candidate =
-    candidates[0]
-
-  if (!candidate) {
+  if (
+    candidates.length ===
+    0
+  ) {
     console.log(
       'FLASH_RSS_STAGE_NEXT_EMPTY',
     )
@@ -693,137 +780,198 @@ async function main(): Promise<void> {
     return
   }
 
-  console.log(
-    'FLASH_RSS_STAGE_NEXT_SELECTED',
-  )
-
-  console.log({
-    sourceId:
-      candidate.sourceId,
-    sourceName:
-      candidate.sourceName,
-    title:
-      candidate.title,
-    articleUrl:
-      candidate.concreteUrl,
-    publishedAt:
-      candidate.publishedAt,
-  })
-
-  const workDir =
-    await mkdtemp(
-      join(
-        tmpdir(),
-        '844-ai-flash-rss-stage-next-',
-      ),
+  const candidateAttempts =
+    candidates.slice(
+      0,
+      maxAttempts,
     )
 
-  const roPath =
-    join(
-      workDir,
-      'ro.json',
-    )
-
-  const enPath =
-    join(
-      workDir,
-      'en.json',
-    )
-
-  try {
-    runPrePersistenceHandoff({
-      sourceId:
-        candidate.sourceId,
-      articleUrl:
-        candidate.concreteUrl,
-      targetLanguage:
-        'ro',
-      model,
-      outputPath:
-        roPath,
-    })
-
-    runPrePersistenceHandoff({
-      sourceId:
-        candidate.sourceId,
-      articleUrl:
-        candidate.concreteUrl,
-      targetLanguage:
-        'en',
-      model,
-      outputPath:
-        enPath,
-    })
-
+  for (
     const [
-      roHandoff,
-      enHandoff,
-    ] =
-      await Promise.all([
-        readHandoff(
-          roPath,
-        ),
-        readHandoff(
-          enPath,
-        ),
-      ])
-
-    const ro =
-      buildFlashAiStagingWriteInputFromHandoffValue(
-        roHandoff,
-      )
-
-    const en =
-      buildFlashAiStagingWriteInputFromHandoffValue(
-        enHandoff,
-      )
-
-    const result =
-      await createFlashAiAtomicReviewPair({
-        payload,
-        ro,
-        en,
-      })
-
+      attemptIndex,
+      candidate,
+    ] of
+      candidateAttempts
+        .entries()
+  ) {
     console.log(
-      'FLASH_RSS_STAGE_NEXT_OK',
+      'FLASH_RSS_STAGE_NEXT_SELECTED',
     )
 
     console.log({
+      attempt:
+        attemptIndex + 1,
+      maxAttempts,
       sourceId:
         candidate.sourceId,
       sourceName:
         candidate.sourceName,
+      title:
+        candidate.title,
       articleUrl:
         candidate.concreteUrl,
-      roId:
-        result.roId,
-      enId:
-        result.enId,
-      eventFingerprint:
-        result.eventFingerprint,
-      sourceFingerprint:
-        result.sourceFingerprint,
-      editorialStatus:
-        'review',
-      automationDecision:
-        'review',
-      status:
-        'draft',
-      published:
-        false,
+      publishedAt:
+        candidate.publishedAt,
     })
-  } finally {
-    await rm(
-      workDir,
-      {
-        recursive:
-          true,
-        force:
-          true,
-      },
-    )
+
+    const workDir =
+      await mkdtemp(
+        join(
+          tmpdir(),
+          '844-ai-flash-rss-stage-next-',
+        ),
+      )
+
+    const roPath =
+      join(
+        workDir,
+        'ro.json',
+      )
+
+    const enPath =
+      join(
+        workDir,
+        'en.json',
+      )
+
+    try {
+      runPrePersistenceHandoff({
+        sourceId:
+          candidate.sourceId,
+        articleUrl:
+          candidate.concreteUrl,
+        targetLanguage:
+          'ro',
+        model,
+        outputPath:
+          roPath,
+      })
+
+      runPrePersistenceHandoff({
+        sourceId:
+          candidate.sourceId,
+        articleUrl:
+          candidate.concreteUrl,
+        targetLanguage:
+          'en',
+        model,
+        outputPath:
+          enPath,
+      })
+
+      const [
+        roHandoff,
+        enHandoff,
+      ] =
+        await Promise.all([
+          readHandoff(
+            roPath,
+          ),
+          readHandoff(
+            enPath,
+          ),
+        ])
+
+      const ro =
+        buildFlashAiStagingWriteInputFromHandoffValue(
+          roHandoff,
+        )
+
+      const en =
+        buildFlashAiStagingWriteInputFromHandoffValue(
+          enHandoff,
+        )
+
+      const result =
+        await createFlashAiAtomicReviewPair({
+          payload,
+          ro,
+          en,
+        })
+
+      console.log(
+        'FLASH_RSS_STAGE_NEXT_OK',
+      )
+
+      console.log({
+        sourceId:
+          candidate.sourceId,
+        sourceName:
+          candidate.sourceName,
+        articleUrl:
+          candidate.concreteUrl,
+        roId:
+          result.roId,
+        enId:
+          result.enId,
+        eventFingerprint:
+          result.eventFingerprint,
+        sourceFingerprint:
+          result.sourceFingerprint,
+        editorialStatus:
+          'review',
+        automationDecision:
+          'review',
+        status:
+          'draft',
+        published:
+          false,
+      })
+
+      return
+    } catch (error) {
+      if (
+        error instanceof
+          FlashRssCandidateSkipError
+      ) {
+        console.log(
+          'FLASH_RSS_STAGE_NEXT_SKIPPED',
+        )
+
+        console.log({
+          attempt:
+            attemptIndex + 1,
+          sourceId:
+            candidate.sourceId,
+          sourceName:
+            candidate.sourceName,
+          articleUrl:
+            candidate.concreteUrl,
+          reason:
+            error.reason,
+        })
+
+        continue
+      }
+
+      throw error
+    } finally {
+      await rm(
+        workDir,
+        {
+          recursive:
+            true,
+          force:
+            true,
+        },
+      )
+    }
   }
+
+  console.log(
+    'FLASH_RSS_STAGE_NEXT_NO_ELIGIBLE_CANDIDATE',
+  )
+
+  console.log({
+    attemptedCount:
+      candidateAttempts.length,
+    maxAttempts,
+    discoveredCount:
+      discovered.length,
+    requestedCandidateUrl:
+      normalizedRequestedCandidateUrl,
+  })
+
 }
 
 main()
