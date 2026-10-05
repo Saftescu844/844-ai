@@ -121,7 +121,7 @@ function extractPrimaryEvidenceUrls(
 
     const linkText = clean(node)
     const isPrimaryLabel = adapter === 'google-research'
-      ? /^tech report$/i.test(linkText)
+      ? /^(?:tech report|paper)$/i.test(linkText)
       : /^paper(?:\b|\s*:)/i.test(linkText)
 
     if (!isPrimaryLabel) continue
