@@ -29,17 +29,22 @@ function getSearchResultHref(
   url: string | null | undefined,
   lang: string,
 ) {
-  const prefix = `/${lang}/articol/`
-
-  if (
-    typeof url !== 'string' ||
-    !url.startsWith(prefix) ||
-    url.length <= prefix.length
-  ) {
+  if (typeof url !== 'string') {
     return null
   }
 
-  return url
+  const prefixes = [
+    `/${lang}/articol/`,
+    `/${lang}/flash/`,
+  ]
+
+  return prefixes.some(
+    prefix =>
+      url.startsWith(prefix) &&
+      url.length > prefix.length,
+  )
+    ? url
+    : null
 }
 
 function formatPublishedDate(
@@ -85,6 +90,59 @@ function articleTypeLabel(
   return lang === 'ro' ? 'Știre' : 'News'
 }
 
+function flashTypeLabel(
+  type: string | null | undefined,
+  lang: string,
+) {
+  const labels: Record<
+    string,
+    { ro: string; en: string }
+  > = {
+    announcement: {
+      ro: 'Anunț',
+      en: 'Announcement',
+    },
+    research: {
+      ro: 'Cercetare',
+      en: 'Research',
+    },
+    regulation: {
+      ro: 'Reglementare',
+      en: 'Regulation',
+    },
+    product: {
+      ro: 'Produs / instrument',
+      en: 'Product / tool',
+    },
+    business: {
+      ro: 'Afaceri',
+      en: 'Business',
+    },
+    incident: {
+      ro: 'Incident',
+      en: 'Incident',
+    },
+    update: {
+      ro: 'Actualizare',
+      en: 'Update',
+    },
+    other: {
+      ro: 'Altele',
+      en: 'Other',
+    },
+  }
+
+  const label =
+    labels[type ?? '']?.[
+      lang === 'en' ? 'en' : 'ro'
+    ] ??
+    (lang === 'ro'
+      ? 'Flash'
+      : 'Flash')
+
+  return `Flash AI · ${label}`
+}
+
 export async function generateMetadata(
   props: Pick<SearchPageProps, 'params'>,
 ): Promise<Metadata> {
@@ -97,8 +155,8 @@ export async function generateMetadata(
   const title = lang === 'ro' ? 'Căutare' : 'Search'
   const description =
     lang === 'ro'
-      ? 'Caută articole publicate pe 844-ai.ro.'
-      : 'Search published articles on 844-ai.ro.'
+      ? 'Caută în conținutul publicat pe 844-ai.ro.'
+      : 'Search published content on 844-ai.ro.'
 
   return {
     title,
@@ -134,11 +192,11 @@ export default async function SearchPage(
     lang === 'ro'
       ? {
           title: 'Căutare',
-          label: 'Caută în articole',
+          label: 'Caută în site',
           placeholder: 'Exemplu: inteligență artificială',
           button: 'Caută',
           empty:
-            'Introdu un termen pentru a căuta în articolele publicate.',
+            'Introdu un termen pentru a căuta în conținutul publicat.',
           tooShort: `Introdu cel puțin ${SEARCH_QUERY_MIN_LENGTH} caractere.`,
           tooLong: `Căutarea poate avea maximum ${SEARCH_QUERY_MAX_LENGTH} de caractere.`,
           noResults: 'Nu am găsit rezultate pentru această căutare.',
@@ -151,11 +209,11 @@ export default async function SearchPage(
         }
       : {
           title: 'Search',
-          label: 'Search articles',
+          label: 'Search the site',
           placeholder: 'Example: artificial intelligence',
           button: 'Search',
           empty:
-            'Enter a term to search published articles.',
+            'Enter a term to search published content.',
           tooShort: `Enter at least ${SEARCH_QUERY_MIN_LENGTH} characters.`,
           tooLong: `Search queries can contain at most ${SEARCH_QUERY_MAX_LENGTH} characters.`,
           noResults: 'No results were found for this search.',
@@ -353,13 +411,18 @@ export default async function SearchPage(
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       letterSpacing: '0.05em',
-                      color: '#185FA5',
+                      color: doc.kind === 'flash' ? '#7A4E00' : '#185FA5',
                     }}
                   >
-                    {articleTypeLabel(
-                      doc.articleType,
-                      lang,
-                    )}
+                    {doc.kind === 'flash'
+                      ? flashTypeLabel(
+                          doc.flashType,
+                          lang,
+                        )
+                      : articleTypeLabel(
+                          doc.articleType,
+                          lang,
+                        )}
                   </span>
 
                   {publishedDate && (

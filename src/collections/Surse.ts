@@ -1,4 +1,5 @@
-import type { CollectionConfig } from 'payload'
+import { ValidationError, type CollectionConfig } from 'payload'
+import { validateSourceDiscoveryConfiguration } from '../lib/flash/ingestion/sourceDiscoveryConfiguration'
 
 // ============================================================
 //  SURSE — registrul editorial central pentru Flash Engine.
@@ -27,6 +28,13 @@ export const Surse: CollectionConfig = {
     create: ({ req: { user } }) => user?.rol === 'admin',
     update: ({ req: { user } }) => user?.rol === 'admin',
     delete: ({ req: { user } }) => user?.rol === 'admin',
+  },
+  hooks: {
+    beforeValidate: [({ data, originalDoc }) => {
+      const errors = validateSourceDiscoveryConfiguration({ ...originalDoc, ...data })
+      if (errors.length) throw new ValidationError({ errors })
+      return data
+    }],
   },
   fields: [
     { name: 'nume', type: 'text', required: true },
@@ -143,7 +151,53 @@ export const Surse: CollectionConfig = {
     {
       name: 'feedRSS',
       type: 'text',
-      admin: { description: 'URL feed RSS, dacă există (pentru Auto-Publisher).' },
+      admin: { description: 'Adresa feedului RSS. Este adresa canonică pentru metoda RSS; nu se duplică în adresa HTML.' },
+    },
+    {
+      name: 'discoveryMethod',
+      label: 'Metodă de monitorizare Flash',
+      type: 'select',
+      required: true,
+      defaultValue: 'disabled',
+      options: [
+        { label: 'Neconfigurată / oprită', value: 'disabled' },
+        { label: 'RSS', value: 'rss' },
+        { label: 'Pagină HTML (adaptor dedicat)', value: 'html' },
+        { label: 'Cercetare editorială', value: 'research' },
+      ],
+      admin: { description: 'Configurează descoperirea viitoare. Nu pornește un scheduler și nu autorizează publicarea.' },
+    },
+    {
+      name: 'discoveryUrl',
+      label: 'Adresă HTML / cercetare',
+      type: 'text',
+      admin: {
+        condition: (_, siblingData) => ['html', 'research'].includes(siblingData?.discoveryMethod),
+        description: 'HTTPS, pe domeniul sursei. Pentru RSS se folosește exclusiv câmpul feed RSS.',
+      },
+    },
+    {
+      name: 'scanIntervalMinutes',
+      label: 'Interval de monitorizare (minute)',
+      type: 'number', required: true, defaultValue: 360, min: 60, max: 10080,
+      admin: { description: '60 = o oră; 360 = șase ore; 1440 = o zi. Configurație pentru schedulerul viitor.' },
+    },
+    {
+      name: 'maxCandidatesPerScan',
+      label: 'Maximum candidați / scanare',
+      type: 'number', required: true, defaultValue: 10, min: 1, max: 20,
+    },
+    {
+      name: 'maxCandidatesPerDay',
+      label: 'Maximum candidați / zi',
+      type: 'number', required: true, defaultValue: 40, min: 1, max: 500,
+      admin: { description: 'Limită de selecție, nu cotă de publicare. Aplicarea efectivă necesită schedulerul cu evidența rulărilor.' },
+    },
+    {
+      name: 'discoveryNotes',
+      label: 'Reguli editoriale ale sursei',
+      type: 'textarea',
+      admin: { description: 'Ce poate susține sursa, când este necesară confirmarea independentă și ce subiecte urmărim.' },
     },
     {
       name: 'regiune',

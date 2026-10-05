@@ -166,6 +166,36 @@ export async function getArticoleEducatie(limba: string, subcategorie?: string) 
   })
 }
 
+export async function getFlashAiEducatie(limba: string, subcategorie?: string) {
+  if (!['ro', 'en'].includes(limba)) return { docs: [] as any[] }
+
+  // Flash AI nu are încă subcategoria editorială Educație.
+  // Până când o introducem explicit, mapăm doar cazul sigur:
+  // Educație -> Cercetare și inovație = flashType research.
+  if (subcategorie && subcategorie !== 'cercetare') {
+    return { docs: [] as any[] }
+  }
+
+  const payload = await payloadClient()
+  const conditii: any[] = [
+    { limba: { equals: limba } },
+    { _status: { equals: 'published' } },
+    { 'pilon.slug': { equals: 'educatie' } },
+  ]
+
+  if (subcategorie === 'cercetare') {
+    conditii.push({ flashType: { equals: 'research' } })
+  }
+
+  return await payload.find({
+    collection: 'flash-ai',
+    where: { and: conditii },
+    limit: 24,
+    sort: '-publishedAt',
+    depth: 2,
+  })
+}
+
 export async function getCursuri(limba: string) {
   if (!['ro', 'en'].includes(limba)) return { docs: [] as any[] }
   const payload = await payloadClient()

@@ -15,7 +15,7 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
     <article style={{ maxWidth: 760, margin: '0 auto', padding: '2rem 0' }}>
       <h1 style={s.h1}>{lang === 'ro' ? 'Politica de Cookie-uri' : 'Cookie Policy'}</h1>
       <p style={s.meta}>
-        {lang === 'ro' ? 'Ultima actualizare: 21 iulie 2026' : 'Last updated: July 21, 2026'}
+        {lang === 'ro' ? 'Ultima actualizare: 3 octombrie 2026' : 'Last updated: October 3, 2026'}
       </p>
 
       {lang === 'ro' ? (
@@ -29,14 +29,22 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
 
           <h2 style={s.h2}>Ce cookie-uri folosim</h2>
           <p style={s.p}>
-            <strong>Cookie-uri strict necesare.</strong> Momentan, 844-ai.ro nu setează cookie-uri
-            proprii pentru funcționarea de bază (navigare, citire articole, abonare newsletter).
+            <strong>Cookie-uri strict necesare.</strong> Autentificarea în cont și în panoul de
+            administrare folosește cookie-ul de sesiune Payload (<code>payload-token</code>) pentru
+            a recunoaște utilizatorul conectat. Durata configurată este de două ore, cu reînnoire la
+            autentificare; deconectarea încheie sesiunea. Cookie-ul nu are scop publicitar.
+            Navigarea și citirea articolelor nu necesită un cont. Cookie-urile strict necesare
+            serviciului solicitat nu necesită acord pentru utilizarea lor; detaliile privind datele
+            sunt în{' '}
+            <a href={`/${lang}/politica-confidentialitate`}>Politica de confidențialitate</a>.
           </p>
           <p style={s.p}>
-            <strong>Cookie-uri de la terți — conținut video încorporat.</strong> Anumite articole
-            includ video-uri de pe YouTube sau Vimeo. La încărcarea unei astfel de pagini, aceste
-            platforme pot seta cookie-uri — inclusiv înainte de a apăsa play — pentru redarea
-            video-ului și, potrivit politicilor lor proprii, în scopuri de analiză sau publicitate.
+            <strong>Cookie-uri de la terți — conținut video încorporat.</strong> Videoclipurile
+            YouTube și Vimeo sunt blocate inițial. Înainte de acord, playerul nu trimite cereri
+            furnizorului și nu încarcă imagini de previzualizare externe. După acceptare, furnizorul
+            poate primi date tehnice și utiliza cookie-uri sau alte tehnologii, inclusiv pentru
+            analiză ori publicitate. Folosim modul de confidențialitate îmbunătățită YouTube și
+            opțiunea Vimeo de limitare a urmăririi; acestea nu înlocuiesc acordul.
           </p>
 
           <table style={s.table}>
@@ -78,21 +86,34 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
           </table>
 
           <p style={s.p}>
-            Aceste cookie-uri se încarcă doar dacă accepți din banner-ul afișat la prima vizită.
-            Dacă refuzi, videoclipurile nu se vor încărca automat.
+            Pentru fiecare videoclip poți alege „Accept și încarc videoclipul” sau „Nu accept”.
+            Refuzul păstrează playerul blocat și nu împiedică citirea paginii. Acordul se aplică
+            doar acelui videoclip cât timp este afișat; nu este salvat în cookie-uri sau în stocarea
+            browserului și nu autorizează automat alte videoclipuri. La reîncărcarea paginii sau
+            redeschiderea unei lecții este necesar un nou acord.
+          </p>
+
+          <p style={s.p}>
+            Nu folosim instrumente de analiză a traficului, pixeli publicitari sau reCAPTCHA. Brevo
+            este folosit pe server pentru trimiterea emailurilor; formularul de newsletter nu
+            încarcă un script Brevo în browser.
           </p>
 
           <h2 style={s.h2}>Cum îți gestionezi preferințele</h2>
           <p style={s.p}>
-            Poți schimba oricând alegerea inițială din linkul „Setări cookie-uri&quot; din footer-ul
-            site-ului, sau poți controla/șterge cookie-urile direct din setările browserului tău.
+            Lângă fiecare player încărcat găsești butonul „Retrag acordul și opresc videoclipul”.
+            Acesta elimină playerul și oprește redarea. Nu poate șterge datele deja primite de
+            furnizor sau cookie-urile sale; le poți gestiona din setările browserului și prin
+            controalele furnizorului. Blocarea cookie-urilor strict necesare poate împiedica
+            autentificarea. Nu folosim un banner general pentru acordul video: alegerea se face
+            direct lângă fiecare videoclip.
           </p>
 
           <h2 style={s.h2}>Modificări</h2>
           <p style={s.p}>
             Dacă vom introduce în viitor alte tipuri de cookie-uri, această politică va fi
-            actualizată, iar banner-ul de consimțământ îți va cere din nou acordul pentru noile
-            categorii.
+            actualizată înainte de activare, împreună cu mecanismele necesare de consimțământ și
+            retragere a acordului.
           </p>
 
           <p style={s.p}>
@@ -110,15 +131,21 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
 
           <h2 style={s.h2}>What cookies we use</h2>
           <p style={s.p}>
-            <strong>Strictly necessary cookies.</strong> At this time, 844-ai.ro does not set its
-            own cookies for basic functionality (browsing, reading articles, newsletter
-            subscription).
+            <strong>Strictly necessary cookies.</strong> Account and admin sign-in use the Payload
+            session cookie (<code>payload-token</code>) to recognize the signed-in user. Its
+            lifetime follows the authentication session; signing out ends the session. It is not
+            used for advertising. Browsing and reading articles do not require an account. Cookies
+            strictly necessary for the requested service do not require consent for their use. See
+            the <a href={`/${lang}/politica-confidentialitate`}>Privacy Policy</a> for data
+            processing details.
           </p>
           <p style={s.p}>
-            <strong>Third-party cookies — embedded video content.</strong> Some articles include
-            YouTube or Vimeo videos. When such a page loads, these platforms may set cookies — even
-            before you press play — to enable video playback and, per their own policies, for
-            analytics or advertising purposes.
+            <strong>Third-party cookies — embedded video content.</strong> YouTube and Vimeo videos
+            are initially blocked. Before consent, the player makes no requests to the provider and
+            loads no external preview images. After acceptance, the provider may receive technical
+            data and use cookies or other technologies, including for analytics or advertising. We
+            use YouTube privacy-enhanced mode and Vimeo&apos;s tracking-limiting option; these do
+            not replace consent.
           </p>
 
           <table style={s.table}>
@@ -160,20 +187,32 @@ export default async function PaginaCookieUri(props: { params: Promise<{ lang: s
           </table>
 
           <p style={s.p}>
-            These cookies load only if you accept from the banner shown on your first visit. If you
-            decline, videos will not load automatically.
+            For each video you can choose “Accept and load video” or “Decline”. Declining keeps the
+            player blocked and does not prevent reading the page. Consent applies only to that video
+            while it is displayed; it is not saved in cookies or browser storage and does not
+            automatically authorize other videos. Reloading the page or reopening a lesson requires
+            fresh consent.
+          </p>
+
+          <p style={s.p}>
+            No traffic analytics tools, advertising pixels, or reCAPTCHA were identified in the
+            code. Brevo is used server-side to send emails; the newsletter form does not load a
+            Brevo script in the browser.
           </p>
 
           <h2 style={s.h2}>Managing your preferences</h2>
           <p style={s.p}>
-            You can change your initial choice anytime via the &quot;Cookie Settings&quot; link in the site
-            footer, or control/delete cookies directly from your browser settings.
+            Each loaded player has a “Withdraw consent and stop video” button. It removes the player
+            and stops playback. It cannot erase data already received by the provider or its
+            cookies; manage these in your browser settings and through the provider&apos;s controls.
+            Blocking strictly necessary cookies may prevent sign-in. We do not use a general video
+            consent banner: the choice is made next to each video.
           </p>
 
           <h2 style={s.h2}>Changes</h2>
           <p style={s.p}>
             If we introduce other types of cookies in the future, this policy will be updated, and
-            the consent banner will ask for your agreement to the new categories again.
+            the required consent and withdrawal controls will be introduced before activation.
           </p>
 
           <p style={s.p}>

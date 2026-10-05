@@ -20,6 +20,7 @@ import * as migration_20260927_162500_db001c_useri_sessions_rls from './20260927
 import * as migration_20260927_164500_db001d_useri_rls from './20260927_164500_db001d_useri_rls';
 import * as migration_20260927_170500_db001e_newsletter_segment_rls from './20260927_170500_db001e_newsletter_segment_rls';
 import * as migration_20260927_172500_db001f_comentarii_rls from './20260927_172500_db001f_comentarii_rls';
+import * as migration_20261003_210058_flash002_source_discovery from './20261003_210058_flash002_source_discovery';
 
 export const migrations = [
   {
@@ -100,7 +101,7 @@ export const migrations = [
   {
     up: migration_20260919_111358_u14_7h_flash_ai_comments.up,
     down: migration_20260919_111358_u14_7h_flash_ai_comments.down,
-    name: '20260919_111358_u14_7h_flash_ai_comments'
+    name: '20260919_111358_u14_7h_flash_ai_comments',
   },
   {
     up: migration_20260925_120000_sec001_data_api_acl_hardening.up,
@@ -131,5 +132,10 @@ export const migrations = [
     up: migration_20260927_172500_db001f_comentarii_rls.up,
     down: migration_20260927_172500_db001f_comentarii_rls.down,
     name: '20260927_172500_db001f_comentarii_rls',
+  },
+  {
+    up: migration_20261003_210058_flash002_source_discovery.up,
+    down: migration_20261003_210058_flash002_source_discovery.down,
+    name: '20261003_210058_flash002_source_discovery'
   },
 ];

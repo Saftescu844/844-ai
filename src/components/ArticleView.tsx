@@ -1,3 +1,4 @@
+import ExternalVideo from '@/components/ExternalVideo'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 
 import ArticleAttribution from '@/components/ArticleAttribution'
@@ -13,20 +14,6 @@ type ArticleViewProps = {
   lang: string
   attribution: PublicArticleAttribution
   newsletterSettings?: SiteSetting['newsletter']
-}
-
-function videoEmbed(url: string): string | null {
-  if (!url) return null
-
-  const yt = url.match(
-    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/,
-  )
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`
-
-  const vm = url.match(/vimeo\.com\/(\d+)/)
-  if (vm) return `https://player.vimeo.com/video/${vm[1]}`
-
-  return null
 }
 
 export default function ArticleView({
@@ -83,7 +70,6 @@ export default function ArticleView({
       ? '844-ai.ro raportează pe baza sursei de mai sus. Articol sintetizat editorial, cu atribuire.'
       : '844-ai.ro reports based on the source above. Editorially synthesized article, with attribution.'
 
-  const embedUrl = articol.videoUrl ? videoEmbed(articol.videoUrl) : null
 
   return (
     <article
@@ -234,7 +220,7 @@ export default function ArticleView({
         </div>
       )}
 
-      {articol.videoUrl && embedUrl && (
+      {articol.videoUrl && (
         <div style={{ marginTop: 32 }}>
           {articol.videoTitlu && (
             <h3
@@ -248,30 +234,7 @@ export default function ArticleView({
             </h3>
           )}
 
-          <div
-            style={{
-              position: 'relative',
-              paddingBottom: '56.25%',
-              height: 0,
-              overflow: 'hidden',
-              borderRadius: 10,
-            }}
-          >
-            <iframe
-              src={embedUrl}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                border: 0,
-              }}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title={articol.videoTitlu || 'Video'}
-            />
-          </div>
+          <ExternalVideo url={articol.videoUrl} title={articol.videoTitlu || 'Video'} lang={lang} />
         </div>
       )}
 

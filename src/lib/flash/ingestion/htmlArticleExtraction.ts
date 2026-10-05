@@ -1,3 +1,5 @@
+import { extractResearchArticle, researchArticleAdapterForUrl, type ResearchArticleAdapter } from './researchArticleAdapters'
+
 export interface FlashHtmlArticleExtraction {
   finalUrl: string
   title: string
@@ -6,6 +8,10 @@ export interface FlashHtmlArticleExtraction {
   lead: string
   bodyParagraphs: string[]
   bodyText: string
+  sourceAdapter?: ResearchArticleAdapter
+  provenanceParagraphs?: string[]
+  leadKind?: 'article-summary' | 'meta-description'
+  primaryEvidenceUrls?: string[]
 }
 
 function parseHttpUrl(
@@ -269,6 +275,10 @@ export function extractFlashHtmlArticle(
     throw new Error(
       'Flash HTML article must belong to the registered source host.',
     )
+  }
+
+  if (researchArticleAdapterForUrl(registeredSourceUrlValue, finalUrlValue)) {
+    return extractResearchArticle(registeredSourceUrlValue, finalUrlValue, html)
   }
 
   if (
