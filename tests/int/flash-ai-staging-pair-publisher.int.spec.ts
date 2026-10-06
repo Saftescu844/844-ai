@@ -263,5 +263,99 @@ describe(
         ).not.toHaveBeenCalled()
       },
     )
+
+    it(
+      'rolls back before publication when the explicit expected event fingerprint does not match',
+      async () => {
+        const ro =
+          flash({
+            id:
+              8,
+            limba:
+              'ro',
+            versiuneAlternativa:
+              10,
+          })
+
+        const en =
+          flash({
+            id:
+              10,
+            limba:
+              'en',
+            versiuneAlternativa:
+              8,
+          })
+
+        const beginTransaction =
+          vi.fn(
+            async () =>
+              'tx-publish',
+          )
+
+        const commitTransaction =
+          vi.fn(
+            async () =>
+              undefined,
+          )
+
+        const rollbackTransaction =
+          vi.fn(
+            async () =>
+              undefined,
+          )
+
+        const update =
+          vi.fn()
+
+        await expect(
+          publishFlashAiStagingPair({
+            payload: {
+              findByID:
+                vi.fn(
+                  async ({
+                    id,
+                  }: {
+                    id:
+                      number
+                  }) =>
+                    id === 8
+                      ? ro
+                      : en,
+                ) as never,
+              update:
+                update as never,
+              db: {
+                beginTransaction,
+                commitTransaction,
+                rollbackTransaction,
+              } as never,
+            },
+            roId:
+              8,
+            enId:
+              10,
+            expectedEventFingerprint:
+              'different-event',
+          }),
+        ).rejects.toThrow(
+          'FlashAI pair publish event fingerprint does not match the explicitly expected event.',
+        )
+
+        expect(
+          update,
+        ).not.toHaveBeenCalled()
+
+        expect(
+          commitTransaction,
+        ).not.toHaveBeenCalled()
+
+        expect(
+          rollbackTransaction,
+        ).toHaveBeenCalledWith(
+          'tx-publish',
+        )
+      },
+    )
   },
 )
