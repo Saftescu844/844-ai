@@ -37,6 +37,15 @@ import {
 const ONE_SHOT_SERVICE_ID =
   '7be51b73-dc87-4a53-9ad4-879c00aecad6'
 
+const FLASH_ENGINE_WORKER_SERVICE_ID =
+  'd479e8ea-00a4-4b58-87a0-fc3221f4679c'
+
+const ALLOWED_STAGING_SERVICE_IDS =
+  new Set([
+    ONE_SHOT_SERVICE_ID,
+    FLASH_ENGINE_WORKER_SERVICE_ID,
+  ])
+
 const ALLOW_STAGE_FLAG =
   '--allow-staging-rss-stage-next'
 
@@ -206,7 +215,7 @@ Behavior:
   - does NOT create a scheduler or cron job
 
 Safety:
-  - execution is restricted to the dedicated Railway STAGING one-shot service
+  - execution is restricted to the dedicated Railway STAGING one-shot service or flash-engine-worker
   - PAYLOAD_DB_PUSH must be exactly false
   - DATABASE_URL must resolve to the known STAGING Supabase project
   - provider calls require --allow-provider-requests
@@ -245,9 +254,13 @@ function assertStageNextEnvironment(
   }
 
   if (
-    environment
-      .RAILWAY_SERVICE_ID !==
-    ONE_SHOT_SERVICE_ID
+    !environment
+      .RAILWAY_SERVICE_ID ||
+    !ALLOWED_STAGING_SERVICE_IDS
+      .has(
+        environment
+          .RAILWAY_SERVICE_ID,
+      )
   ) {
     mismatches.push(
       'RAILWAY_SERVICE_ID',
@@ -270,7 +283,7 @@ function assertStageNextEnvironment(
   ) {
     throw new Error(
       [
-        'Flash RSS stage-next is restricted to the dedicated STAGING one-shot service.',
+        'Flash RSS stage-next is restricted to the dedicated STAGING one-shot service or flash-engine-worker.',
         `Environment mismatch: ${mismatches.join(', ')}.`,
       ].join(
         ' ',
