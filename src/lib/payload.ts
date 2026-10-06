@@ -80,6 +80,7 @@ export async function getFlashAiPilon(limba: string, pilonSlug: string) {
 
 export async function getFlashAiBySlug(slug: string, limba: string) {
   if (!LIMBI_VALIDE.includes(limba)) return null
+
   const payload = await payloadClient()
   const r = await payload.find({
     collection: 'flash-ai',
@@ -93,7 +94,40 @@ export async function getFlashAiBySlug(slug: string, limba: string) {
     limit: 1,
     depth: 2,
   })
-  return r.docs[0] || null
+
+  const flash = r.docs[0] || null
+
+  if (!flash) return null
+
+  if (
+    typeof flash.versiuneAlternativa !== 'number'
+  ) {
+    return flash
+  }
+
+  const limbaAlternativa =
+    limba === 'ro'
+      ? 'en'
+      : 'ro'
+
+  const alternative = await payload.find({
+    collection: 'flash-ai',
+    where: {
+      and: [
+        { id: { equals: flash.versiuneAlternativa } },
+        { limba: { equals: limbaAlternativa } },
+        { _status: { equals: 'published' } },
+      ],
+    },
+    limit: 1,
+    depth: 0,
+  })
+
+  return {
+    ...flash,
+    versiuneAlternativa:
+      alternative.docs[0] || null,
+  }
 }
 
 const LIMBI_VALIDE2 = ['ro', 'en']
