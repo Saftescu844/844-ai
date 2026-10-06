@@ -29,6 +29,14 @@ describe(
         )
 
         expect(source).toContain(
+          'd479e8ea-00a4-4b58-87a0-fc3221f4679c',
+        )
+
+        expect(source).toContain(
+          'ALLOWED_STAGING_SERVICE_IDS',
+        )
+
+        expect(source).toContain(
           '--allow-staging-rss-stage-next',
         )
 
