@@ -452,6 +452,18 @@ export interface Surse {
    * Ce poate susține sursa, când este necesară confirmarea independentă și ce subiecte urmărim.
    */
   discoveryNotes?: string | null;
+  /**
+   * Memorie tehnică bounded/cooldown pentru candidații RSS respinși de filtrele de calitate. Nu reprezintă conținut editorial.
+   */
+  rssCandidateSkipMemory?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   regiune?: ('global' | 'europa' | 'romania') | null;
   activa?: boolean | null;
   updatedAt: string;
@@ -1697,6 +1709,7 @@ export interface SurseSelect<T extends boolean = true> {
   maxCandidatesPerScan?: T;
   maxCandidatesPerDay?: T;
   discoveryNotes?: T;
+  rssCandidateSkipMemory?: T;
   regiune?: T;
   activa?: T;
   updatedAt?: T;

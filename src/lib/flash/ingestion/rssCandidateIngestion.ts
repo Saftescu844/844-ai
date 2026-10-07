@@ -25,6 +25,8 @@ export interface FlashRssIngestionSourcePlan {
   citationMode:
     Surse['citationMode']
   allowAutoPublish: boolean
+  candidateSkipMemory:
+    Surse['rssCandidateSkipMemory']
   ready: boolean
   blocker:
     FlashRssIngestionBlocker | null
@@ -70,6 +72,7 @@ type FlashRssIngestionSourceRecord =
     | 'editorialTrust'
     | 'citationMode'
     | 'allowAutoPublish'
+    | 'rssCandidateSkipMemory'
   >
 
 interface FlashRssFeedItem {
@@ -190,6 +193,9 @@ export function assessFlashRssIngestionSource(
       allowAutoPublish:
         source.allowAutoPublish ===
         true,
+      candidateSkipMemory:
+        source.rssCandidateSkipMemory ??
+        [],
       ready:
         false,
       blocker:
@@ -218,6 +224,9 @@ export function assessFlashRssIngestionSource(
       allowAutoPublish:
         source.allowAutoPublish ===
         true,
+      candidateSkipMemory:
+        source.rssCandidateSkipMemory ??
+        [],
       ready:
         false,
       blocker:
@@ -248,6 +257,9 @@ export function assessFlashRssIngestionSource(
       allowAutoPublish:
         source.allowAutoPublish ===
         true,
+      candidateSkipMemory:
+        source.rssCandidateSkipMemory ??
+        [],
       ready:
         false,
       blocker:
@@ -271,6 +283,9 @@ export function assessFlashRssIngestionSource(
     allowAutoPublish:
       source.allowAutoPublish ===
       true,
+    candidateSkipMemory:
+      source.rssCandidateSkipMemory ??
+      [],
     ready:
       true,
     blocker:

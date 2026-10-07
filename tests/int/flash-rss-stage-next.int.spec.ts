@@ -65,7 +65,15 @@ describe(
         )
 
         expect(source).toContain(
-          'FLASH_RSS_STAGE_NEXT_SKIPPED',
+          'FLASH_RSS_STAGE_NEXT_SKIP_REMEMBERED',
+        )
+
+        expect(source).toContain(
+          'rssCandidateSkipMemory',
+        )
+
+        expect(source).toContain(
+          'rememberFlashRssCandidateSkip',
         )
 
         expect(source).toContain(

@@ -33,6 +33,12 @@ import {
 import {
   createFlashAiAtomicReviewPair,
 } from '@/lib/flash/ingestion/payloadFlashAiAtomicReviewPairWriter'
+import {
+  activeFlashRssCandidateSkipUrls,
+  canonicalFlashRssCandidateUrl,
+  rememberFlashRssCandidateSkip,
+  type FlashRssCandidateSkipReason,
+} from '@/lib/flash/ingestion/rssCandidateSkipMemory'
 
 const ONE_SHOT_SERVICE_ID =
   '7be51b73-dc87-4a53-9ad4-879c00aecad6'
@@ -135,37 +141,6 @@ function parseOptionalPositiveInteger(
   return parsed
 }
 
-function canonicalSelectionUrl(
-  value: string,
-): string | null {
-  try {
-    const url =
-      new URL(
-        value.trim(),
-      )
-
-    if (
-      url.protocol !==
-        'http:' &&
-      url.protocol !==
-        'https:'
-    ) {
-      return null
-    }
-
-    if (!url.hostname) {
-      return null
-    }
-
-    url.search = ''
-    url.hash = ''
-
-    return url.toString()
-  } catch {
-    return null
-  }
-}
-
 function publishedAtValue(
   value:
     string | null,
@@ -206,6 +181,7 @@ Behavior:
   - tries at most 3 newest remaining candidates per run
   - skips candidates without grounded event identity before provider calls
   - skips candidates blocked by strong duplicate evidence
+  - remembers quality-filter rejections for 7 days so later runs advance to other candidates
   - generates and QA-checks RO and EN handoffs BEFORE any persistence
   - requires the same grounded event fingerprint for RO and EN
   - atomically creates both drafts, links them reciprocally, and moves both to editorial review
@@ -291,10 +267,6 @@ function assertStageNextEnvironment(
     )
   }
 }
-
-type FlashRssCandidateSkipReason =
-  | 'event_identity_not_grounded'
-  | 'strong_duplicate'
 
 class FlashRssCandidateSkipError
   extends Error {
@@ -597,7 +569,7 @@ async function main(): Promise<void> {
 
   const normalizedRequestedCandidateUrl =
     requestedCandidateUrl
-      ? canonicalSelectionUrl(
+      ? canonicalFlashRssCandidateUrl(
           requestedCandidateUrl,
         )
       : null
@@ -638,6 +610,37 @@ async function main(): Promise<void> {
       'No active allowIngestion RSS-ready source found for --source-id.',
     )
   }
+
+  const candidateSkipMemoryBySourceId =
+    new Map(
+      selectedPlans.map(
+        plan => [
+          plan.sourceId,
+          plan.candidateSkipMemory,
+        ] as const,
+      ),
+    )
+
+  const activeSkippedUrlsBySourceId =
+    new Map(
+      selectedPlans.map(
+        plan => [
+          plan.sourceId,
+          activeFlashRssCandidateSkipUrls(
+            plan.candidateSkipMemory,
+          ),
+        ] as const,
+      ),
+    )
+
+  const rememberedRejectedUrlCount =
+    Array.from(
+      activeSkippedUrlsBySourceId.values(),
+    ).reduce(
+      (total, urls) =>
+        total + urls.size,
+      0,
+    )
 
   const discovered:
     FlashRssCandidate[] = []
@@ -693,7 +696,7 @@ async function main(): Promise<void> {
           (flash.surseFlash ?? [])
             .map(
               source =>
-                canonicalSelectionUrl(
+                canonicalFlashRssCandidateUrl(
                   source.url,
                 ),
             )
@@ -713,7 +716,7 @@ async function main(): Promise<void> {
       .filter(
         candidate => {
           const canonicalUrl =
-            canonicalSelectionUrl(
+            canonicalFlashRssCandidateUrl(
               candidate.concreteUrl,
             )
 
@@ -729,9 +732,21 @@ async function main(): Promise<void> {
             return false
           }
 
-          return !existingSourceUrls.has(
-            canonicalUrl,
-          )
+          if (
+            existingSourceUrls.has(
+              canonicalUrl,
+            )
+          ) {
+            return false
+          }
+
+          return !activeSkippedUrlsBySourceId
+            .get(
+              candidate.sourceId,
+            )
+            ?.has(
+              canonicalUrl,
+            )
         },
       )
       .sort(
@@ -786,6 +801,7 @@ async function main(): Promise<void> {
         discovered.length,
       existingSourceUrlCount:
         existingSourceUrls.size,
+      rememberedRejectedUrlCount,
       requestedCandidateUrl:
         normalizedRequestedCandidateUrl,
     })
@@ -937,8 +953,45 @@ async function main(): Promise<void> {
         error instanceof
           FlashRssCandidateSkipError
       ) {
+        const nextMemory =
+          rememberFlashRssCandidateSkip({
+            value:
+              candidateSkipMemoryBySourceId.get(
+                candidate.sourceId,
+              ),
+            url:
+              candidate.concreteUrl,
+            reason:
+              error.reason,
+          })
+
+        await payload.update({
+          collection:
+            'surse',
+          id:
+            candidate.sourceId,
+          data: {
+            rssCandidateSkipMemory:
+              nextMemory,
+          },
+          overrideAccess:
+            true,
+        })
+
+        candidateSkipMemoryBySourceId.set(
+          candidate.sourceId,
+          nextMemory,
+        )
+
+        activeSkippedUrlsBySourceId.set(
+          candidate.sourceId,
+          activeFlashRssCandidateSkipUrls(
+            nextMemory,
+          ),
+        )
+
         console.log(
-          'FLASH_RSS_STAGE_NEXT_SKIPPED',
+          'FLASH_RSS_STAGE_NEXT_SKIP_REMEMBERED',
         )
 
         console.log({
@@ -981,6 +1034,14 @@ async function main(): Promise<void> {
     maxAttempts,
     discoveredCount:
       discovered.length,
+    rememberedRejectedUrlCount:
+      Array.from(
+        activeSkippedUrlsBySourceId.values(),
+      ).reduce(
+        (total, urls) =>
+          total + urls.size,
+        0,
+      ),
     requestedCandidateUrl:
       normalizedRequestedCandidateUrl,
   })
