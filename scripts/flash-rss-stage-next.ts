@@ -179,7 +179,7 @@ Behavior:
   - fetches at most 10 items per configured source
   - skips candidates whose source URL is already used by any FlashAI draft/published record
   - tries at most 3 newest remaining candidates per run
-  - skips candidates without grounded event identity before provider calls
+  - allows pending event identity only through the existing safe review-only bridge; otherwise fails closed
   - skips candidates blocked by strong duplicate evidence
   - remembers quality-filter rejections for 7 days so later runs advance to other candidates
   - generates and QA-checks RO and EN handoffs BEFORE any persistence
@@ -319,7 +319,6 @@ function runPrePersistenceHandoff({
         articleUrl,
         '--target-language',
         targetLanguage,
-        '--require-grounded-event-identity',
         '--allow-provider-requests',
         '--model',
         model,
