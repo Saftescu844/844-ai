@@ -29,6 +29,22 @@ describe(
         )
 
         expect(source).toContain(
+          'allowPendingEventIdentityReviewPair',
+        )
+
+        expect(source).toContain(
+          'primary high-trust source with allowAutoPublish=false',
+        )
+
+        expect(source).toContain(
+          'sourceFingerprintReviewSignal',
+        )
+
+        expect(source).toContain(
+          'titleReviewSignal',
+        )
+
+        expect(source).toContain(
           'evaluateFlashArticlePrePersistenceDedupReadOnly',
         )
 
