@@ -56,6 +56,10 @@ describe(
           'createFlashAiAtomicReviewPair',
         )
 
+        expect(source).toContain(
+          'allowPendingEventIdentityReviewPair',
+        )
+
         expect(source).not.toContain(
           '--require-grounded-event-identity',
         )
