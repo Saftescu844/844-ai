@@ -66,6 +66,8 @@ describe(
             'paraphrase',
           allowAutoPublish:
             false,
+          candidateSkipMemory:
+            [],
           ready:
             false,
           blocker:
