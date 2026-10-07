@@ -915,6 +915,8 @@ async function main(): Promise<void> {
           payload,
           ro,
           en,
+          allowPendingEventIdentityReviewPair:
+            true,
         })
 
       console.log(
