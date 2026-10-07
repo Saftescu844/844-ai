@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri, getFlashAiPilon, getFlashAiEducatie } from '@/lib/payload'
 import { notFound } from 'next/navigation'
 
@@ -7,6 +8,103 @@ const PILONI: Record<string, { ro: string; en: string }> = {
   educatie: { ro: 'Educație', en: 'Education' },
   tools: { ro: 'Tool Directory', en: 'Tool Directory' },
   afaceri: { ro: 'Afaceri și productivitate', en: 'Business & Productivity' },
+}
+
+const PILON_SEO: Record<
+  string,
+  {
+    ro: { title: string; description: string }
+    en: { title: string; description: string }
+  }
+> = {
+  stiri: {
+    ro: {
+      title: 'Știri AI și noutăți despre inteligența artificială',
+      description:
+        'Știri și evoluții importante din inteligența artificială, explicate clar și cu accent pe impactul lor pentru oameni și societate.',
+    },
+    en: {
+      title: 'AI News and Artificial Intelligence Updates',
+      description:
+        'Important artificial intelligence news and developments, explained clearly with a focus on their impact on people and society.',
+    },
+  },
+  sanatate: {
+    ro: {
+      title: 'AI în sănătate și medicină',
+      description:
+        'Inteligența artificială în sănătate: diagnostic, imagistică, asistență clinică, cercetare, reglementare și aplicații pentru pacienți.',
+    },
+    en: {
+      title: 'AI in Health and Medicine',
+      description:
+        'Artificial intelligence in health: diagnostics, imaging, clinical support, research, regulation, and applications for patients.',
+    },
+  },
+  educatie: {
+    ro: {
+      title: 'AI în educație, învățare și cercetare',
+      description:
+        'Resurse și explicații despre folosirea inteligenței artificiale în educație, învățare, predare și cercetare.',
+    },
+    en: {
+      title: 'AI in Education, Learning and Research',
+      description:
+        'Resources and explanations about using artificial intelligence in education, learning, teaching, and research.',
+    },
+  },
+  tools: {
+    ro: {
+      title: 'Tool Directory: instrumente și aplicații AI',
+      description:
+        'Descoperă instrumente și aplicații AI utile, organizate pentru muncă, educație, productivitate, creație și utilizare de zi cu zi.',
+    },
+    en: {
+      title: 'Tool Directory: AI Tools and Applications',
+      description:
+        'Discover useful AI tools and applications organized for work, education, productivity, creativity, and everyday use.',
+    },
+  },
+  afaceri: {
+    ro: {
+      title: 'AI pentru afaceri și productivitate',
+      description:
+        'Inteligența artificială pentru afaceri: productivitate, automatizare, strategie, instrumente și exemple practice de utilizare.',
+    },
+    en: {
+      title: 'AI for Business and Productivity',
+      description:
+        'Artificial intelligence for business: productivity, automation, strategy, tools, and practical examples of use.',
+    },
+  },
+}
+
+export async function generateMetadata(props: {
+  params: Promise<{ lang: string; pilon: string }>
+}): Promise<Metadata> {
+  const { lang, pilon } = await props.params
+
+  if (
+    (lang !== 'ro' && lang !== 'en') ||
+    !PILONI[pilon] ||
+    !PILON_SEO[pilon]
+  ) {
+    return {}
+  }
+
+  const seo = PILON_SEO[pilon][lang]
+
+  return {
+    title: seo.title,
+    description: seo.description,
+    alternates: {
+      canonical: `/${lang}/pilon/${pilon}`,
+      languages: {
+        ro: `/ro/pilon/${pilon}`,
+        en: `/en/pilon/${pilon}`,
+      },
+    },
+  }
 }
 
 const PRET: Record<string, { ro: string; en: string }> = {
