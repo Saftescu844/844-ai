@@ -127,6 +127,12 @@ describe(
         ).toBe(
           'https://digital-strategy.ec.europa.eu/feed.xml',
         )
+
+        expect(
+          result.candidateSkipMemory,
+        ).toEqual(
+          [],
+        )
       },
     )
 
