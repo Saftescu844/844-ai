@@ -254,6 +254,7 @@ async function assertFinalDedupPasses({
   payload,
   input,
   targetLanguage,
+  pendingEventIdentity,
 }: {
   payload:
     Pick<Payload, 'find'>
@@ -374,8 +375,8 @@ export async function createFlashAiAtomicReviewPair({
 
   /*
    * Re-run the exact final dedup immediately before opening
-   * the pair transaction. The dedicated one-shot service is
-   * the only producer in this controlled STAGING path.
+   * the pair transaction. This controlled RSS path keeps
+   * persistence review-only and explicitly guarded.
    */
   await Promise.all([
     assertFinalDedupPasses({
