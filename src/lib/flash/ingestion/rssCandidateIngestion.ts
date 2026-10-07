@@ -283,6 +283,9 @@ export function assessFlashRssIngestionSource(
     allowAutoPublish:
       source.allowAutoPublish ===
       true,
+    candidateSkipMemory:
+      source.rssCandidateSkipMemory ??
+      [],
     ready:
       true,
     blocker:
