@@ -56,8 +56,12 @@ describe(
           'createFlashAiAtomicReviewPair',
         )
 
-        expect(source).toContain(
+        expect(source).not.toContain(
           '--require-grounded-event-identity',
+        )
+
+        expect(source).toContain(
+          'safe review-only bridge',
         )
 
         expect(source).toContain(
