@@ -268,6 +268,32 @@ function assertStageNextEnvironment(
   }
 }
 
+type FlashRssCandidateTransientSkipReason =
+  | 'editorial_output_too_short'
+  | 'editorial_output_too_long'
+
+class FlashRssCandidateTransientSkipError
+  extends Error {
+  readonly reason:
+    FlashRssCandidateTransientSkipReason
+
+  constructor(
+    reason:
+      FlashRssCandidateTransientSkipReason,
+    message: string,
+  ) {
+    super(
+      message,
+    )
+
+    this.name =
+      'FlashRssCandidateTransientSkipError'
+
+    this.reason =
+      reason
+  }
+}
+
 class FlashRssCandidateSkipError
   extends Error {
   readonly reason:
@@ -389,6 +415,25 @@ function runPrePersistenceHandoff({
       throw new FlashRssCandidateSkipError(
         'strong_duplicate',
         `Candidate is blocked by strong duplicate evidence: ${articleUrl}`,
+      )
+    }
+
+    const transientEditorialReason:
+      FlashRssCandidateTransientSkipReason | null =
+      combinedOutput.includes(
+        'invalid_output_too_short',
+      )
+        ? 'editorial_output_too_short'
+        : combinedOutput.includes(
+              'invalid_output_too_long',
+            )
+          ? 'editorial_output_too_long'
+          : null
+
+    if (transientEditorialReason) {
+      throw new FlashRssCandidateTransientSkipError(
+        transientEditorialReason,
+        `Candidate editorial output failed the word-count gate: ${articleUrl}`,
       )
     }
 
@@ -950,6 +995,30 @@ async function main(): Promise<void> {
 
       return
     } catch (error) {
+      if (
+        error instanceof
+          FlashRssCandidateTransientSkipError
+      ) {
+        console.log(
+          'FLASH_RSS_STAGE_NEXT_SKIP_TRANSIENT',
+        )
+
+        console.log({
+          attempt:
+            attemptIndex + 1,
+          sourceId:
+            candidate.sourceId,
+          sourceName:
+            candidate.sourceName,
+          articleUrl:
+            candidate.concreteUrl,
+          reason:
+            error.reason,
+        })
+
+        continue
+      }
+
       if (
         error instanceof
           FlashRssCandidateSkipError

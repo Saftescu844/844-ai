@@ -77,6 +77,18 @@ describe(
         )
 
         expect(source).toContain(
+          'FLASH_RSS_STAGE_NEXT_SKIP_TRANSIENT',
+        )
+
+        expect(source).toContain(
+          'invalid_output_too_short',
+        )
+
+        expect(source).toContain(
+          'invalid_output_too_long',
+        )
+
+        expect(source).toContain(
           'rssCandidateSkipMemory',
         )
 
