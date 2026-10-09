@@ -102,6 +102,7 @@ describe(
           pilon: 1,
           flashType: 'regulation',
           continut: lexicalContent,
+          excerpt: expect.any(String),
 
           surseFlash: [
             {
@@ -131,6 +132,13 @@ describe(
 
         expect(result.continut)
           .toBe(lexicalContent)
+
+        expect(result.excerpt.length)
+          .toBeGreaterThanOrEqual(180)
+        expect(result.excerpt.length)
+          .toBeLessThanOrEqual(300)
+        expect(result.excerpt)
+          .toMatch(/^cuvânt/u)
 
         expect('slug' in result)
           .toBe(false)

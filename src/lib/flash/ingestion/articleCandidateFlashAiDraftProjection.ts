@@ -2,6 +2,13 @@ import type {
   FlashAi,
 } from '@/payload-types'
 
+import {
+  extractFlashEditorialParagraphs,
+} from '../editorialContentLexical'
+import {
+  buildFlashAiExcerptFromVerifiedParagraphs,
+} from './flashAiVerifiedExcerpt'
+
 import type {
   FlashArticlePersistenceReadiness,
 } from './articleCandidatePersistenceReadiness'
@@ -12,6 +19,7 @@ import {
 
 export interface FlashAiDraftProjection {
   titlu: string
+  excerpt: string
   limba: FlashTargetLanguage
   pilon: number
   flashType: FlashAi['flashType']
@@ -86,9 +94,18 @@ export function projectFlashAiDraftFromPersistenceReadiness(
     )
   }
 
+  const excerpt =
+    buildFlashAiExcerptFromVerifiedParagraphs(
+      extractFlashEditorialParagraphs(
+        verifiedEditorial.lexicalContent,
+      ),
+    )
+
   return {
     titlu:
       verifiedEditorial.editorialTitle,
+
+    excerpt,
 
     limba:
       resolveFlashTargetLanguage(

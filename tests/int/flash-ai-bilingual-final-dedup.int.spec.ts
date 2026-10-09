@@ -90,6 +90,11 @@ function projection(
         ? 'Același eveniment verificat'
         : 'The same verified event',
 
+    excerpt:
+      language === 'ro'
+        ? 'Rezumat editorial verificat'
+        : 'Verified editorial excerpt',
+
     limba:
       language,
 

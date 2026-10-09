@@ -59,7 +59,9 @@ it(
 
     const lexicalContent =
       buildVerifiedFlashEditorialLexicalContent([
-        'Conținut editorial verificat pentru testul handoff-ului determinist.',
+        Array.from({ length: 6 }, () =>
+          'Conținut editorial verificat pentru testul handoff-ului determinist.',
+        ).join(' '),
       ])
 
     const candidate = {
