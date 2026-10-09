@@ -18,7 +18,7 @@ describe('verified FlashAI excerpt (RO/EN)', () => {
       'en',
       'Researchers describe a verified result that requires editorial review before publication. ',
     ],
-  ])('extracts a complete grounded sentence in %s', (_language, sentence) => {
+  ])('extracts a complete grounded sentence in %s', (language, sentence) => {
     const editorial = sentence.repeat(10)
     const excerpt = buildFlashAiExcerptFromVerifiedParagraphs([
       editorial,
@@ -27,6 +27,7 @@ describe('verified FlashAI excerpt (RO/EN)', () => {
     expect(excerpt.length).toBeGreaterThanOrEqual(180)
     expect(excerpt.length).toBeLessThanOrEqual(300)
     expect(editorial.startsWith(excerpt)).toBe(true)
+    expect(excerpt.startsWith(language === 'ro' ? 'Cercetătorii' : 'Researchers')).toBe(true)
     expect(excerpt.endsWith('.')).toBe(true)
   })
 
