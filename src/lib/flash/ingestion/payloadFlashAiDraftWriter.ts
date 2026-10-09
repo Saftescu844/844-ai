@@ -40,7 +40,9 @@ export async function createFlashAiDraft({
     projection.editorialStatus !== 'draft' ||
     projection.automationDecision !== 'review' ||
     projection._status !== 'draft' ||
-    projection.generatAutomat !== true
+    projection.generatAutomat !== true ||
+    !projection.excerpt?.trim() ||
+    projection.excerpt.length > 300
   ) {
     throw new Error(
       'FlashAI draft writer requires a safe draft projection.',

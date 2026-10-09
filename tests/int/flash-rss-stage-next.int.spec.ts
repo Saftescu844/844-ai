@@ -29,6 +29,14 @@ describe(
         )
 
         expect(source).toContain(
+          'd479e8ea-00a4-4b58-87a0-fc3221f4679c',
+        )
+
+        expect(source).toContain(
+          'ALLOWED_STAGING_SERVICE_IDS',
+        )
+
+        expect(source).toContain(
           '--allow-staging-rss-stage-next',
         )
 
@@ -49,7 +57,15 @@ describe(
         )
 
         expect(source).toContain(
+          'allowPendingEventIdentityReviewPair',
+        )
+
+        expect(source).not.toContain(
           '--require-grounded-event-identity',
+        )
+
+        expect(source).toContain(
+          'safe review-only bridge',
         )
 
         expect(source).toContain(
@@ -57,7 +73,27 @@ describe(
         )
 
         expect(source).toContain(
-          'FLASH_RSS_STAGE_NEXT_SKIPPED',
+          'FLASH_RSS_STAGE_NEXT_SKIP_REMEMBERED',
+        )
+
+        expect(source).toContain(
+          'FLASH_RSS_STAGE_NEXT_SKIP_TRANSIENT',
+        )
+
+        expect(source).toContain(
+          'invalid_output_too_short',
+        )
+
+        expect(source).toContain(
+          'invalid_output_too_long',
+        )
+
+        expect(source).toContain(
+          'rssCandidateSkipMemory',
+        )
+
+        expect(source).toContain(
+          'rememberFlashRssCandidateSkip',
         )
 
         expect(source).toContain(

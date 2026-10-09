@@ -1,4 +1,5 @@
-import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri, getFlashAiPilon, getFlashAiEducatie } from '@/lib/payload'
+import type { Metadata } from 'next'
+import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri, getFlashAiPilon, getFlashAiEducatie, getFlashAiSanatate } from '@/lib/payload'
 import { notFound } from 'next/navigation'
 
 const PILONI: Record<string, { ro: string; en: string }> = {
@@ -7,6 +8,103 @@ const PILONI: Record<string, { ro: string; en: string }> = {
   educatie: { ro: 'Educație', en: 'Education' },
   tools: { ro: 'Tool Directory', en: 'Tool Directory' },
   afaceri: { ro: 'Afaceri și productivitate', en: 'Business & Productivity' },
+}
+
+const PILON_SEO: Record<
+  string,
+  {
+    ro: { title: string; description: string }
+    en: { title: string; description: string }
+  }
+> = {
+  stiri: {
+    ro: {
+      title: 'Știri AI și noutăți despre inteligența artificială',
+      description:
+        'Știri și evoluții importante din inteligența artificială, explicate clar și cu accent pe impactul lor pentru oameni și societate.',
+    },
+    en: {
+      title: 'AI News and Artificial Intelligence Updates',
+      description:
+        'Important artificial intelligence news and developments, explained clearly with a focus on their impact on people and society.',
+    },
+  },
+  sanatate: {
+    ro: {
+      title: 'AI în sănătate și medicină',
+      description:
+        'Inteligența artificială în sănătate: diagnostic, imagistică, asistență clinică, cercetare, reglementare și aplicații pentru pacienți.',
+    },
+    en: {
+      title: 'AI in Health and Medicine',
+      description:
+        'Artificial intelligence in health: diagnostics, imaging, clinical support, research, regulation, and applications for patients.',
+    },
+  },
+  educatie: {
+    ro: {
+      title: 'AI în educație, învățare și cercetare',
+      description:
+        'Resurse și explicații despre folosirea inteligenței artificiale în educație, învățare, predare și cercetare.',
+    },
+    en: {
+      title: 'AI in Education, Learning and Research',
+      description:
+        'Resources and explanations about using artificial intelligence in education, learning, teaching, and research.',
+    },
+  },
+  tools: {
+    ro: {
+      title: 'Tool Directory: instrumente și aplicații AI',
+      description:
+        'Descoperă instrumente și aplicații AI utile, organizate pentru muncă, educație, productivitate, creație și utilizare de zi cu zi.',
+    },
+    en: {
+      title: 'Tool Directory: AI Tools and Applications',
+      description:
+        'Discover useful AI tools and applications organized for work, education, productivity, creativity, and everyday use.',
+    },
+  },
+  afaceri: {
+    ro: {
+      title: 'AI pentru afaceri și productivitate',
+      description:
+        'Inteligența artificială pentru afaceri: productivitate, automatizare, strategie, instrumente și exemple practice de utilizare.',
+    },
+    en: {
+      title: 'AI for Business and Productivity',
+      description:
+        'Artificial intelligence for business: productivity, automation, strategy, tools, and practical examples of use.',
+    },
+  },
+}
+
+export async function generateMetadata(props: {
+  params: Promise<{ lang: string; pilon: string }>
+}): Promise<Metadata> {
+  const { lang, pilon } = await props.params
+
+  if (
+    (lang !== 'ro' && lang !== 'en') ||
+    !PILONI[pilon] ||
+    !PILON_SEO[pilon]
+  ) {
+    return {}
+  }
+
+  const seo = PILON_SEO[pilon][lang]
+
+  return {
+    title: seo.title,
+    description: seo.description,
+    alternates: {
+      canonical: `/${lang}/pilon/${pilon}`,
+      languages: {
+        ro: `/ro/pilon/${pilon}`,
+        en: `/en/pilon/${pilon}`,
+      },
+    },
+  }
 }
 
 const PRET: Record<string, { ro: string; en: string }> = {
@@ -72,7 +170,29 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
   // SĂNĂTATE: submeniuri pe subcategorii
   if (pilon === 'sanatate') {
     const { sub } = await props.searchParams
-    const { docs: articole } = await getArticoleSanatate(lang, sub)
+    const [
+      { docs: articole },
+      { docs: flashuri },
+    ] = await Promise.all([
+      getArticoleSanatate(lang, sub),
+      getFlashAiSanatate(lang, sub),
+    ])
+
+    const continut = [
+      ...articole.map((item: any) => ({
+        kind: 'article' as const,
+        item,
+      })),
+      ...flashuri.map((item: any) => ({
+        kind: 'flash' as const,
+        item,
+      })),
+    ].sort(
+      (a, b) =>
+        timestamp(b.item.publishedAt) -
+        timestamp(a.item.publishedAt),
+    )
+
     const SUBMENIURI = [
       { slug: '', ro: 'Toate', en: 'All' },
       { slug: 'diagnostic', ro: 'Diagnostic și imagistică', en: 'Diagnostics & Imaging' },
@@ -99,11 +219,15 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
             )
           })}
         </nav>
-        {articole.length === 0 ? (
-          <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu sunt articole în această secțiune.' : 'No articles in this section yet.'}</p>
+        {continut.length === 0 ? (
+          <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu este conținut în această secțiune.' : 'No content in this section yet.'}</p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 18 }}>
-            {articole.map((a: any) => <CardArticol key={a.id} a={a} lang={lang} />)}
+            {continut.map(({ kind, item }: any) =>
+              kind === 'flash'
+                ? <CardFlash key={`flash-${item.id}`} flash={item} lang={lang} />
+                : <CardArticol key={`article-${item.id}`} a={item} lang={lang} />,
+            )}
           </div>
         )}
       </div>
@@ -169,8 +293,6 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
           </div>
         )}
 
-        {sub !== 'invatare-ai' && (
-          <>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{lang === 'ro' ? 'Articole' : 'Articles'}</h2>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
           {SUBMENIURI.map((s) => {
@@ -183,8 +305,6 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
             )
           })}
         </nav>
-          </>
-        )}
         {continut.length === 0 ? (
           <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu este conținut în această secțiune.' : 'No content in this section yet.'}</p>
         ) : (

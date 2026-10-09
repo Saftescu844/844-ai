@@ -82,6 +82,9 @@ function projection():
     titlu:
       'Titlu editorial verificat',
 
+    excerpt:
+      'Rezumat editorial verificat',
+
     limba:
       'ro',
 

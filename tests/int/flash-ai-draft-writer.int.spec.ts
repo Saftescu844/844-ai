@@ -9,6 +9,10 @@ import type {
 } from '@/payload-types'
 
 import {
+  buildVerifiedFlashEditorialLexicalContent,
+} from '@/lib/flash/editorialContentLexical'
+
+import {
   projectFlashAiDraftFromPersistenceReadiness,
   type FlashAiDraftProjection,
 } from '@/lib/flash/ingestion/articleCandidateFlashAiDraftProjection'
@@ -52,6 +56,9 @@ describe(
           FlashAiDraftProjection = {
             titlu:
               'Titlu editorial verificat',
+
+            excerpt:
+              'Rezumat editorial verificat',
 
             limba:
               'ro',
@@ -282,7 +289,12 @@ it(
             'Titlu editorial verificat',
 
           lexicalContent:
-            {} as never,
+            buildVerifiedFlashEditorialLexicalContent([
+              Array.from(
+                { length: 500 },
+                () => 'cuvânt',
+              ).join(' '),
+            ]),
         },
 
         sourceGroundedValues: {
@@ -417,5 +429,38 @@ it(
     ).toBe(
       false,
     )
+  },
+)
+
+
+it.each([
+  ['', 'empty'],
+  ['   ', 'whitespace-only'],
+])(
+  'rejects an %s generated excerpt before any Payload write',
+  async (excerpt) => {
+    let writes = 0
+    const payload = {
+      create: async () => {
+        writes += 1
+        return { id: 99 } as FlashAi
+      },
+    } as unknown as FlashAiDraftWriterPayload
+
+    await expect(
+      createFlashAiDraft({
+        payload,
+        projection: {
+          editorialStatus: 'draft',
+          automationDecision: 'review',
+          _status: 'draft',
+          generatAutomat: true,
+          excerpt,
+        } as FlashAiDraftProjection,
+      }),
+    ).rejects.toThrow(
+      'FlashAI draft writer requires a safe draft projection.',
+    )
+    expect(writes).toBe(0)
   },
 )

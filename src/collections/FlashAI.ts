@@ -257,6 +257,36 @@ export const FlashAI: CollectionConfig = {
       index: true,
     },
     {
+      name: 'subcategorie',
+      type: 'select',
+      index: true,
+      options: [
+        { label: 'Diagnostic și imagistică', value: 'diagnostic' },
+        { label: 'Descoperirea de medicamente', value: 'medicamente' },
+        { label: 'Asistență clinică', value: 'asistenta-clinica' },
+        { label: 'Reglementare și etică', value: 'reglementare' },
+        { label: 'AI pentru pacienți', value: 'pacienti' },
+      ],
+      admin: {
+        description: 'Submeniu Sănătate. Nu se deduce din flashType; se validează editorial înainte de publicare.',
+      },
+    },
+    {
+      name: 'subcategorieEducatie',
+      type: 'select',
+      index: true,
+      options: [
+        { label: 'Învățare AI', value: 'invatare-ai' },
+        { label: 'AI în școli și universități', value: 'institutii' },
+        { label: 'Instrumente educaționale AI', value: 'instrumente-edu' },
+        { label: 'Cercetare și inovație', value: 'cercetare' },
+        { label: 'Cariere în AI', value: 'cariere' },
+      ],
+      admin: {
+        description: 'Submeniu Educație. Independent de tipul știrii Flash AI.',
+      },
+    },
+    {
       name: 'flashType',
       type: 'select',
       required: true,
