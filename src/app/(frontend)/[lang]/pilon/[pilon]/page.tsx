@@ -170,7 +170,31 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
   // SĂNĂTATE: submeniuri pe subcategorii
   if (pilon === 'sanatate') {
     const { sub } = await props.searchParams
-    const { docs: articole } = await getArticoleSanatate(lang, sub)
+    const [
+      { docs: articole },
+      { docs: flashuri },
+    ] = await Promise.all([
+      getArticoleSanatate(lang, sub),
+      sub
+        ? Promise.resolve({ docs: [] as any[] })
+        : getFlashAiPilon(lang, 'sanatate'),
+    ])
+
+    const continut = [
+      ...articole.map((item: any) => ({
+        kind: 'article' as const,
+        item,
+      })),
+      ...flashuri.map((item: any) => ({
+        kind: 'flash' as const,
+        item,
+      })),
+    ].sort(
+      (a, b) =>
+        timestamp(b.item.publishedAt) -
+        timestamp(a.item.publishedAt),
+    )
+
     const SUBMENIURI = [
       { slug: '', ro: 'Toate', en: 'All' },
       { slug: 'diagnostic', ro: 'Diagnostic și imagistică', en: 'Diagnostics & Imaging' },
@@ -197,11 +221,15 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
             )
           })}
         </nav>
-        {articole.length === 0 ? (
-          <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu sunt articole în această secțiune.' : 'No articles in this section yet.'}</p>
+        {continut.length === 0 ? (
+          <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu este conținut în această secțiune.' : 'No content in this section yet.'}</p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 18 }}>
-            {articole.map((a: any) => <CardArticol key={a.id} a={a} lang={lang} />)}
+            {continut.map(({ kind, item }: any) =>
+              kind === 'flash'
+                ? <CardFlash key={`flash-${item.id}`} flash={item} lang={lang} />
+                : <CardArticol key={`article-${item.id}`} a={item} lang={lang} />,
+            )}
           </div>
         )}
       </div>
