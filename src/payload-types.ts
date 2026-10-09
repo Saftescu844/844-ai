@@ -771,6 +771,10 @@ export interface FlashAi {
    */
   versiuneAlternativa?: (number | null) | FlashAi;
   pilon: number | Categorii;
+  /** Submeniul medical, independent de flashType. */
+  subcategorie?: ('diagnostic' | 'medicamente' | 'asistenta-clinica' | 'reglementare' | 'pacienti') | null;
+  /** Submeniul educațional, independent de flashType. */
+  subcategorieEducatie?: ('invatare-ai' | 'institutii' | 'instrumente-edu' | 'cercetare' | 'cariere') | null;
   flashType: 'announcement' | 'research' | 'regulation' | 'product' | 'business' | 'incident' | 'update' | 'other';
   excerpt?: string | null;
   /**
@@ -1492,6 +1496,8 @@ export interface FlashAiSelect<T extends boolean = true> {
   limba?: T;
   versiuneAlternativa?: T;
   pilon?: T;
+  subcategorie?: T;
+  subcategorieEducatie?: T;
   flashType?: T;
   excerpt?: T;
   continut?: T;

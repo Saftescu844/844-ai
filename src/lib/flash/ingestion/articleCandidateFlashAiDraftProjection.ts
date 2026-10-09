@@ -22,6 +22,8 @@ export interface FlashAiDraftProjection {
   excerpt: string
   limba: FlashTargetLanguage
   pilon: number
+  subcategorie?: FlashAi['subcategorie']
+  subcategorieEducatie?: FlashAi['subcategorieEducatie']
   flashType: FlashAi['flashType']
   continut: FlashAi['continut']
 
@@ -114,6 +116,9 @@ export function projectFlashAiDraftFromPersistenceReadiness(
 
     pilon:
       classification.pilonId,
+
+    ...(classification.subcategorie ? { subcategorie: classification.subcategorie } : {}),
+    ...(classification.subcategorieEducatie ? { subcategorieEducatie: classification.subcategorieEducatie } : {}),
 
     flashType:
       classification.flashType,

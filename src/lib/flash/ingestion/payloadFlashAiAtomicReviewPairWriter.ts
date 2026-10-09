@@ -364,6 +364,17 @@ export async function createFlashAiAtomicReviewPair({
       en,
     )
 
+  // One article pair has one subject in both languages.
+  // A disagreement requires editorial review rather than divergent menus.
+  if (
+    (ro.projection.subcategorie ?? null) !== (en.projection.subcategorie ?? null) ||
+    (ro.projection.subcategorieEducatie ?? null) !== (en.projection.subcategorieEducatie ?? null)
+  ) {
+    throw new Error(
+      'FlashAI atomic pair requires identical editorial subcategories for RO and EN.',
+    )
+  }
+
   const {
     eventFingerprint,
     pendingEventIdentity,
