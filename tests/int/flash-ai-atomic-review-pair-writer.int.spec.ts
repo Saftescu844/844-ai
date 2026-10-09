@@ -65,6 +65,10 @@ describe(
         )
 
         expect(source).toContain(
+          '!projection.excerpt?.trim()',
+        )
+
+        expect(source).toContain(
           "editorialStatus:\n              'review'",
         )
 
