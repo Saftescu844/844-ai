@@ -88,6 +88,9 @@ function projection(
     titlu:
       'A patra reuniune a grupului de semnatari GPAI',
 
+    excerpt:
+      'Rezumat editorial verificat',
+
     limba:
       'ro',
 
