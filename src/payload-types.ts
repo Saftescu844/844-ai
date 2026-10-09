@@ -1496,6 +1496,8 @@ export interface FlashAiSelect<T extends boolean = true> {
   limba?: T;
   versiuneAlternativa?: T;
   pilon?: T;
+  subcategorie?: T;
+  subcategorieEducatie?: T;
   flashType?: T;
   excerpt?: T;
   continut?: T;
