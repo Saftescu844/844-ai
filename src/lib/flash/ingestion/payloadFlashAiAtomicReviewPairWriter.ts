@@ -79,7 +79,9 @@ function assertSafeDraftProjection(
     projection._status !==
       'draft' ||
     projection.generatAutomat !==
-      true
+      true ||
+    !projection.excerpt?.trim() ||
+    projection.excerpt.length > 300
   ) {
     throw new Error(
       `FlashAI atomic pair requires a safe ${expectedLanguage.toUpperCase()} draft projection.`,
