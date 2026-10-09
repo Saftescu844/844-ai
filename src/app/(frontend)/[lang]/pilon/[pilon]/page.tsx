@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri, getFlashAiPilon, getFlashAiEducatie } from '@/lib/payload'
+import { getTooluri, getArticolePilon, getArticoleSanatate, getArticoleEducatie, getCursuri, getFlashAiPilon, getFlashAiEducatie, getFlashAiSanatate } from '@/lib/payload'
 import { notFound } from 'next/navigation'
 
 const PILONI: Record<string, { ro: string; en: string }> = {
@@ -175,9 +175,7 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
       { docs: flashuri },
     ] = await Promise.all([
       getArticoleSanatate(lang, sub),
-      sub
-        ? Promise.resolve({ docs: [] as any[] })
-        : getFlashAiPilon(lang, 'sanatate'),
+      getFlashAiSanatate(lang, sub),
     ])
 
     const continut = [
@@ -295,8 +293,6 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
           </div>
         )}
 
-        {sub !== 'invatare-ai' && (
-          <>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{lang === 'ro' ? 'Articole' : 'Articles'}</h2>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
           {SUBMENIURI.map((s) => {
@@ -309,8 +305,6 @@ export default async function PaginaPilon(props: { params: Promise<{ lang: strin
             )
           })}
         </nav>
-          </>
-        )}
         {continut.length === 0 ? (
           <p style={{ color: '#888' }}>{lang === 'ro' ? 'Încă nu este conținut în această secțiune.' : 'No content in this section yet.'}</p>
         ) : (
