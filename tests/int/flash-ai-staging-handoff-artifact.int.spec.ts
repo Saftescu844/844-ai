@@ -27,7 +27,9 @@ it(
 
     const lexicalContent =
       buildVerifiedFlashEditorialLexicalContent([
-        'Conținut editorial verificat pentru handoff-ul STAGING.',
+        Array.from({ length: 6 }, () =>
+          'Conținut editorial verificat pentru handoff-ul STAGING.',
+        ).join(' '),
       ])
 
     const candidate = {
