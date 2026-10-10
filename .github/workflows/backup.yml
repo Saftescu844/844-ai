@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: '0 2 * * *'
   workflow_dispatch: {}
+  # Declanșator temporar pentru unicul test automat pe ramura de verificare.
+  push:
+    branches:
+      - fix/backup-dedicated-rls-safe-20261010
 
 permissions:
   contents: read
