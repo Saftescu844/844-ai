@@ -34,6 +34,32 @@ jobs:
             echo "::error::Secretul BACKUP_DATABASE_URL lipsește. DATABASE_URL al publicatorului rămâne neschimbat."
             exit 1
           fi
+          # Diagnostichează DOAR structura conexiunii, fără afișarea URI/parolei.
+          python3 - <<'PY'
+          import os
+          import sys
+          from urllib.parse import urlsplit
+
+          try:
+              uri = urlsplit(os.environ["BACKUP_DATABASE_URL"])
+              checks = {
+                  "Protocol PostgreSQL": uri.scheme in ("postgresql", "postgres"),
+                  "Utilizator Session pooler": uri.username == "postgres.hyapqvnubhwkwmwudeit",
+                  "Server Session pooler": uri.hostname == "aws-0-eu-central-1.pooler.supabase.com",
+                  "Port Session pooler": uri.port == 5432,
+                  "Baza de date": uri.path == "/postgres",
+                  "Parola prezenta": bool(uri.password) and uri.password != "[YOUR-PASSWORD]",
+              }
+          except (ValueError, KeyError):
+              print("::error::Format URI nevalid. Nu s-a afisat niciun credential.")
+              sys.exit(1)
+
+          for label, ok in checks.items():
+              print(f"{label}: {'OK' if ok else 'INVALID'}")
+          if not all(checks.values()):
+              print("::error::Corecteaza numai BACKUP_DATABASE_URL; detaliile secrete nu sunt afisate.")
+              sys.exit(1)
+          PY
           can_bypass_rls=$(
             /usr/lib/postgresql/17/bin/psql "$BACKUP_DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1 \
               -c 'SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user'
