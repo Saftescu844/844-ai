@@ -34,7 +34,10 @@ jobs:
             echo "::error::Secretul BACKUP_DATABASE_URL lipsește. DATABASE_URL al publicatorului rămâne neschimbat."
             exit 1
           fi
-          can_bypass_rls=$(/usr/lib/postgresql/17/bin/psql "$BACKUP_DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1             -c 'SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user')
+          can_bypass_rls=$(
+            /usr/lib/postgresql/17/bin/psql "$BACKUP_DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1 \
+              -c 'SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user'
+          )
           if [[ "$can_bypass_rls" != "t" ]]; then
             echo "::error::Rolul din BACKUP_DATABASE_URL nu are BYPASSRLS. Backupul s-a oprit pentru a preveni o copie incompletă."
             exit 1
