@@ -195,6 +195,69 @@ describe(
       },
     )
 
+    it('grounds an official NBER Paper link as its documented working-paper DOI', () => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({
+          primaryEvidenceUrls: [
+            'https://www.nber.org/papers/w35720',
+          ],
+        }),
+      )
+      expect(result).toMatchObject({
+        status: 'grounded',
+        reason: 'single_explicit_primary_identifier',
+        identity: {
+          authority: 'doi',
+          stableId: '10.3386/w35720',
+        },
+      })
+    })
+
+    it('gives labelled primary NBER evidence precedence over a matching body-only DOI', () => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({
+          bodyText: 'The report DOI: 10.3386/w35720 is referenced.',
+          primaryEvidenceUrls: [
+            'https://nber.org/papers/w35720?utm_source=example#paper',
+          ],
+        }),
+      )
+      expect(result.status).toBe('grounded')
+      expect(result.identity).toEqual({
+        authority: 'doi',
+        stableId: '10.3386/w35720',
+      })
+      expect(result.candidates).toHaveLength(1)
+    })
+
+    it.each([
+      'http://www.nber.org/papers/w35720',
+      'https://user@www.nber.org/papers/w35720',
+      'https://www.nber.org:444/papers/w35720',
+      'https://nber.org.example.com/papers/w35720',
+      'https://www.nber.org/papers/w35720.pdf',
+      'https://www.nber.org/papers/random',
+    ])('does not ground event identity from an invalid NBER evidence URL: %s', url => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({ primaryEvidenceUrls: [url] }),
+      )
+      expect(result.status).toBe('pending')
+      expect(result.identity).toBeNull()
+    })
+
+    it('blocks a conflicting NBER DOI and arXiv identifier as ambiguous', () => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({
+          primaryEvidenceUrls: [
+            'https://www.nber.org/papers/w35720',
+            'https://arxiv.org/abs/2609.20738',
+          ],
+        }),
+      )
+      expect(result.status).toBe('ambiguous')
+      expect(result.identity).toBeNull()
+    })
+
     it(
       'marks multiple distinct primary arXiv evidence links as ambiguous',
       () => {
