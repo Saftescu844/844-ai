@@ -5,6 +5,9 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -19,21 +22,41 @@ jobs:
 
       - name: Verifică versiunea pg_dump instalată
         run: |
-          which pg_dump
-          pg_dump --version
-          ls -la /usr/lib/postgresql/*/bin/pg_dump 2>/dev/null || echo "niciun binar versionat găsit"
+          /usr/lib/postgresql/17/bin/pg_dump --version
+          /usr/lib/postgresql/17/bin/psql --version
 
-      - name: Creează backup
+      - name: Verifică conexiunea dedicată și permisiunile pentru backup complet
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
         run: |
-          TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
-          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --schema=public -F c -f "backup_${TIMESTAMP}.dump"
-          ls -lh backup_${TIMESTAMP}.dump
+          set -euo pipefail
+          if [[ -z "${BACKUP_DATABASE_URL:-}" ]]; then
+            echo "::error::Secretul BACKUP_DATABASE_URL lipsește. DATABASE_URL al publicatorului rămâne neschimbat."
+            exit 1
+          fi
+          can_bypass_rls=$(/usr/lib/postgresql/17/bin/psql "$BACKUP_DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1             -c 'SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user')
+          if [[ "$can_bypass_rls" != "t" ]]; then
+            echo "::error::Rolul din BACKUP_DATABASE_URL nu are BYPASSRLS. Backupul s-a oprit pentru a preveni o copie incompletă."
+            exit 1
+          fi
+          echo "Rol de backup verificat (BYPASSRLS); politicile RLS nu au fost modificate."
+
+      - name: Creează și verifică arhiva pentru schema public
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          timestamp=$(date -u +%Y%m%d_%H%M%S)
+          output="backup_${timestamp}.dump"
+          /usr/lib/postgresql/17/bin/pg_dump "$BACKUP_DATABASE_URL" --schema=public -F c -f "$output"
+          test -s "$output"
+          /usr/lib/postgresql/17/bin/pg_restore --list "$output" >/dev/null
+          ls -lh "$output"
 
       - name: Încarcă backup ca artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ github.run_id }}
-          path: "*.dump"
+          path: '*.dump'
+          if-no-files-found: error
           retention-days: 90
