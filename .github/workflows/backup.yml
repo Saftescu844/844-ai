@@ -70,6 +70,26 @@ jobs:
           fi
           echo "Rol de backup verificat (BYPASSRLS); politicile RLS nu au fost modificate."
 
+      - name: Diagnostichează spațiul și scrierea criptată (date sintetice)
+        env:
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          echo "Spațiu pe runner (directorul de lucru):"
+          df -h .
+          echo "Spațiu inoduri:"
+          df -i .
+          echo "Limita dimensiunii fișierelor (blocuri):"
+          ulimit -f
+          test_output="test_write_${GITHUB_RUN_ID}.dump.enc"
+          trap 'rm -f "$test_output"' EXIT
+          # Numai date sintetice: confirmă că OpenSSL poate scrie în directorul de lucru.
+          head -c 1048576 /dev/zero | openssl enc -aes-256-cbc -salt -pbkdf2 -iter 600000 -md sha256 \
+            -pass env:BACKUP_ENCRYPTION_PASSPHRASE -out "$test_output"
+          test -s "$test_output"
+          echo "Scriere criptată sintetică: OK"
+          ls -lh "$test_output"
+
       - name: Creează backup criptat și verifică arhiva
         env:
           BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
@@ -82,6 +102,19 @@ jobs:
           fi
           timestamp=$(date -u +%Y%m%d_%H%M%S)
           output="backup_${timestamp}.dump.enc"
+          # În caz de eșec, raportează numai dimensiunea fișierului și spațiul liber.
+          diagnose_archive_failure() {
+            rc=$?
+            if (( rc != 0 )); then
+              if [[ -f "$output" ]]; then
+                printf 'Dimensiune parțială arhivă criptată: '
+                stat -c '%s octeți' "$output"
+              fi
+              echo 'Spațiu liber după eroare:'
+              df -h .
+            fi
+          }
+          trap diagnose_archive_failure EXIT
 
           # pg_dump scrie direct în criptare; niciun fișier .dump necriptat nu este salvat.
           /usr/lib/postgresql/17/bin/pg_dump "$BACKUP_DATABASE_URL" --schema=public -F c | \
