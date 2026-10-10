@@ -122,10 +122,15 @@ jobs:
               -pass env:BACKUP_ENCRYPTION_PASSPHRASE -out "$output"
 
           test -s "$output"
-          # Verifică faptul că arhiva criptată poate fi decriptată și citită de pg_restore.
+          # Verifică arhiva fără a scrie date decriptate pe disc.
+          # pg_restore --list poate ieși după ce citește catalogul intern; cat consumă
+          # restul fluxului pentru ca OpenSSL să nu eșueze cu Broken pipe.
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 \
-            -pass env:BACKUP_ENCRYPTION_PASSPHRASE -in "$output" | \
+            -pass env:BACKUP_ENCRYPTION_PASSPHRASE -in "$output" | {
               /usr/lib/postgresql/17/bin/pg_restore --list >/dev/null
+              cat >/dev/null
+            }
+          echo "Verificare flux decriptat și catalog pg_restore: OK"
           ls -lh "$output"
 
       - name: Încarcă doar arhiva criptată ca artifact
