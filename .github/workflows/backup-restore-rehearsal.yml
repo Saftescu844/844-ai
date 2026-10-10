@@ -63,8 +63,12 @@ jobs:
           CREATE SCHEMA IF NOT EXISTS extensions;
           CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
           CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
+          -- The fresh Docker PostgreSQL database contains public by default;
+          -- the dump must recreate this schema without colliding with it.
+          -- DROP is strictly limited to the disposable restore_rehearsal DB.
+          DROP SCHEMA IF EXISTS public CASCADE;
           SQL
-          echo "Disposable database and required PostgreSQL extensions prepared."
+          echo "Disposable database and required PostgreSQL extensions prepared; default public schema cleared."
 
       - name: Restore real encrypted public schema without a plaintext dump
         env:
