@@ -72,3 +72,40 @@ Targeted tests cover:
 - unchanged article-body/provenance boundaries and source permissions.
 
 The full protected `quality-gate` remains the merge authority for staging.
+
+## 2026-10-10 extension: Google Research primary NBER papers
+
+The original arXiv-only examples above remain valid. Google Research can
+also carry a labelled `Paper` anchor to a **primary NBER working paper**.
+This extension is deliberately narrow:
+
+- Only a `Paper` label extracted by the **Google Research** article adapter
+  qualifies; arbitrary article body links and MIT NBER links do not qualify.
+- Require HTTPS with no credentials or custom port, and the exact host
+  `nber.org` or `www.nber.org`, not a look-alike subdomain.
+- Require the exact path `/papers/w<4-9 digits>` (optional trailing slash);
+  strip tracking parameters and fragments and normalize to
+  `https://www.nber.org/papers/w<number>`.
+- Map that official working-paper identifier deterministically to the
+  NBER DOI pattern `10.3386/w<number>` for the existing `doi` event
+  authority. This is **not** inference from title, publication date, or AI
+  output. The code does not fetch the NBER page or establish article-paper
+  title correspondence by itself.
+- Never select one of multiple distinct labelled primary evidence links:
+  mixed arXiv/NBER (or multiple NBER) evidence fails closed.
+- A confirmed primary DOI takes precedence over the **same DOI** repeated
+  in the article body, which by itself remains contextual and ungrounded.
+
+For the Google Research post `does-better-work-always-mean-better-workers`,
+the publicly documented study is NBER Working Paper 35720, DOI
+`10.3386/w35720`, verified against the official NBER catalog.
+**The live Google `Paper` anchor must still be validated end-to-end
+before asserting that this specific post is unblocked.** The extension
+allows only a source-labelled and strictly allowlisted link, not a
+hand-supplied unverified source.
+
+Fixed integration fixtures include valid and invalid NBER links, spoofed
+domains, secondary citations, ambiguous primary links, normalization
+and existing arXiv regressions. No schema changes, publishing, cron,
+or production configuration are in scope. Run the protected staging
+quality gate before any merge approval.

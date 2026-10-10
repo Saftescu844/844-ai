@@ -109,6 +109,34 @@ function normalizeArxivEvidenceUrl(
   return url.toString()
 }
 
+function normalizeNberPaperEvidenceUrl(
+  value: string,
+  baseUrl: string,
+): string | null {
+  let url: URL
+
+  try {
+    url = new URL(value, baseUrl)
+  } catch {
+    return null
+  }
+
+  const match = /^\/papers\/(w\d{4,9})\/?$/i.exec(url.pathname)
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.port ||
+    host(url) !== 'nber.org' ||
+    !match?.[1]
+  ) {
+    return null
+  }
+
+  // NBER's own working-paper identifier, never a guess from title/date.
+  return `https://www.nber.org/papers/${match[1].toLowerCase()}`
+}
+
 function extractPrimaryEvidenceUrls(
   nodes: Element[],
   adapter: ResearchArticleAdapter,
@@ -130,11 +158,14 @@ function extractPrimaryEvidenceUrls(
     if (!href) continue
 
     const normalized = normalizeArxivEvidenceUrl(href, baseUrl)
+      ?? (adapter === 'google-research'
+        ? normalizeNberPaperEvidenceUrl(href, baseUrl)
+        : null)
     if (normalized) urls.add(normalized)
   }
 
   if (urls.size > 1) {
-    throw new Error('Research article has multiple primary arXiv evidence links.')
+    throw new Error('Research article has multiple distinct primary research evidence links.')
   }
 
   return [...urls]

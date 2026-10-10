@@ -218,45 +218,58 @@ function collectFromPrimaryEvidenceUrls(
         .replace(/^www\./, '')
         .replace(/\.$/, '')
 
-    const match =
-      /^\/abs\/(\d{4}\.\d{4,5})(?:v\d+)?\/?$/.exec(
-        url.pathname,
-      )
-
     if (
       url.protocol !== 'https:' ||
       url.username ||
       url.password ||
-      url.port ||
-      host !== 'arxiv.org' ||
-      !match?.[1]
+      url.port
     ) {
       continue
     }
 
-    pushUniqueCandidate(
-      target,
-      {
-        authority:
-          'arxiv',
-        stableId:
-          normalizeStableId(
-            'arxiv',
-            match[1],
+    const arxivMatch =
+      /^\/abs\/(\d{4}\.\d{4,5})(?:v\d+)?\/?$/.exec(url.pathname)
+
+    if (host === 'arxiv.org' && arxivMatch?.[1]) {
+      pushUniqueCandidate(
+        target,
+        {
+          authority: 'arxiv',
+          stableId: normalizeStableId('arxiv', arxivMatch[1]),
+          sourceField: 'primary_evidence',
+          evidenceText: url.toString(),
+        },
+      )
+      continue
+    }
+
+    // Only an official NBER primary-paper page is accepted.
+    // The NBER working-paper number maps to its documented DOI prefix.
+    // These URLs are extracted from explicitly labelled primary Paper links.
+    const nberMatch =
+      /^\/papers\/(w\d{4,9})\/?$/i.exec(url.pathname)
+
+    if (host === 'nber.org' && nberMatch?.[1]) {
+      pushUniqueCandidate(
+        target,
+        {
+          authority: 'doi',
+          stableId: normalizeStableId(
+            'doi',
+            `10.3386/${nberMatch[1].toLowerCase()}`,
           ),
-        sourceField:
-          'primary_evidence',
-        evidenceText:
-          url.toString(),
-      },
-    )
+          sourceField: 'primary_evidence',
+          evidenceText: url.toString(),
+        },
+      )
+    }
   }
 }
 
 /**
  * Extrage numai identificatori expliciți și verificabili
- * textual din candidatul normalizat sau dintr-un link arXiv primar
- * extras determinist de adaptorul sursei.
+ * textual din candidatul normalizat sau dintr-un link primar
+ * arXiv/NBER extras determinist de adaptorul sursei.
  *
  * Regula de siguranță:
  * - un singur identificator unic din title/lead poate
@@ -293,15 +306,17 @@ export function evaluateExplicitGroundedEventIdentity(
     candidate.lead,
   )
 
+  // Prefer explicitly labelled primary-paper provenance over a matching
+  // DOI repeated in the body (which is otherwise only contextual).
+  collectFromPrimaryEvidenceUrls(
+    collected,
+    candidate.primaryEvidenceUrls,
+  )
+
   collectFromField(
     collected,
     'body',
     candidate.bodyText,
-  )
-
-  collectFromPrimaryEvidenceUrls(
-    collected,
-    candidate.primaryEvidenceUrls,
   )
 
   const candidates =

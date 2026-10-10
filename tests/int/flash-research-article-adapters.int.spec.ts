@@ -63,6 +63,64 @@ describe('Google Research and MIT article adapters', () => {
     ])
   })
 
+  it('accepts a primary Google Paper link to the official NBER working paper', () => {
+    const html = google
+      .replace(
+        'https://arxiv.org/abs/2609.20738v2?utm_source=test#paper',
+        'https://www.nber.org/papers/w35720?utm_source=test#study',
+      )
+      .replace('>Tech report</a>', '>Paper</a>')
+    const article = extract(googleUrl, html)
+    expect(article.primaryEvidenceUrls).toEqual([
+      'https://www.nber.org/papers/w35720',
+    ])
+    expect(normalizeFlashHtmlArticleCandidate(source(googleUrl), article).primaryEvidenceUrls)
+      .toEqual(article.primaryEvidenceUrls)
+  })
+
+  it.each([
+    'http://www.nber.org/papers/w35720',
+    'https://user:password@www.nber.org/papers/w35720',
+    'https://www.nber.org:8443/papers/w35720',
+    'https://nber.org.evil.example/papers/w35720',
+    'https://evil.example/papers/w35720',
+    'https://www.nber.org/papers/w35720.pdf',
+    'https://www.nber.org/papers/not-a-working-paper',
+    'https://www.nber.org/other/w35720',
+  ])('does not promote a non-approved NBER link into primary evidence: %s', link => {
+    const html = google
+      .replace(
+        'https://arxiv.org/abs/2609.20738v2?utm_source=test#paper',
+        link,
+      )
+      .replace('>Tech report</a>', '>Paper</a>')
+    expect(extract(googleUrl, html).primaryEvidenceUrls).toEqual([])
+  })
+
+  it('does not promote a secondary NBER citation, nor a MIT NBER link', () => {
+    const html = google
+      .replace(
+        'https://arxiv.org/abs/2609.20738v2?utm_source=test#paper',
+        'https://www.nber.org/papers/w35720',
+      )
+      .replace('>Tech report</a>', '>Earlier literature</a>')
+    expect(extract(googleUrl, html).primaryEvidenceUrls).toEqual([])
+    const mitNber = mit.replace(
+      'https://arxiv.org/abs/2608.28534',
+      'https://www.nber.org/papers/w35720',
+    )
+    expect(extract(mitUrl, mitNber).primaryEvidenceUrls).toEqual([])
+  })
+
+  it('fails closed on two different labelled primary research links', () => {
+    const mixed = google.replace(
+      '</div>\n<div class="blog-detail-wrapper">',
+      '<a href="https://www.nber.org/papers/w35720">Paper</a></div>\n<div class="blog-detail-wrapper">',
+    )
+    expect(() => extract(googleUrl, mixed))
+      .toThrow('multiple distinct primary research evidence links')
+  })
+
   it('isolates MIT body and preserves funding provenance and meta lead origin', () => {
     const article = extract(mitUrl, mit)
     expect(article.bodyParagraphs).toEqual(['A prototype edits 3D models.', 'Limitations remain.'])
@@ -123,7 +181,7 @@ describe('Google Research and MIT article adapters', () => {
       '</div>\n<div class="blog-detail-wrapper">',
       '<a href="https://arxiv.org/abs/2609.99999">Tech report</a></div>\n<div class="blog-detail-wrapper">',
     )
-    expect(() => extract(googleUrl, ambiguousGoogle)).toThrow('multiple primary arXiv evidence links')
+    expect(() => extract(googleUrl, ambiguousGoogle)).toThrow('multiple distinct primary research evidence links')
   })
   it('rejects invalid calendar dates if normalization is called directly', () => {
     const article = extract(mitUrl, mit)
