@@ -5,6 +5,9 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -19,21 +22,57 @@ jobs:
 
       - name: Verifică versiunea pg_dump instalată
         run: |
-          which pg_dump
-          pg_dump --version
-          ls -la /usr/lib/postgresql/*/bin/pg_dump 2>/dev/null || echo "niciun binar versionat găsit"
+          /usr/lib/postgresql/17/bin/pg_dump --version
+          /usr/lib/postgresql/17/bin/psql --version
 
-      - name: Creează backup
+      - name: Verifică conexiunea dedicată și permisiunile pentru backup complet
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
         run: |
-          TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
-          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --schema=public -F c -f "backup_${TIMESTAMP}.dump"
-          ls -lh backup_${TIMESTAMP}.dump
+          set -euo pipefail
+          if [[ -z "${BACKUP_DATABASE_URL:-}" ]]; then
+            echo "::error::Secretul BACKUP_DATABASE_URL lipsește. DATABASE_URL al publicatorului rămâne neschimbat."
+            exit 1
+          fi
+          can_bypass_rls=$(
+            /usr/lib/postgresql/17/bin/psql "$BACKUP_DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1 \
+              -c 'SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user'
+          )
+          if [[ "$can_bypass_rls" != "t" ]]; then
+            echo "::error::Rolul din BACKUP_DATABASE_URL nu are BYPASSRLS. Backupul s-a oprit pentru a preveni o copie incompletă."
+            exit 1
+          fi
+          echo "Rol de backup verificat (BYPASSRLS); politicile RLS nu au fost modificate."
 
-      - name: Încarcă backup ca artifact
+      - name: Creează backup criptat și verifică arhiva
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [[ ${#BACKUP_ENCRYPTION_PASSPHRASE} -lt 24 ]]; then
+            echo "::error::Adaugă BACKUP_ENCRYPTION_PASSPHRASE (minimum 24 caractere) în GitHub Actions Secrets."
+            exit 1
+          fi
+          timestamp=$(date -u +%Y%m%d_%H%M%S)
+          output="backup_${timestamp}.dump.enc"
+
+          # pg_dump scrie direct în criptare; niciun fișier .dump necriptat nu este salvat.
+          /usr/lib/postgresql/17/bin/pg_dump "$BACKUP_DATABASE_URL" --schema=public -F c | \
+            openssl enc -aes-256-cbc -salt -pbkdf2 -iter 600000 -md sha256 \
+              -pass env:BACKUP_ENCRYPTION_PASSPHRASE -out "$output"
+
+          test -s "$output"
+          # Verifică faptul că arhiva criptată poate fi decriptată și citită de pg_restore.
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 \
+            -pass env:BACKUP_ENCRYPTION_PASSPHRASE -in "$output" | \
+              /usr/lib/postgresql/17/bin/pg_restore --list >/dev/null
+          ls -lh "$output"
+
+      - name: Încarcă doar arhiva criptată ca artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ github.run_id }}
-          path: "*.dump"
+          path: '*.dump.enc'
+          if-no-files-found: error
           retention-days: 90
