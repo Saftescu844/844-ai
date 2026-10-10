@@ -399,3 +399,52 @@ describe(
     )
   },
 )
+
+// Exercise the actual child CLI used by flash-rss-stage-next. Omitting --model
+// deliberately stops execution after the target guard and before DB/provider I/O.
+describe('Flash preview staging worker target guard', () => {
+  const stagingEnvironment = {
+    ...process.env,
+    RAILWAY_PROJECT_ID: '44c37d0f-b300-4462-b001-31259ddae5dd',
+    RAILWAY_ENVIRONMENT_ID: 'a589dc28-1c59-468c-9eb4-351fce8fa17b',
+    RAILWAY_SERVICE_ID: 'd479e8ea-00a4-4b58-87a0-fc3221f4679c',
+    PAYLOAD_DB_PUSH: 'false',
+  }
+
+  function runUntilArgumentValidation(
+    environment: NodeJS.ProcessEnv,
+    language = 'ro',
+  ) {
+    return execFileAsync(process.execPath, [
+      '--import', 'tsx', scriptPath,
+      '--source-id', '6',
+      '--article-url', 'https://example.com/article',
+      '--target-language', language,
+      '--require-grounded-event-identity',
+      '--allow-provider-requests',
+    ], { env: environment, timeout: 10_000 })
+  }
+
+  it.each(['ro', 'en'])('accepts the staging worker for %s', async (language) => {
+    await expect(runUntilArgumentValidation(stagingEnvironment, language))
+      .rejects.toMatchObject({
+        stderr: expect.stringContaining(
+          '--model is required when --allow-provider-requests is set.',
+        ),
+      })
+  })
+
+  it.each([
+    ['RAILWAY_PROJECT_ID', '54c46ab1-ebab-491c-bdbe-571a3fce9ceb'],
+    ['RAILWAY_ENVIRONMENT_ID', '12b22bbd-469f-4cb8-b418-cc2c8e40af6d'],
+    ['RAILWAY_SERVICE_ID', 'unapproved-service'],
+    ['PAYLOAD_DB_PUSH', 'true'],
+  ])('rejects an unauthorized %s', async (key, value) => {
+    await expect(runUntilArgumentValidation({
+      ...stagingEnvironment,
+      [key]: value,
+    })).rejects.toMatchObject({
+      stderr: expect.stringContaining(`Environment mismatch: ${key}.`),
+    })
+  })
+})

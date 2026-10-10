@@ -21,6 +21,8 @@ import * as migration_20260927_164500_db001d_useri_rls from './20260927_164500_d
 import * as migration_20260927_170500_db001e_newsletter_segment_rls from './20260927_170500_db001e_newsletter_segment_rls';
 import * as migration_20260927_172500_db001f_comentarii_rls from './20260927_172500_db001f_comentarii_rls';
 import * as migration_20261003_210058_flash002_source_discovery from './20261003_210058_flash002_source_discovery';
+import * as migration_20261007_134000_flash_rss_candidate_skip_memory from './20261007_134000_flash_rss_candidate_skip_memory';
+import * as migration_20261009_200000_flash_editorial_subcategories from './20261009_200000_flash_editorial_subcategories';
 
 export const migrations = [
   {
@@ -137,5 +139,15 @@ export const migrations = [
     up: migration_20261003_210058_flash002_source_discovery.up,
     down: migration_20261003_210058_flash002_source_discovery.down,
     name: '20261003_210058_flash002_source_discovery'
+  },
+  {
+    up: migration_20261007_134000_flash_rss_candidate_skip_memory.up,
+    down: migration_20261007_134000_flash_rss_candidate_skip_memory.down,
+    name: '20261007_134000_flash_rss_candidate_skip_memory'
+  },
+  {
+    up: migration_20261009_200000_flash_editorial_subcategories.up,
+    down: migration_20261009_200000_flash_editorial_subcategories.down,
+    name: '20261009_200000_flash_editorial_subcategories'
   },
 ];

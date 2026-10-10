@@ -226,12 +226,20 @@ export function buildFlashPrePersistenceClassificationSemanticPrompt(
     '- true only when health, medicine, clinical care, diagnosis, treatment, medical devices, biomedical research, or patient-relevant health evidence is materially part of the article.',
     '- incidental words such as health in a non-medical context are not enough.',
     '',
+    'Editorial submenu (independent of flashType):',
+    '- If selected pilon is Sănătate / Health, use subcategorie with exactly one of: diagnostic, medicamente, asistenta-clinica, reglementare, pacienti.',
+    '- If selected pilon is Educație / Education, use subcategorieEducatie with exactly one of: invatare-ai, institutii, instrumente-edu, cercetare, cariere.',
+    '- For other pilons use null for both. For an uncertain classification, use null rather than guess; editors can correct it.',
+    '- Never infer the submenu from flashType=research or other Flash format labels.',
+    '- subcategorie and subcategorieEducatie must never both be non-null.',
+    '- RO and EN variants of the same item must carry the same editorial subcategory.',
+    '',
     'Return ONLY valid JSON.',
     'Do not use markdown fences.',
     'Do not add commentary or rationale.',
     '',
     'Exact JSON shape:',
-    '{"pilonId":1,"flashType":"announcement|research|regulation|product|business|incident|update|other","informationStatus":"official|confirmed|emerging|preliminary|disputed|unverified","riskLevel":"low|medium|high","isHealthRelated":false}',
+    '{"pilonId":1,"flashType":"announcement|research|regulation|product|business|incident|update|other","informationStatus":"official|confirmed|emerging|preliminary|disputed|unverified","riskLevel":"low|medium|high","isHealthRelated":false,"subcategorie":null,"subcategorieEducatie":null}',
   ].join('\n')
 
   const userPrompt = [

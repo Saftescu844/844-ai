@@ -200,6 +200,17 @@ export const Surse: CollectionConfig = {
       admin: { description: 'Ce poate susține sursa, când este necesară confirmarea independentă și ce subiecte urmărim.' },
     },
     {
+      name: 'rssCandidateSkipMemory',
+      label: 'Memorie tehnică RSS — candidați respinși',
+      type: 'json',
+      defaultValue: [],
+      admin: {
+        hidden: true,
+        readOnly: true,
+        description: 'Memorie tehnică bounded/cooldown pentru candidații RSS respinși de filtrele de calitate. Nu reprezintă conținut editorial.',
+      },
+    },
+    {
       name: 'regiune',
       type: 'select',
       defaultValue: 'global',

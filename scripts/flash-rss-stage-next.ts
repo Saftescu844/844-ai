@@ -33,9 +33,24 @@ import {
 import {
   createFlashAiAtomicReviewPair,
 } from '@/lib/flash/ingestion/payloadFlashAiAtomicReviewPairWriter'
+import {
+  activeFlashRssCandidateSkipUrls,
+  canonicalFlashRssCandidateUrl,
+  rememberFlashRssCandidateSkip,
+  type FlashRssCandidateSkipReason,
+} from '@/lib/flash/ingestion/rssCandidateSkipMemory'
 
 const ONE_SHOT_SERVICE_ID =
   '7be51b73-dc87-4a53-9ad4-879c00aecad6'
+
+const FLASH_ENGINE_WORKER_SERVICE_ID =
+  'd479e8ea-00a4-4b58-87a0-fc3221f4679c'
+
+const ALLOWED_STAGING_SERVICE_IDS =
+  new Set([
+    ONE_SHOT_SERVICE_ID,
+    FLASH_ENGINE_WORKER_SERVICE_ID,
+  ])
 
 const ALLOW_STAGE_FLAG =
   '--allow-staging-rss-stage-next'
@@ -126,37 +141,6 @@ function parseOptionalPositiveInteger(
   return parsed
 }
 
-function canonicalSelectionUrl(
-  value: string,
-): string | null {
-  try {
-    const url =
-      new URL(
-        value.trim(),
-      )
-
-    if (
-      url.protocol !==
-        'http:' &&
-      url.protocol !==
-        'https:'
-    ) {
-      return null
-    }
-
-    if (!url.hostname) {
-      return null
-    }
-
-    url.search = ''
-    url.hash = ''
-
-    return url.toString()
-  } catch {
-    return null
-  }
-}
-
 function publishedAtValue(
   value:
     string | null,
@@ -195,8 +179,9 @@ Behavior:
   - fetches at most 10 items per configured source
   - skips candidates whose source URL is already used by any FlashAI draft/published record
   - tries at most 3 newest remaining candidates per run
-  - skips candidates without grounded event identity before provider calls
+  - allows pending event identity only through the existing safe review-only bridge; otherwise fails closed
   - skips candidates blocked by strong duplicate evidence
+  - remembers quality-filter rejections for 7 days so later runs advance to other candidates
   - generates and QA-checks RO and EN handoffs BEFORE any persistence
   - requires the same grounded event fingerprint for RO and EN
   - atomically creates both drafts, links them reciprocally, and moves both to editorial review
@@ -206,7 +191,7 @@ Behavior:
   - does NOT create a scheduler or cron job
 
 Safety:
-  - execution is restricted to the dedicated Railway STAGING one-shot service
+  - execution is restricted to the dedicated Railway STAGING one-shot service or flash-engine-worker
   - PAYLOAD_DB_PUSH must be exactly false
   - DATABASE_URL must resolve to the known STAGING Supabase project
   - provider calls require --allow-provider-requests
@@ -245,9 +230,13 @@ function assertStageNextEnvironment(
   }
 
   if (
-    environment
-      .RAILWAY_SERVICE_ID !==
-    ONE_SHOT_SERVICE_ID
+    !environment
+      .RAILWAY_SERVICE_ID ||
+    !ALLOWED_STAGING_SERVICE_IDS
+      .has(
+        environment
+          .RAILWAY_SERVICE_ID,
+      )
   ) {
     mismatches.push(
       'RAILWAY_SERVICE_ID',
@@ -270,7 +259,7 @@ function assertStageNextEnvironment(
   ) {
     throw new Error(
       [
-        'Flash RSS stage-next is restricted to the dedicated STAGING one-shot service.',
+        'Flash RSS stage-next is restricted to the dedicated STAGING one-shot service or flash-engine-worker.',
         `Environment mismatch: ${mismatches.join(', ')}.`,
       ].join(
         ' ',
@@ -279,9 +268,31 @@ function assertStageNextEnvironment(
   }
 }
 
-type FlashRssCandidateSkipReason =
-  | 'event_identity_not_grounded'
-  | 'strong_duplicate'
+type FlashRssCandidateTransientSkipReason =
+  | 'editorial_output_too_short'
+  | 'editorial_output_too_long'
+
+class FlashRssCandidateTransientSkipError
+  extends Error {
+  readonly reason:
+    FlashRssCandidateTransientSkipReason
+
+  constructor(
+    reason:
+      FlashRssCandidateTransientSkipReason,
+    message: string,
+  ) {
+    super(
+      message,
+    )
+
+    this.name =
+      'FlashRssCandidateTransientSkipError'
+
+    this.reason =
+      reason
+  }
+}
 
 class FlashRssCandidateSkipError
   extends Error {
@@ -334,7 +345,6 @@ function runPrePersistenceHandoff({
         articleUrl,
         '--target-language',
         targetLanguage,
-        '--require-grounded-event-identity',
         '--allow-provider-requests',
         '--model',
         model,
@@ -405,6 +415,25 @@ function runPrePersistenceHandoff({
       throw new FlashRssCandidateSkipError(
         'strong_duplicate',
         `Candidate is blocked by strong duplicate evidence: ${articleUrl}`,
+      )
+    }
+
+    const transientEditorialReason:
+      FlashRssCandidateTransientSkipReason | null =
+      combinedOutput.includes(
+        'invalid_output_too_short',
+      )
+        ? 'editorial_output_too_short'
+        : combinedOutput.includes(
+              'invalid_output_too_long',
+            )
+          ? 'editorial_output_too_long'
+          : null
+
+    if (transientEditorialReason) {
+      throw new FlashRssCandidateTransientSkipError(
+        transientEditorialReason,
+        `Candidate editorial output failed the word-count gate: ${articleUrl}`,
       )
     }
 
@@ -584,7 +613,7 @@ async function main(): Promise<void> {
 
   const normalizedRequestedCandidateUrl =
     requestedCandidateUrl
-      ? canonicalSelectionUrl(
+      ? canonicalFlashRssCandidateUrl(
           requestedCandidateUrl,
         )
       : null
@@ -625,6 +654,37 @@ async function main(): Promise<void> {
       'No active allowIngestion RSS-ready source found for --source-id.',
     )
   }
+
+  const candidateSkipMemoryBySourceId =
+    new Map(
+      selectedPlans.map(
+        plan => [
+          plan.sourceId,
+          plan.candidateSkipMemory,
+        ] as const,
+      ),
+    )
+
+  const activeSkippedUrlsBySourceId =
+    new Map(
+      selectedPlans.map(
+        plan => [
+          plan.sourceId,
+          activeFlashRssCandidateSkipUrls(
+            plan.candidateSkipMemory,
+          ),
+        ] as const,
+      ),
+    )
+
+  const rememberedRejectedUrlCount =
+    Array.from(
+      activeSkippedUrlsBySourceId.values(),
+    ).reduce(
+      (total, urls) =>
+        total + urls.size,
+      0,
+    )
 
   const discovered:
     FlashRssCandidate[] = []
@@ -680,7 +740,7 @@ async function main(): Promise<void> {
           (flash.surseFlash ?? [])
             .map(
               source =>
-                canonicalSelectionUrl(
+                canonicalFlashRssCandidateUrl(
                   source.url,
                 ),
             )
@@ -700,7 +760,7 @@ async function main(): Promise<void> {
       .filter(
         candidate => {
           const canonicalUrl =
-            canonicalSelectionUrl(
+            canonicalFlashRssCandidateUrl(
               candidate.concreteUrl,
             )
 
@@ -716,9 +776,21 @@ async function main(): Promise<void> {
             return false
           }
 
-          return !existingSourceUrls.has(
-            canonicalUrl,
-          )
+          if (
+            existingSourceUrls.has(
+              canonicalUrl,
+            )
+          ) {
+            return false
+          }
+
+          return !activeSkippedUrlsBySourceId
+            .get(
+              candidate.sourceId,
+            )
+            ?.has(
+              canonicalUrl,
+            )
         },
       )
       .sort(
@@ -773,6 +845,7 @@ async function main(): Promise<void> {
         discovered.length,
       existingSourceUrlCount:
         existingSourceUrls.size,
+      rememberedRejectedUrlCount,
       requestedCandidateUrl:
         normalizedRequestedCandidateUrl,
     })
@@ -887,6 +960,8 @@ async function main(): Promise<void> {
           payload,
           ro,
           en,
+          allowPendingEventIdentityReviewPair:
+            true,
         })
 
       console.log(
@@ -922,10 +997,71 @@ async function main(): Promise<void> {
     } catch (error) {
       if (
         error instanceof
-          FlashRssCandidateSkipError
+          FlashRssCandidateTransientSkipError
       ) {
         console.log(
-          'FLASH_RSS_STAGE_NEXT_SKIPPED',
+          'FLASH_RSS_STAGE_NEXT_SKIP_TRANSIENT',
+        )
+
+        console.log({
+          attempt:
+            attemptIndex + 1,
+          sourceId:
+            candidate.sourceId,
+          sourceName:
+            candidate.sourceName,
+          articleUrl:
+            candidate.concreteUrl,
+          reason:
+            error.reason,
+        })
+
+        continue
+      }
+
+      if (
+        error instanceof
+          FlashRssCandidateSkipError
+      ) {
+        const nextMemory =
+          rememberFlashRssCandidateSkip({
+            value:
+              candidateSkipMemoryBySourceId.get(
+                candidate.sourceId,
+              ),
+            url:
+              candidate.concreteUrl,
+            reason:
+              error.reason,
+          })
+
+        await payload.update({
+          collection:
+            'surse',
+          id:
+            candidate.sourceId,
+          data: {
+            rssCandidateSkipMemory:
+              nextMemory,
+          },
+          overrideAccess:
+            true,
+        })
+
+        candidateSkipMemoryBySourceId.set(
+          candidate.sourceId,
+          nextMemory,
+        )
+
+        activeSkippedUrlsBySourceId.set(
+          candidate.sourceId,
+          activeFlashRssCandidateSkipUrls(
+            nextMemory,
+          ),
+        )
+
+        console.log(
+          'FLASH_RSS_STAGE_NEXT_SKIP_REMEMBERED',
         )
 
         console.log({
@@ -968,6 +1104,14 @@ async function main(): Promise<void> {
     maxAttempts,
     discoveredCount:
       discovered.length,
+    rememberedRejectedUrlCount:
+      Array.from(
+        activeSkippedUrlsBySourceId.values(),
+      ).reduce(
+        (total, urls) =>
+          total + urls.size,
+        0,
+      ),
     requestedCandidateUrl:
       normalizedRequestedCandidateUrl,
   })

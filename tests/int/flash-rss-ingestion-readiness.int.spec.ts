@@ -66,6 +66,8 @@ describe(
             'paraphrase',
           allowAutoPublish:
             false,
+          candidateSkipMemory:
+            [],
           ready:
             false,
           blocker:
@@ -124,6 +126,12 @@ describe(
           result.feedUrl,
         ).toBe(
           'https://digital-strategy.ec.europa.eu/feed.xml',
+        )
+
+        expect(
+          result.candidateSkipMemory,
+        ).toEqual(
+          [],
         )
       },
     )

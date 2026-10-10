@@ -29,12 +29,19 @@ export interface CreateFlashAiAtomicReviewPairInput {
 
   en:
     FlashAiStagingWriteInput
+
+  /**
+   * STAGING-only opt-in. The default remains strict and requires
+   * a grounded event fingerprint, preserving production behavior.
+   */
+  allowPendingEventIdentityReviewPair?:
+    boolean
 }
 
 export interface CreateFlashAiAtomicReviewPairResult {
   roId: number
   enId: number
-  eventFingerprint: string
+  eventFingerprint: string | null
   sourceFingerprint:
     string | null
 }
@@ -72,7 +79,9 @@ function assertSafeDraftProjection(
     projection._status !==
       'draft' ||
     projection.generatAutomat !==
-      true
+      true ||
+    !projection.excerpt?.trim() ||
+    projection.excerpt.length > 300
   ) {
     throw new Error(
       `FlashAI atomic pair requires a safe ${expectedLanguage.toUpperCase()} draft projection.`,
@@ -107,12 +116,26 @@ function assertSafeDraftProjection(
   }
 }
 
-function assertSameGroundedEvent(
+function assertCompatibleEventIdentity({
+  ro,
+  en,
+  sourceFingerprint,
+  allowPendingEventIdentityReviewPair,
+}: {
   ro:
-    FlashAiStagingWriteInput,
+    FlashAiStagingWriteInput
   en:
-    FlashAiStagingWriteInput,
-): string {
+    FlashAiStagingWriteInput
+  sourceFingerprint:
+    string | null
+  allowPendingEventIdentityReviewPair:
+    boolean
+}): {
+  eventFingerprint:
+    string | null
+  pendingEventIdentity:
+    boolean
+} {
   const roEventFingerprint =
     normalizedFingerprint(
       ro.projection
@@ -126,17 +149,64 @@ function assertSameGroundedEvent(
     )
 
   if (
-    !roEventFingerprint ||
-    !enEventFingerprint ||
-    roEventFingerprint !==
-      enEventFingerprint
+    roEventFingerprint &&
+    enEventFingerprint
+  ) {
+    if (
+      roEventFingerprint !==
+        enEventFingerprint
+    ) {
+      throw new Error(
+        'FlashAI atomic pair requires one identical grounded event fingerprint for RO and EN.',
+      )
+    }
+
+    return {
+      eventFingerprint:
+        roEventFingerprint,
+      pendingEventIdentity:
+        false,
+    }
+  }
+
+  if (
+    roEventFingerprint ||
+    enEventFingerprint ||
+    !allowPendingEventIdentityReviewPair ||
+    !sourceFingerprint
   ) {
     throw new Error(
       'FlashAI atomic pair requires one identical grounded event fingerprint for RO and EN.',
     )
   }
 
-  return roEventFingerprint
+  for (const input of [
+    ro,
+    en,
+  ]) {
+    if (
+      input.candidate
+        .sourceRole !==
+        'primary' ||
+      input.candidate
+        .editorialTrust !==
+        'high' ||
+      input.candidate
+        .allowAutoPublish !==
+        false
+    ) {
+      throw new Error(
+        'FlashAI atomic pending-identity pair requires a primary high-trust source with allowAutoPublish=false.',
+      )
+    }
+  }
+
+  return {
+    eventFingerprint:
+      null,
+    pendingEventIdentity:
+      true,
+  }
 }
 
 function assertSameSource(
@@ -186,6 +256,7 @@ async function assertFinalDedupPasses({
   payload,
   input,
   targetLanguage,
+  pendingEventIdentity,
 }: {
   payload:
     Pick<Payload, 'find'>
@@ -195,6 +266,9 @@ async function assertFinalDedupPasses({
 
   targetLanguage:
     'ro' | 'en'
+
+  pendingEventIdentity:
+    boolean
 }): Promise<void> {
   const finalDedup =
     await evaluateFlashArticlePrePersistenceDedupReadOnly(
@@ -213,13 +287,32 @@ async function assertFinalDedupPasses({
       },
     )
 
-  if (
+  const hardDuplicate =
     finalDedup.evidence
       .sourceDuplicateFound ||
     finalDedup.evidence
-      .eventFingerprintDuplicateFound ||
+      .eventFingerprintDuplicateFound
+
+  const pendingIdentityUnsafe =
+    pendingEventIdentity &&
+    (
+      !finalDedup.evidence
+        .finalDedupPending ||
+      finalDedup.evidence
+        .sourceFingerprintReviewSignal ||
+      finalDedup.evidence
+        .titleReviewSignal
+    )
+
+  const groundedIdentityUnsafe =
+    !pendingEventIdentity &&
     finalDedup.evidence
       .finalDedupPending
+
+  if (
+    hardDuplicate ||
+    pendingIdentityUnsafe ||
+    groundedIdentityUnsafe
   ) {
     throw new Error(
       `FlashAI atomic pair final dedup blocked ${targetLanguage.toUpperCase()} persistence.`,
@@ -234,8 +327,10 @@ async function assertFinalDedupPasses({
  * editorial generation, QA, Lexical round-trip and persistence readiness.
  *
  * Safety contract:
- * - same source candidate;
- * - same grounded event fingerprint;
+ * - same source candidate and source fingerprint;
+ * - same grounded event fingerprint by default;
+ * - pending event identity is allowed only behind an explicit opt-in
+ *   for a primary high-trust review-only source;
  * - RO + EN only;
  * - both projections remain draft/review-only;
  * - allowAutoPublish=false on the source candidate;
@@ -248,6 +343,8 @@ export async function createFlashAiAtomicReviewPair({
   payload,
   ro,
   en,
+  allowPendingEventIdentityReviewPair =
+    false,
 }: CreateFlashAiAtomicReviewPairInput): Promise<
   CreateFlashAiAtomicReviewPairResult
 > {
@@ -261,22 +358,38 @@ export async function createFlashAiAtomicReviewPair({
     'en',
   )
 
-  const eventFingerprint =
-    assertSameGroundedEvent(
-      ro,
-      en,
-    )
-
   const sourceFingerprint =
     assertSameSource(
       ro,
       en,
     )
 
+  // One article pair has one subject in both languages.
+  // A disagreement requires editorial review rather than divergent menus.
+  if (
+    (ro.projection.subcategorie ?? null) !== (en.projection.subcategorie ?? null) ||
+    (ro.projection.subcategorieEducatie ?? null) !== (en.projection.subcategorieEducatie ?? null)
+  ) {
+    throw new Error(
+      'FlashAI atomic pair requires identical editorial subcategories for RO and EN.',
+    )
+  }
+
+  const {
+    eventFingerprint,
+    pendingEventIdentity,
+  } =
+    assertCompatibleEventIdentity({
+      ro,
+      en,
+      sourceFingerprint,
+      allowPendingEventIdentityReviewPair,
+    })
+
   /*
    * Re-run the exact final dedup immediately before opening
-   * the pair transaction. The dedicated one-shot service is
-   * the only producer in this controlled STAGING path.
+   * the pair transaction. This controlled RSS path keeps
+   * persistence review-only and explicitly guarded.
    */
   await Promise.all([
     assertFinalDedupPasses({
@@ -285,6 +398,7 @@ export async function createFlashAiAtomicReviewPair({
         ro,
       targetLanguage:
         'ro',
+      pendingEventIdentity,
     }),
 
     assertFinalDedupPasses({
@@ -293,6 +407,7 @@ export async function createFlashAiAtomicReviewPair({
         en,
       targetLanguage:
         'en',
+      pendingEventIdentity,
     }),
   ])
 

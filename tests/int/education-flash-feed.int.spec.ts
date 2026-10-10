@@ -13,7 +13,7 @@ describe(
   'Education Flash AI feed',
   () => {
     it(
-      'includes published Education Flash AI and narrows research to flashType=research',
+      'includes published Education Flash AI in all submenus by editorial classification',
       async () => {
         const payloadSource =
           await readFile(
@@ -39,12 +39,12 @@ describe(
         expect(
           payloadSource,
         ).toContain(
-          "{ flashType: { equals: 'research' } }",
+          "{ subcategorieEducatie: { equals: subcategorie } }",
         )
 
         expect(
           payloadSource,
-        ).toContain(
+        ).not.toContain(
           "subcategorie !== 'cercetare'",
         )
       },

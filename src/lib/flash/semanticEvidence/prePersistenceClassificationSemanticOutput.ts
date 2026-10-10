@@ -31,6 +31,9 @@ export interface FlashPrePersistenceClassificationSemanticOutput {
   informationStatus: FlashPrePersistenceInformationStatus
   riskLevel: FlashPrePersistenceRiskLevel
   isHealthRelated: boolean
+  /** Optional during transition; absent means unclassified, never a guessed submenu. */
+  subcategorie?: 'diagnostic' | 'medicamente' | 'asistenta-clinica' | 'reglementare' | 'pacienti'
+  subcategorieEducatie?: 'invatare-ai' | 'institutii' | 'instrumente-edu' | 'cercetare' | 'cariere'
 }
 
 const FLASH_TYPES =
@@ -61,6 +64,9 @@ const RISK_LEVELS =
     'medium',
     'high',
   ])
+
+const HEALTH_SUBCATEGORIES = new Set(['diagnostic', 'medicamente', 'asistenta-clinica', 'reglementare', 'pacienti'])
+const EDUCATION_SUBCATEGORIES = new Set(['invatare-ai', 'institutii', 'instrumente-edu', 'cercetare', 'cariere'])
 
 type UnknownRecord =
   Record<string, unknown>
@@ -135,6 +141,8 @@ export function parseFlashPrePersistenceClassificationSemanticOutput(
         'informationStatus',
         'riskLevel',
         'isHealthRelated',
+        'subcategorie',
+        'subcategorieEducatie',
       ],
     )
   ) {
@@ -183,7 +191,22 @@ export function parseFlashPrePersistenceClassificationSemanticOutput(
     invalidOutput()
   }
 
+  if (root.subcategorie != null && (typeof root.subcategorie !== 'string' || !HEALTH_SUBCATEGORIES.has(root.subcategorie))) {
+    invalidOutput()
+  }
+
+  if (root.subcategorieEducatie != null && (typeof root.subcategorieEducatie !== 'string' || !EDUCATION_SUBCATEGORIES.has(root.subcategorieEducatie))) {
+    invalidOutput()
+  }
+
+  // Each item belongs to one pillar only. Cross-pillar submenu assignments are invalid.
+  if (root.subcategorie != null && root.subcategorieEducatie != null) {
+    invalidOutput()
+  }
+
   return {
+    ...(typeof root.subcategorie === 'string' ? { subcategorie: root.subcategorie as FlashPrePersistenceClassificationSemanticOutput['subcategorie'] } : {}),
+    ...(typeof root.subcategorieEducatie === 'string' ? { subcategorieEducatie: root.subcategorieEducatie as FlashPrePersistenceClassificationSemanticOutput['subcategorieEducatie'] } : {}),
     pilonId:
       root.pilonId,
     flashType:

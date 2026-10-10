@@ -2,6 +2,13 @@ import type {
   FlashAi,
 } from '@/payload-types'
 
+import {
+  extractFlashEditorialParagraphs,
+} from '../editorialContentLexical'
+import {
+  buildFlashAiExcerptFromVerifiedParagraphs,
+} from './flashAiVerifiedExcerpt'
+
 import type {
   FlashArticlePersistenceReadiness,
 } from './articleCandidatePersistenceReadiness'
@@ -12,8 +19,11 @@ import {
 
 export interface FlashAiDraftProjection {
   titlu: string
+  excerpt: string
   limba: FlashTargetLanguage
   pilon: number
+  subcategorie?: FlashAi['subcategorie']
+  subcategorieEducatie?: FlashAi['subcategorieEducatie']
   flashType: FlashAi['flashType']
   continut: FlashAi['continut']
 
@@ -86,9 +96,18 @@ export function projectFlashAiDraftFromPersistenceReadiness(
     )
   }
 
+  const excerpt =
+    buildFlashAiExcerptFromVerifiedParagraphs(
+      extractFlashEditorialParagraphs(
+        verifiedEditorial.lexicalContent,
+      ),
+    )
+
   return {
     titlu:
       verifiedEditorial.editorialTitle,
+
+    excerpt,
 
     limba:
       resolveFlashTargetLanguage(
@@ -97,6 +116,9 @@ export function projectFlashAiDraftFromPersistenceReadiness(
 
     pilon:
       classification.pilonId,
+
+    ...(classification.subcategorie ? { subcategorie: classification.subcategorie } : {}),
+    ...(classification.subcategorieEducatie ? { subcategorieEducatie: classification.subcategorieEducatie } : {}),
 
     flashType:
       classification.flashType,

@@ -112,6 +112,10 @@ describe(
           'createFlashAiAtomicReviewPair',
         )
 
+        expect(source).not.toContain(
+          'allowPendingEventIdentityReviewPair',
+        )
+
         expect(source).toContain(
           '--allow-production-one-shot',
         )

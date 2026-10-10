@@ -310,7 +310,7 @@ Behavior:
   - does NOT publish or unpublish
 
 Safety:
-  - execution defaults to the configured Railway STAGING main service or dedicated one-shot preview service\n  - PRODUCTION read-only preview requires --allow-production-one-shot, the exact production project/environment, service name flash-rss-production-once, and an explicit matching service ID
+  - execution defaults to the configured Railway STAGING main service, dedicated one-shot preview service, or Flash worker\n  - PRODUCTION read-only preview requires --allow-production-one-shot, the exact production project/environment, service name flash-rss-production-once, and an explicit matching service ID
   - PAYLOAD_DB_PUSH must be exactly false
   - OPENAI_API_KEY is read only after explicit --allow-provider-requests and a non-empty --model
 `)
@@ -420,6 +420,7 @@ function assertReadOnlyExecutionTarget(
         FLASH_ENGINE_STAGING_RAILWAY_TARGET
           .serviceId,
         '7be51b73-dc87-4a53-9ad4-879c00aecad6',
+        'd479e8ea-00a4-4b58-87a0-fc3221f4679c',
       ])
 
     if (

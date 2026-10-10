@@ -475,6 +475,9 @@ it(
       continut:
         lexicalContent,
 
+      excerpt:
+        expect.any(String),
+
       surseFlash: [
         {
           sursa:

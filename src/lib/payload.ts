@@ -159,6 +159,28 @@ export async function getArticolePilon(limba: string, pilonSlug: string) {
 
 const SUBCATEGORII_SANATATE = ['diagnostic', 'medicamente', 'asistenta-clinica', 'reglementare', 'pacienti']
 
+export async function getFlashAiSanatate(limba: string, subcategorie?: string) {
+  if (!LIMBI_VALIDE.includes(limba)) return { docs: [] as any[] }
+  if (subcategorie && !SUBCATEGORII_SANATATE.includes(subcategorie)) return { docs: [] as any[] }
+
+  const payload = await payloadClient()
+  const conditii: any[] = [
+    { limba: { equals: limba } },
+    { _status: { equals: 'published' } },
+    { 'pilon.slug': { equals: 'sanatate' } },
+  ]
+  if (subcategorie) {
+    conditii.push({ subcategorie: { equals: subcategorie } })
+  }
+  return await payload.find({
+    collection: 'flash-ai',
+    where: { and: conditii },
+    limit: 24,
+    sort: '-publishedAt',
+    depth: 2,
+  })
+}
+
 export async function getArticoleSanatate(limba: string, subcategorie?: string) {
   if (!['ro', 'en'].includes(limba)) return { docs: [] as any[] }
   const payload = await payloadClient()
@@ -201,14 +223,10 @@ export async function getArticoleEducatie(limba: string, subcategorie?: string) 
 }
 
 export async function getFlashAiEducatie(limba: string, subcategorie?: string) {
-  if (!['ro', 'en'].includes(limba)) return { docs: [] as any[] }
+  if (!LIMBI_VALIDE.includes(limba)) return { docs: [] as any[] }
 
-  // Flash AI nu are încă subcategoria editorială Educație.
-  // Până când o introducem explicit, mapăm doar cazul sigur:
-  // Educație -> Cercetare și inovație = flashType research.
-  if (subcategorie && subcategorie !== 'cercetare') {
-    return { docs: [] as any[] }
-  }
+  const subcategorii = ['invatare-ai', 'institutii', 'instrumente-edu', 'cercetare', 'cariere']
+  if (subcategorie && !subcategorii.includes(subcategorie)) return { docs: [] as any[] }
 
   const payload = await payloadClient()
   const conditii: any[] = [
@@ -217,8 +235,9 @@ export async function getFlashAiEducatie(limba: string, subcategorie?: string) {
     { 'pilon.slug': { equals: 'educatie' } },
   ]
 
-  if (subcategorie === 'cercetare') {
-    conditii.push({ flashType: { equals: 'research' } })
+  // flashType describes news format, not educational subject.
+  if (subcategorie) {
+    conditii.push({ subcategorieEducatie: { equals: subcategorie } })
   }
 
   return await payload.find({
