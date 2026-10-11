@@ -164,6 +164,35 @@ function normalizeDoiPaperEvidenceUrl(
   return `https://doi.org/${match[1].toLowerCase()}`
 }
 
+function normalizeIeeeXplorePaperEvidenceUrl(
+  value: string,
+  baseUrl: string,
+): string | null {
+  let url: URL
+
+  try {
+    url = new URL(value, baseUrl)
+  } catch {
+    return null
+  }
+
+  // The number is an IEEE Xplore DOCUMENT identifier, not a DOI.
+  // Only an explicitly labelled primary MIT Paper link can supply it.
+  const match = /^\/document\/([1-9]\d{6,9})\/?$/.exec(url.pathname)
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.port ||
+    host(url) !== 'ieeexplore.ieee.org' ||
+    !match?.[1]
+  ) {
+    return null
+  }
+
+  return `https://ieeexplore.ieee.org/document/${match[1]}`
+}
+
 function extractPrimaryEvidenceUrls(
   nodes: Element[],
   adapter: ResearchArticleAdapter,
@@ -200,7 +229,8 @@ function extractPrimaryEvidenceUrls(
     const normalized = normalizeArxivEvidenceUrl(href, baseUrl)
       ?? (adapter === 'google-research'
         ? normalizeNberPaperEvidenceUrl(href, baseUrl)
-        : normalizeDoiPaperEvidenceUrl(href, baseUrl))
+        : normalizeDoiPaperEvidenceUrl(href, baseUrl)
+          ?? normalizeIeeeXplorePaperEvidenceUrl(href, baseUrl))
     if (normalized) urls.add(normalized)
   }
 

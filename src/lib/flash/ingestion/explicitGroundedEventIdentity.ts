@@ -16,6 +16,7 @@ export type FlashExplicitEventIdentityAuthority =
   | 'doi'
   | 'eur-lex-celex'
   | 'arxiv'
+  | 'ieee-xplore'
 
 export interface FlashExplicitEventIdentityCandidate {
   authority:
@@ -280,6 +281,24 @@ function collectFromPrimaryEvidenceUrls(
           evidenceText: url.toString(),
         },
       )
+      continue
+    }
+
+    // IEEE Xplore document IDs are stable identifiers of publisher pages.
+    // Preserve their own authority; never turn the number into a DOI.
+    const ieeeMatch =
+      /^\/document\/([1-9]\d{6,9})\/?$/.exec(url.pathname)
+
+    if (host === 'ieeexplore.ieee.org' && ieeeMatch?.[1]) {
+      pushUniqueCandidate(
+        target,
+        {
+          authority: 'ieee-xplore',
+          stableId: ieeeMatch[1],
+          sourceField: 'primary_evidence',
+          evidenceText: url.toString(),
+        },
+      )
     }
   }
 }
@@ -287,7 +306,7 @@ function collectFromPrimaryEvidenceUrls(
 /**
  * Extrage numai identificatori expliciți și verificabili
  * textual din candidatul normalizat sau dintr-un link primar
- * arXiv/NBER/DOI extras determinist de adaptorul sursei.
+ * arXiv/NBER/DOI/IEEE extras determinist de adaptorul sursei.
  *
  * Regula de siguranță:
  * - un singur identificator unic din title/lead poate
