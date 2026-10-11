@@ -106,16 +106,16 @@ describe(
 
         expect(
           FLASH_EDITORIAL_PREFERRED_MIN_WORDS,
-        ).toBe(650)
+        ).toBe(550)
 
         expect(
           FLASH_EDITORIAL_PREFERRED_MAX_WORDS,
-        ).toBe(800)
+        ).toBe(620)
 
         expect(
           prompt.systemPrompt,
         ).toContain(
-          'preferred working range of 650–800 words',
+          'preferred working range of 550–620 words',
         )
 
         expect(
