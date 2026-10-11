@@ -1,7 +1,7 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 
-import { assertFlashAiStagingWriteAllowed } from '@/lib/flash/ingestion/flashAiStagingWriteGuard'
+import { assertFlashAiStagingReadOnlyDatabase } from '@/lib/flash/ingestion/flashAiStagingWriteGuard'
 import { proposeFlashExcerptFromLexical } from '@/lib/flash/ingestion/flashExcerptReviewPreview'
 
 const STAGING_PROJECT = '44c37d0f-b300-4462-b001-31259ddae5dd'
@@ -26,12 +26,8 @@ async function main(): Promise<void> {
     throw new Error('Excerpt preview restricted to the dedicated Railway staging service.')
   }
 
-  // Reuse the fail-closed staging DB identity check only; passing allowWrite
-  // does NOT enable mutations. This program never calls create/update/delete.
-  assertFlashAiStagingWriteAllowed({
-    allowWrite: true,
-    databaseUrl: process.env.DATABASE_URL,
-  })
+  // Identity-only check: never request or grant write authorization.
+  assertFlashAiStagingReadOnlyDatabase(process.env.DATABASE_URL)
 
   const payload = await getPayload({ config })
   const result = await payload.find({

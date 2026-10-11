@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest'
 import {
   flashPublicationExcerptProblem,
 } from '@/lib/flash/ingestion/flashPublicationExcerptGuard'
+
+import {
+  assertFlashAiStagingReadOnlyDatabase,
+} from '@/lib/flash/ingestion/flashAiStagingWriteGuard'
 import {
   proposeFlashExcerptFromLexical,
 } from '@/lib/flash/ingestion/flashExcerptReviewPreview'
@@ -71,12 +75,35 @@ describe('Flash AI legacy excerpt preview (never a writer)', () => {
     const script = await readFile(resolve('scripts/flash-ai-staging-excerpt-preview.ts'), 'utf8')
     expect(script).toContain('PAYLOAD_DB_PUSH')
     expect(script).toContain('RAILWAY_PROJECT_ID')
-    expect(script).toContain('assertFlashAiStagingWriteAllowed')
+    expect(script).toContain('assertFlashAiStagingReadOnlyDatabase')
+    expect(script).not.toContain('assertFlashAiStagingWriteAllowed')
+    expect(script).not.toContain('allowWrite: true')
     expect(script).toContain("draft: true")
     expect(script).toContain('writeAttempted: false')
     expect(script).toContain('requiredAction:')
     expect(script).not.toMatch(/\bpayload\.(?:update|create|delete)\s*\(/)
     expect(script).not.toContain('allow-provider-requests')
     expect(script).not.toContain('openai')
+  })
+})
+
+describe('Flash AI excerpt preview staging read-only DB identity', () => {
+  it('accepts the approved staging Supabase direct host and pooler', () => {
+    expect(() => assertFlashAiStagingReadOnlyDatabase(
+      'postgresql://postgres:secret@db.tvtnpcqawaekhmhyfrnc.supabase.co:5432/postgres',
+    )).not.toThrow()
+    expect(() => assertFlashAiStagingReadOnlyDatabase(
+      'postgresql://postgres.tvtnpcqawaekhmhyfrnc:secret@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
+    )).not.toThrow()
+  })
+
+  it('rejects production, unapproved, and missing databases', () => {
+    expect(() => assertFlashAiStagingReadOnlyDatabase(
+      'postgresql://postgres.hyapqvnubhwkwmwudeit:secret@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
+    )).toThrow('production database')
+    expect(() => assertFlashAiStagingReadOnlyDatabase(
+      'postgresql://postgres:secret@db.attacker.invalid:5432/postgres?staging=tvtnpcqawaekhmhyfrnc',
+    )).toThrow('unapproved database')
+    expect(() => assertFlashAiStagingReadOnlyDatabase(undefined)).toThrow('DATABASE_URL')
   })
 })
