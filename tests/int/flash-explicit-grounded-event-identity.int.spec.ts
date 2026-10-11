@@ -195,6 +195,53 @@ describe(
       },
     )
 
+    it('grounds an explicitly linked MIT primary IEEE document ID, without manufacturing a DOI', () => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({
+          primaryEvidenceUrls: [
+            'https://ieeexplore.ieee.org/document/11714300',
+          ],
+        }),
+      )
+      expect(result).toMatchObject({
+        status: 'grounded',
+        reason: 'single_explicit_primary_identifier',
+        identity: {
+          authority: 'ieee-xplore',
+          stableId: '11714300',
+        },
+      })
+    })
+
+    it.each([
+      'http://ieeexplore.ieee.org/document/11714300',
+      'https://user@ieeexplore.ieee.org/document/11714300',
+      'https://ieeexplore.ieee.org:8443/document/11714300',
+      'https://ieeexplore.ieee.org.attacker.test/document/11714300',
+      'https://ieeexplore.ieee.org/document/not-a-number',
+      'https://ieeexplore.ieee.org/document/11714300/pdf',
+      'https://ieeexplore.ieee.org/document/00000000',
+    ])('keeps identity pending for untrusted IEEE link: %s', url => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({ primaryEvidenceUrls: [url] }),
+      )
+      expect(result.status).toBe('pending')
+      expect(result.identity).toBeNull()
+    })
+
+    it('keeps mixed IEEE document and DOI evidence ambiguous, not silently aliased', () => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({
+          primaryEvidenceUrls: [
+            'https://ieeexplore.ieee.org/document/11714300',
+            'https://doi.org/10.1109/tro.2026.3738474',
+          ],
+        }),
+      )
+      expect(result.status).toBe('ambiguous')
+      expect(result.identity).toBeNull()
+    })
+
     it('grounds a primary MIT DOI permalink deterministically', () => {
       const result = evaluateExplicitGroundedEventIdentity(
         candidate({
@@ -220,7 +267,7 @@ describe(
             'https://doi.org.evil.example/10.1109/tro.2026.3738474',
             'http://doi.org/10.1109/tro.2026.3738474',
             'https://doi.org/not-a-doi',
-            'https://ieeexplore.ieee.org/document/12345678',
+            'https://ieeexplore.ieee.org/document/invalid-id',
           ],
         }),
       )
