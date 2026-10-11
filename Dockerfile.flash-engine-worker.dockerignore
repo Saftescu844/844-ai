@@ -8,4 +8,13 @@
 !scripts/**
 !public/
 !public/**
+
+# Exact, human-approved MIT SANDO manuscripts needed by the staging-only
+# read-only importer. Do not expose other repository content in the image.
+!content/
+!content/flash-approved/
+content/flash-approved/*
+!content/flash-approved/sando-2026-10-11-ro.md
+!content/flash-approved/sando-2026-10-11-en.md
+
 !Dockerfile.flash-engine-worker
