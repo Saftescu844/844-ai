@@ -151,7 +151,7 @@ function normalizeDoiPaperEvidenceUrl(
 
   // Require an explicit MIT primary Paper link to the DOI authority.
   // An IEEE document number alone cannot establish a DOI identity.
-  const match = /^\/(10\.\d{4,9}\/[a-z0-9][a-z0-9._;():+/-]{0,200})\/?$/i.exec(url.pathname)
+  const match = /^\/(10\.\d{4,9}\/[a-z0-9][a-z0-9._;():+\/-]{0,200})\/?$/i.exec(url.pathname)
   if (
     url.protocol !== 'https:' ||
     url.username || url.password || url.port ||
