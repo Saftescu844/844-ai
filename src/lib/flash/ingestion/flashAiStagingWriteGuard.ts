@@ -107,45 +107,44 @@ function extractSupabaseProjectRef(
  * to the known STAGING Supabase project and explicitly
  * rejects PROD.
  */
+function assertStagingSupabaseIdentity(
+  databaseUrl: string | null | undefined,
+  label: string,
+): void {
+  const normalizedDatabaseUrl = databaseUrl?.trim()
+
+  if (!normalizedDatabaseUrl) {
+    throw new Error(`${label} requires DATABASE_URL.`)
+  }
+
+  const projectRef = extractSupabaseProjectRef(normalizedDatabaseUrl)
+
+  if (projectRef === PRODUCTION_SUPABASE_PROJECT_REF) {
+    throw new Error(`${label} detected the production database.`)
+  }
+
+  if (projectRef !== STAGING_SUPABASE_PROJECT_REF) {
+    throw new Error(`${label} rejected an unapproved database.`)
+  }
+}
+
+/**
+ * Identity verification only. This does not grant or imply write approval.
+ * Used by strictly read-only staging diagnostics.
+ */
+export function assertFlashAiStagingReadOnlyDatabase(
+  databaseUrl: string | null | undefined,
+): void {
+  assertStagingSupabaseIdentity(databaseUrl, 'FlashAI STAGING read-only guard')
+}
+
 export function assertFlashAiStagingWriteAllowed({
   allowWrite,
   databaseUrl,
 }: AssertFlashAiStagingWriteAllowedInput): void {
   if (!allowWrite) {
-    throw new Error(
-      'FlashAI STAGING write is not explicitly approved.',
-    )
+    throw new Error('FlashAI STAGING write is not explicitly approved.')
   }
 
-  const normalizedDatabaseUrl =
-    databaseUrl?.trim()
-
-  if (!normalizedDatabaseUrl) {
-    throw new Error(
-      'FlashAI STAGING write guard requires DATABASE_URL.',
-    )
-  }
-
-  const projectRef =
-    extractSupabaseProjectRef(
-      normalizedDatabaseUrl,
-    )
-
-  if (
-    projectRef ===
-    PRODUCTION_SUPABASE_PROJECT_REF
-  ) {
-    throw new Error(
-      'FlashAI STAGING write guard detected the production database.',
-    )
-  }
-
-  if (
-    projectRef !==
-    STAGING_SUPABASE_PROJECT_REF
-  ) {
-    throw new Error(
-      'FlashAI STAGING write guard rejected an unapproved database.',
-    )
-  }
+  assertStagingSupabaseIdentity(databaseUrl, 'FlashAI STAGING write guard')
 }
