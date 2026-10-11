@@ -195,6 +195,52 @@ describe(
       },
     )
 
+    it('grounds a primary MIT DOI permalink deterministically', () => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({
+          primaryEvidenceUrls: [
+            'https://doi.org/10.1109/tro.2026.3738474',
+          ],
+        }),
+      )
+      expect(result).toMatchObject({
+        status: 'grounded',
+        reason: 'single_explicit_primary_identifier',
+        identity: {
+          authority: 'doi',
+          stableId: '10.1109/tro.2026.3738474',
+        },
+      })
+    })
+
+    it('does not accept malformed or third-party DOI lookalikes as primary evidence', () => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({
+          primaryEvidenceUrls: [
+            'https://doi.org.evil.example/10.1109/tro.2026.3738474',
+            'http://doi.org/10.1109/tro.2026.3738474',
+            'https://doi.org/not-a-doi',
+            'https://ieeexplore.ieee.org/document/12345678',
+          ],
+        }),
+      )
+      expect(result.status).toBe('pending')
+      expect(result.reason).toBe('no_explicit_identifier')
+    })
+
+    it('fails closed when different primary DOI and arXiv identities conflict', () => {
+      const result = evaluateExplicitGroundedEventIdentity(
+        candidate({
+          primaryEvidenceUrls: [
+            'https://doi.org/10.1109/tro.2026.3738474',
+            'https://arxiv.org/abs/2604.07599',
+          ],
+        }),
+      )
+      expect(result.status).toBe('ambiguous')
+      expect(result.identity).toBeNull()
+    })
+
     it('grounds an official NBER Paper link as its documented working-paper DOI', () => {
       const result = evaluateExplicitGroundedEventIdentity(
         candidate({
