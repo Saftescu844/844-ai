@@ -18,6 +18,7 @@ import {
 } from '@/lib/flash/ingestion/articleCandidateSourceFingerprint'
 import {
   parseApprovedSandoEditorial,
+  isApprovedSandoSourceRegistry,
   SANDO_APPROVED_ARTICLE_URL,
   SANDO_APPROVED_CLASSIFICATION,
   SANDO_APPROVED_EVENT_FINGERPRINT,
@@ -135,15 +136,7 @@ async function main() {
     },
   })
   const source = found.docs[0]
-  if (
-    !source ||
-    source.allowIngestion !== true ||
-    source.allowAutoPublish !== false ||
-    source.sourceRole !== 'primary' ||
-    source.editorialTrust !== 'high' ||
-    !Array.isArray(source.pilon) ||
-    !source.pilon.some(p => (typeof p === 'number' ? p : p.id) === 1)
-  ) {
+  if (!isApprovedSandoSourceRegistry(source)) {
     throw new Error('SANDO source registry or allowed pillar changed; refusing import.')
   }
 
