@@ -137,6 +137,33 @@ function normalizeNberPaperEvidenceUrl(
   return `https://www.nber.org/papers/${match[1].toLowerCase()}`
 }
 
+function normalizeDoiPaperEvidenceUrl(
+  value: string,
+  baseUrl: string,
+): string | null {
+  let url: URL
+
+  try {
+    url = new URL(value, baseUrl)
+  } catch {
+    return null
+  }
+
+  // Require an explicit MIT primary Paper link to the DOI authority.
+  // An IEEE document number alone cannot establish a DOI identity.
+  const match = /^\/(10\.\d{4,9}\/[a-z0-9][a-z0-9._;():+\/-]{0,200})\/?$/i.exec(url.pathname)
+  if (
+    url.protocol !== 'https:' ||
+    url.username || url.password || url.port ||
+    host(url) !== 'doi.org' ||
+    !match?.[1]
+  ) {
+    return null
+  }
+
+  return `https://doi.org/${match[1].toLowerCase()}`
+}
+
 function extractPrimaryEvidenceUrls(
   nodes: Element[],
   adapter: ResearchArticleAdapter,
@@ -148,9 +175,22 @@ function extractPrimaryEvidenceUrls(
     if (node.tagName !== 'a') continue
 
     const linkText = clean(node)
+    // MIT also writes "Paper: <linked title>". Use the explicit label
+    // only if its paragraph has exactly one link; unrelated citations
+    // and navigation links must never become primary evidence.
+    let parent: Node | null = 'parentNode' in node ? node.parentNode : null
+    while (parent && (!element(parent) || parent.tagName !== 'p')) {
+      parent = 'parentNode' in parent ? parent.parentNode : null
+    }
+    const labelledMitParagraph =
+      adapter === 'mit-news' &&
+      parent && element(parent) &&
+      /^paper\s*:/i.test(clean(parent)) &&
+      elements(parent).filter(item => item.tagName === 'a').length === 1
+
     const isPrimaryLabel = adapter === 'google-research'
       ? /^(?:tech report|paper)$/i.test(linkText)
-      : /^paper(?:\b|\s*:)/i.test(linkText)
+      : /^paper(?:\b|\s*:)/i.test(linkText) || labelledMitParagraph
 
     if (!isPrimaryLabel) continue
 
@@ -160,7 +200,7 @@ function extractPrimaryEvidenceUrls(
     const normalized = normalizeArxivEvidenceUrl(href, baseUrl)
       ?? (adapter === 'google-research'
         ? normalizeNberPaperEvidenceUrl(href, baseUrl)
-        : null)
+        : normalizeDoiPaperEvidenceUrl(href, baseUrl))
     if (normalized) urls.add(normalized)
   }
 
@@ -216,7 +256,7 @@ export function extractResearchArticle(
     target.push(value)
   }
   if (!bodyParagraphs.length) throw new Error('Research article main body has no paragraphs.')
-  const primaryEvidenceUrls = extractPrimaryEvidenceUrls(all, adapter, finalUrlValue)
+  const primaryEvidenceUrls = extractPrimaryEvidenceUrls(mainNodes, adapter, finalUrlValue)
   const finalUrl = new URL(finalUrlValue)
   finalUrl.hash = ''
   return {

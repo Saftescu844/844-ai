@@ -129,6 +129,56 @@ describe('Google Research and MIT article adapters', () => {
     expect(article.leadKind).toBe('meta-description')
     expect(article.primaryEvidenceUrls).toEqual(['https://arxiv.org/abs/2608.28534'])
   })
+  it('extracts a single MIT Paper title link to a canonical DOI', () => {
+    const articleHtml = mit
+      .replace('https://arxiv.org/abs/2608.28534',
+        'https://doi.org/10.1109/TRO.2026.3738474?utm_source=mit#paper')
+      .replace('>paper</a>', '>SANDO: Safe Autonomous Trajectory Planning</a>')
+    const article = extract(mitUrl, articleHtml)
+    expect(article.primaryEvidenceUrls).toEqual([
+      'https://doi.org/10.1109/tro.2026.3738474',
+    ])
+    expect(normalizeFlashHtmlArticleCandidate(source(mitUrl), article).primaryEvidenceUrls)
+      .toEqual(article.primaryEvidenceUrls)
+  })
+
+  it('does not promote a DOI in MIT background text without the Paper label', () => {
+    const articleHtml = mit
+      .replace('Paper: <a href="https://arxiv.org/abs/2608.28534">paper</a>',
+        'Background: <a href="https://doi.org/10.1109/TRO.2026.3738474">earlier work</a>')
+    expect(extract(mitUrl, articleHtml).primaryEvidenceUrls).toEqual([])
+  })
+
+  it.each([
+    'http://doi.org/10.1109/TRO.2026.3738474',
+    'https://user:pass@doi.org/10.1109/TRO.2026.3738474',
+    'https://doi.org:8443/10.1109/TRO.2026.3738474',
+    'https://doi.org.evil.example/10.1109/TRO.2026.3738474',
+    'https://example.org/10.1109/TRO.2026.3738474',
+    'https://doi.org/not-a-doi',
+    'https://ieeexplore.ieee.org/document/12345678',
+  ])('ignores an unverified MIT primary DOI link: %s', link => {
+    const html = mit
+      .replace('https://arxiv.org/abs/2608.28534', link)
+      .replace('>paper</a>', '>SANDO: Safe Autonomous Trajectory Planning</a>')
+    expect(extract(mitUrl, html).primaryEvidenceUrls).toEqual([])
+  })
+
+  it('rejects ambiguous primary MIT links and keeps the Google DOI allowlist unchanged', () => {
+    const html = mit.replace(
+      '</article></main>',
+      '<p>Paper: <a href="https://doi.org/10.1109/TRO.2026.3738474">SANDO</a></p></article></main>',
+    )
+    expect(() => extract(mitUrl, html))
+      .toThrow('multiple distinct primary research evidence links')
+
+    const googleDoi = google.replace(
+      'https://arxiv.org/abs/2609.20738v2?utm_source=test#paper',
+      'https://doi.org/10.1109/TRO.2026.3738474',
+    )
+    expect(extract(googleUrl, googleDoi).primaryEvidenceUrls).toEqual([])
+  })
+
   it.each([[googleUrl, google, '2026-09-17'], [mitUrl, mit, '2026-10-01']])(
     'normalizes %s without changing source text or permissions', (url, html, date) => {
       const article = extract(`${url}?utm_source=test#body`, html)
