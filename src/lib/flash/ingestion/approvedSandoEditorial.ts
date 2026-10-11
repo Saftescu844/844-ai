@@ -36,6 +36,37 @@ export const SANDO_APPROVED_MANUSCRIPTS = {
   },
 } as const
 
+/**
+ * Exact one-off MIT SANDO review-only import policy.
+ * The registry currently assigns MIT source 6 standard trust; do not
+ * promote it to high or relax the high-trust pending-identity writer gate.
+ * The caller must independently verify the grounded IEEE event identity,
+ * approved manuscript SHA-256, freshness and final bilingual dedup.
+ */
+export function isApprovedSandoSourceRegistry(
+  source: {
+    id: number
+    activa?: boolean | null
+    allowIngestion?: boolean | null
+    allowAutoPublish?: boolean | null
+    sourceRole?: 'primary' | 'secondary' | null
+    editorialTrust?: 'high' | 'standard' | 'restricted' | null
+    pilon?: Array<number | { id: number }> | null
+  } | null | undefined,
+): boolean {
+  return Boolean(
+    source &&
+    source.id === SANDO_APPROVED_SOURCE_ID &&
+    source.activa === true &&
+    source.allowIngestion === true &&
+    source.allowAutoPublish === false &&
+    source.sourceRole === 'primary' &&
+    source.editorialTrust === 'standard' &&
+    Array.isArray(source.pilon) &&
+    source.pilon.some(p => (typeof p === 'number' ? p : p.id) === 1),
+  )
+}
+
 export type SandoApprovedLanguage = keyof typeof SANDO_APPROVED_MANUSCRIPTS
 
 export interface SandoApprovedEditorial {
