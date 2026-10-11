@@ -48,7 +48,7 @@ describe('Flash AI excerpt publication gate', () => {
 
 describe('Flash AI legacy excerpt preview (never a writer)', () => {
   it('proposes existing lead text but always demands human review', () => {
-    const lead = 'Research teams report initial results using verified experiments and clearly state what is known about the method.'
+    const lead = 'Research teams report initial results using verified experiments and clearly state what is known about the method and what remains uncertain.'
     const res = proposeFlashExcerptFromLexical(buildFlashEditorialLexicalContent([lead]))
     expect(res).toEqual({
       candidate: lead,
