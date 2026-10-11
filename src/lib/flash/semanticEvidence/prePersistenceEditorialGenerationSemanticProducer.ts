@@ -33,10 +33,10 @@ import type {
 } from './semanticTextExecutor'
 
 export const FLASH_EDITORIAL_PREFERRED_MIN_WORDS =
-  650
+  550
 
 export const FLASH_EDITORIAL_PREFERRED_MAX_WORDS =
-  800
+  620
 
 export interface FlashPrePersistenceEditorialGenerationSemanticProducerOptions {
   executor: FlashSemanticTextExecutor
