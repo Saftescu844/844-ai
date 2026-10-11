@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   parseApprovedSandoEditorial,
+  isApprovedSandoSourceRegistry,
   SANDO_APPROVED_ARTICLE_URL,
   SANDO_APPROVED_CLASSIFICATION,
   SANDO_APPROVED_EVENT_FINGERPRINT,
@@ -80,6 +81,30 @@ describe('Editorially approved SANDO RO/EN atomic staging import', () => {
     expect(SANDO_APPROVED_SOURCE_FINGERPRINT).toMatch(/^[0-9a-f]{64}$/)
     expect(SANDO_APPROVED_EVENT_FINGERPRINT).toMatch(/^[0-9a-f]{64}$/)
     expect(SANDO_APPROVED_ARTICLE_URL).toMatch(/^https:\/\/news\.mit\.edu\//)
+  })
+
+  it('accepts only the existing primary MIT standard-trust source for grounded SANDO review', () => {
+    const source = {
+      id: 6,
+      activa: true,
+      allowIngestion: true,
+      allowAutoPublish: false,
+      sourceRole: 'primary' as const,
+      editorialTrust: 'standard' as const,
+      pilon: [1],
+    }
+    expect(isApprovedSandoSourceRegistry(source)).toBe(true)
+    expect(isApprovedSandoSourceRegistry({ ...source, pilon: [{ id: 1 }] })).toBe(true)
+    expect(isApprovedSandoSourceRegistry(null)).toBe(false)
+    expect(isApprovedSandoSourceRegistry({ ...source, id: 7 })).toBe(false)
+    expect(isApprovedSandoSourceRegistry({ ...source, activa: false })).toBe(false)
+    expect(isApprovedSandoSourceRegistry({ ...source, allowIngestion: false })).toBe(false)
+    expect(isApprovedSandoSourceRegistry({ ...source, allowAutoPublish: true })).toBe(false)
+    expect(isApprovedSandoSourceRegistry({ ...source, sourceRole: 'secondary' })).toBe(false)
+    expect(isApprovedSandoSourceRegistry({ ...source, editorialTrust: 'high' })).toBe(false)
+    expect(isApprovedSandoSourceRegistry({ ...source, editorialTrust: 'restricted' })).toBe(false)
+    expect(isApprovedSandoSourceRegistry({ ...source, pilon: [2] })).toBe(false)
+    expect(isApprovedSandoSourceRegistry({ ...source, pilon: null })).toBe(false)
   })
 
   it('documents dry-run help without loading DB, making provider requests or writing', async () => {
