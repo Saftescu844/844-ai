@@ -18,7 +18,7 @@ jobs:
   npm-audit:
     name: Report vulnerabilities (no fixes)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout without saved credentials
@@ -34,23 +34,44 @@ jobs:
       - name: Match Railway npm major (runner only)
         run: npm install --global npm@11 --ignore-scripts --no-audit --no-fund
 
-      - name: Audit lockfile without installing project dependencies
+      - name: Compare committed and freshly resolved dependency graphs
         shell: bash
         run: |
-          mkdir -p audit
+          mkdir -p audit/resolved
           node --version > audit/node-version.txt
           npm --version > audit/npm-version.txt
 
-          # npm audit exits nonzero when vulnerabilities are found.
-          # Save both raw reports, then validate them separately.
+          # Work only on temporary copies inside the ephemeral CI runner.
+          # This models Railway's npm install dependency resolution without
+          # installing project dependencies or executing lifecycle scripts.
+          cp package.json package-lock.json audit/resolved/
+          (
+            cd audit/resolved
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          )
+
+          # npm audit exits 1 on findings; preserve all raw JSON responses.
           set +e
           npm audit --json > audit/all.json
-          all_exit=$?
+          locked_all_exit=$?
           npm audit --omit=dev --json > audit/production-graph.json
-          production_exit=$?
+          locked_production_exit=$?
+          (
+            cd audit/resolved
+            npm audit --json > ../resolved-all.json
+          )
+          resolved_all_exit=$?
+          (
+            cd audit/resolved
+            npm audit --omit=dev --json > ../resolved-production-graph.json
+          )
+          resolved_production_exit=$?
           set -e
 
-          printf 'all=%s\nproduction-graph=%s\n' "$all_exit" "$production_exit" > audit/exit-codes.txt
+          printf 'locked-all=%s\nlocked-production=%s\nresolved-all=%s\nresolved-production=%s\n' \
+            "$locked_all_exit" "$locked_production_exit" \
+            "$resolved_all_exit" "$resolved_production_exit" > audit/exit-codes.txt
+
           node scripts/ci/summarize-npm-audit.mjs
 
       - name: Preserve audit evidence even if the registry fails
