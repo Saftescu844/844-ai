@@ -262,6 +262,24 @@ function collectFromPrimaryEvidenceUrls(
           evidenceText: url.toString(),
         },
       )
+      continue
+    }
+
+    // Accept explicit primary DOI permalinks extracted from the MIT
+    // Paper label. Do not infer a DOI from an IEEE document ID.
+    const doiMatch =
+      /^\/(10\.\d{4,9}\/[a-z0-9][a-z0-9._;():+\/-]{0,200})\/?$/i.exec(url.pathname)
+
+    if (host === 'doi.org' && doiMatch?.[1]) {
+      pushUniqueCandidate(
+        target,
+        {
+          authority: 'doi',
+          stableId: normalizeStableId('doi', doiMatch[1]),
+          sourceField: 'primary_evidence',
+          evidenceText: url.toString(),
+        },
+      )
     }
   }
 }
@@ -269,7 +287,7 @@ function collectFromPrimaryEvidenceUrls(
 /**
  * Extrage numai identificatori expliciți și verificabili
  * textual din candidatul normalizat sau dintr-un link primar
- * arXiv/NBER extras determinist de adaptorul sursei.
+ * arXiv/NBER/DOI extras determinist de adaptorul sursei.
  *
  * Regula de siguranță:
  * - un singur identificator unic din title/lead poate
