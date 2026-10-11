@@ -113,6 +113,18 @@ describe(
           '--target-language',
         )
         expect(source).toContain(
+          '--allow-short-draft-repair',
+        )
+        expect(source).toContain(
+          '--allow-short-draft-repair requires --allow-provider-requests.',
+        )
+        expect(source).toContain(
+          'FLASH_PREPERSISTENCE_EDITORIAL_LENGTH_DIAGNOSTIC',
+        )
+        expect(source).toContain(
+          'allowShortDraftRepair,',
+        )
+        expect(source).toContain(
           '--read-only-pilot',
         )
         expect(source).toContain(
