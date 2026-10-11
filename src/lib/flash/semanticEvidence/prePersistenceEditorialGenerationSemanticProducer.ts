@@ -19,6 +19,7 @@ import {
   FLASH_EDITORIAL_MAX_TITLE_LENGTH,
   FLASH_EDITORIAL_MAX_WORDS,
   FLASH_EDITORIAL_MIN_WORDS,
+  countFlashEditorialWords,
   parseFlashPrePersistenceEditorialGenerationSemanticOutput,
   type FlashPrePersistenceEditorialGenerationSemanticOutput,
 } from './prePersistenceEditorialGenerationSemanticOutput'
@@ -61,6 +62,8 @@ export interface FlashPrePersistenceEditorialGenerationSemanticProducerInput {
   classification: FlashPrePersistenceClassificationSemanticOutput
   supportingSources?: FlashSupportingPolicySemanticMaterial[]
   targetLanguage?: FlashTargetLanguage
+  /** Explicit, per-run budget approval; disabled by default. */
+  allowShortDraftRepair?: boolean
   runId: string
 }
 
@@ -87,11 +90,36 @@ export interface FlashPrePersistenceEditorialGenerationProducerSuccess {
   run: FlashPrePersistenceEditorialGenerationRunMetadata
 }
 
+export type FlashShortDraftRepairSkipReason =
+  | 'not_authorized'
+  | 'insufficient_primary_source_text'
+  | 'initial_draft_too_short'
+
+export interface FlashShortDraftLengthDiagnostic {
+  initialWordCount: number
+  repairedWordCount: number | null
+  primarySourceWordCount: number
+  minimumWordCount: number
+  repairAttempted: boolean
+  repairSkipReason: FlashShortDraftRepairSkipReason | null
+}
+
+class FlashShortDraftGenerationError extends FlashSemanticEvidenceProducerError {
+  readonly diagnostic: FlashShortDraftLengthDiagnostic
+
+  constructor(diagnostic: FlashShortDraftLengthDiagnostic) {
+    super('invalid_output_too_short')
+    this.diagnostic = diagnostic
+  }
+}
+
 export interface FlashPrePersistenceEditorialGenerationProducerFailure {
   ok: false
   editorial: null
   run: FlashPrePersistenceEditorialGenerationRunMetadata
   reason: FlashSemanticEvidenceProducerFailureReason
+  /** Numeric diagnostic only; never contains provider draft text. */
+  lengthDiagnostic?: FlashShortDraftLengthDiagnostic
 }
 
 export type FlashPrePersistenceEditorialGenerationProducerResult =
@@ -274,6 +302,48 @@ export function buildFlashPrePersistenceEditorialGenerationSemanticPrompt(
   }
 }
 
+export const FLASH_SHORT_DRAFT_REPAIR_MIN_PRIMARY_SOURCE_WORDS = 300
+export const FLASH_SHORT_DRAFT_REPAIR_MIN_INITIAL_WORDS = 250
+
+/**
+ * A strictly single-use repair request, using the same verified source input.
+ * The first draft is revision material, never an additional factual source.
+ * The application still enforces the unchanged 500–1000 word contract and QA.
+ */
+export function buildFlashShortDraftRepairPrompt({
+  originalPrompt,
+  firstDraft,
+  initialWordCount,
+  primarySourceWordCount,
+}: {
+  originalPrompt: FlashPrePersistenceEditorialGenerationSemanticPrompt
+  firstDraft: FlashPrePersistenceEditorialGenerationSemanticOutput
+  initialWordCount: number
+  primarySourceWordCount: number
+}): FlashPrePersistenceEditorialGenerationSemanticPrompt {
+  return {
+    systemPrompt: [
+      originalPrompt.systemPrompt,
+      '',
+      'This is the single authorized repair attempt for a too-short draft.',
+      'The first draft is revision material only, not evidence. The verified primary article and optional verified supporting sources in the original input remain the only factual authorities.',
+      'Revise for clarity and useful source-supported details and explanations. Do not invent facts, repeat claims, pad paragraphs, or add speculative background to reach a word count.',
+      'If the verified source material cannot support a complete 500-word editorial, return only the source-faithful shorter text; the application will reject it, without another retry.',
+      'Return the same strict JSON structure and the same requested language only.',
+    ].join('\n'),
+    userPrompt: [
+      originalPrompt.userPrompt,
+      '',
+      'Revise this first draft exactly once, keeping only source-supported statements.',
+      JSON.stringify({
+        firstDraftWordCount: initialWordCount,
+        primarySourceWordCount,
+        firstDraft,
+      }),
+    ].join('\n'),
+  }
+}
+
 export function createFlashPrePersistenceEditorialGenerationSemanticProducer({
   executor,
   provider,
@@ -294,6 +364,7 @@ export function createFlashPrePersistenceEditorialGenerationSemanticProducer({
       supportingSources = [],
       targetLanguage:
         targetLanguageInput,
+      allowShortDraftRepair = false,
       runId,
     }) {
       cleanRequiredConfig(provider)
@@ -321,11 +392,82 @@ export function createFlashPrePersistenceEditorialGenerationSemanticProducer({
             prompt.userPrompt,
         })
 
-      return parseFlashPrePersistenceEditorialGenerationSemanticOutput(
-        raw,
-        {
+      // Validate the complete strict JSON / language / paragraph shape before
+      // measuring words. The ordinary 500–1000 gate remains authoritative.
+      const firstDraft =
+        parseFlashPrePersistenceEditorialGenerationSemanticOutput(raw, {
           targetLanguage,
-        },
+          enforceWordCount: false,
+        })
+      const initialWordCount =
+        countFlashEditorialWords(firstDraft.editorialParagraphs)
+
+      if (initialWordCount >= FLASH_EDITORIAL_MIN_WORDS) {
+        return parseFlashPrePersistenceEditorialGenerationSemanticOutput(
+          raw, { targetLanguage },
+        )
+      }
+
+      const primarySourceWordCount =
+        countFlashEditorialWords([
+          candidate.lead,
+          candidate.bodyText,
+        ])
+      const repairSkipReason: FlashShortDraftRepairSkipReason | null =
+        !allowShortDraftRepair
+          ? 'not_authorized'
+          : primarySourceWordCount <
+              FLASH_SHORT_DRAFT_REPAIR_MIN_PRIMARY_SOURCE_WORDS
+            ? 'insufficient_primary_source_text'
+            : initialWordCount <
+                FLASH_SHORT_DRAFT_REPAIR_MIN_INITIAL_WORDS
+              ? 'initial_draft_too_short'
+              : null
+      const diagnostic: FlashShortDraftLengthDiagnostic = {
+        initialWordCount,
+        repairedWordCount: null,
+        primarySourceWordCount,
+        minimumWordCount: FLASH_EDITORIAL_MIN_WORDS,
+        repairAttempted: false,
+        repairSkipReason,
+      }
+
+      if (repairSkipReason) {
+        throw new FlashShortDraftGenerationError(diagnostic)
+      }
+
+      const repairPrompt = buildFlashShortDraftRepairPrompt({
+        originalPrompt: prompt,
+        firstDraft,
+        initialWordCount,
+        primarySourceWordCount,
+      })
+      const repairedRaw =
+        await executor({
+          runId: `${runId}:short-draft-repair`,
+          systemPrompt: repairPrompt.systemPrompt,
+          userPrompt: repairPrompt.userPrompt,
+        })
+      const repairedDraft =
+        parseFlashPrePersistenceEditorialGenerationSemanticOutput(
+          repairedRaw,
+          { targetLanguage, enforceWordCount: false },
+        )
+      const repairedWordCount =
+        countFlashEditorialWords(repairedDraft.editorialParagraphs)
+
+      if (repairedWordCount < FLASH_EDITORIAL_MIN_WORDS) {
+        throw new FlashShortDraftGenerationError({
+          ...diagnostic,
+          repairedWordCount,
+          repairAttempted: true,
+        })
+      }
+
+      // A single repair is the maximum: no recursive retry. Oversized,
+      // malformed and wrong-language drafts continue to fail closed.
+      return parseFlashPrePersistenceEditorialGenerationSemanticOutput(
+        repairedRaw, { targetLanguage },
       )
     },
   }
@@ -400,6 +542,9 @@ export async function runFlashPrePersistenceEditorialGenerationSemanticProducer(
         editorial: null,
         run,
         reason: error.reason,
+        ...(error instanceof FlashShortDraftGenerationError
+          ? { lengthDiagnostic: error.diagnostic }
+          : {}),
       }
     }
 

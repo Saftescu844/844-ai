@@ -255,6 +255,7 @@ Usage:
     [--read-only-pilot] \
     [--require-grounded-event-identity] \
     [--target-language ro|en] \
+    [--allow-short-draft-repair (requires --allow-provider-requests)] \
     [--allow-provider-requests --model gpt-5.6-terra] \
     [--qa-retention-diagnostic-output ./tmp/flash-ai-qa-retention-diagnostic.json] \
     [--handoff-output ./tmp/flash-ai-staging-handoff.json] \\
@@ -293,6 +294,7 @@ Behavior:
   - deterministically extracts bounded supporting policy semantic material only after the supporting pack passes
   - after successful classification, requests one original REG-001T editorial draft in --target-language (default ro) using the same primary source candidate, validated classification, and optional verified supporting materials
   - the generated target-language editorial must satisfy the strict 500–1000-word contract or the preview fails closed
+  - logs numeric short-draft length diagnostics without draft text; ONE explicit optional repair only when primary source text passes a conservative guard
   - after successful generation, runs one bounded source-fidelity QA pass in the same target language against the same primary + supporting source set and classification
   - QA may return a shorter source-faithful diagnostic editorial rather than inventing or padding material to force the canonical minimum
   - QA retention-floor breaches are reported as structured fail-closed diagnostics; source-material sufficiency remains undetermined
@@ -584,6 +586,11 @@ async function main() {
       '--allow-provider-requests',
     )
 
+  const allowShortDraftRepair =
+    hasFlag(
+      '--allow-short-draft-repair',
+    )
+
   const model =
     readOption(
       '--model',
@@ -635,6 +642,12 @@ async function main() {
   ) {
     throw new Error(
       '--qa-retention-diagnostic-output requires --allow-provider-requests.',
+    )
+  }
+
+  if (allowShortDraftRepair && !allowProviderRequests) {
+    throw new Error(
+      '--allow-short-draft-repair requires --allow-provider-requests.',
     )
   }
 
@@ -1212,12 +1225,20 @@ async function main() {
           supportingSources:
             supportingPolicySemanticMaterials,
           targetLanguage,
+          allowShortDraftRepair,
           runId:
             `flash-prepersistence-editorial-${targetLanguage}:${String(source.id)}:${fingerprints.sourceFingerprint.slice(0, 16)}`,
         },
       })
 
     if (!editorialResult.ok) {
+      if (editorialResult.lengthDiagnostic) {
+        console.error('FLASH_PREPERSISTENCE_EDITORIAL_LENGTH_DIAGNOSTIC')
+        console.error(JSON.stringify({
+          targetLanguage,
+          ...editorialResult.lengthDiagnostic,
+        }))
+      }
       throw new Error(
         `Pre-persistence editorial generation failed: ${editorialResult.reason}.`,
       )
