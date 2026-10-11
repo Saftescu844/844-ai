@@ -142,6 +142,60 @@ describe('Google Research and MIT article adapters', () => {
       .toEqual(article.primaryEvidenceUrls)
   })
 
+  it('extracts the real MIT SANDO primary IEEE Paper link as a publisher document URL', () => {
+    const articleHtml = mit
+      .replace('https://arxiv.org/abs/2608.28534',
+        'https://ieeexplore.ieee.org/document/11714300?utm_source=mit#paper')
+      .replace('>paper</a>', '>SANDO: Safe Autonomous Trajectory Planning for Dynamic Unknown Environments</a>')
+    const article = extract(mitUrl, articleHtml)
+    expect(article.primaryEvidenceUrls).toEqual([
+      'https://ieeexplore.ieee.org/document/11714300',
+    ])
+    expect(normalizeFlashHtmlArticleCandidate(source(mitUrl), article).primaryEvidenceUrls)
+      .toEqual(article.primaryEvidenceUrls)
+  })
+
+  it.each([
+    'http://ieeexplore.ieee.org/document/11714300',
+    'https://user:pass@ieeexplore.ieee.org/document/11714300',
+    'https://ieeexplore.ieee.org:8443/document/11714300',
+    'https://ieeexplore.ieee.org.evil.example/document/11714300',
+    'https://ieee.org/document/11714300',
+    'https://ieeexplore.ieee.org/document/not-a-number',
+    'https://ieeexplore.ieee.org/document/00000000',
+    'https://ieeexplore.ieee.org/document/11714300/pdf',
+  ])('rejects unsafe or malformed IEEE primary links: %s', link => {
+    const html = mit
+      .replace('https://arxiv.org/abs/2608.28534', link)
+      .replace('>paper</a>', '>SANDO: Safe Autonomous Trajectory Planning</a>')
+    expect(extract(mitUrl, html).primaryEvidenceUrls).toEqual([])
+  })
+
+  it('does not promote secondary IEEE citations or unlabelled paper references', () => {
+    const html = mit.replace(
+      'Paper: <a href="https://arxiv.org/abs/2608.28534">paper</a>',
+      'Earlier work: <a href="https://ieeexplore.ieee.org/document/11714300">SANDO</a>',
+    )
+    expect(extract(mitUrl, html).primaryEvidenceUrls).toEqual([])
+  })
+
+  it('rejects two distinct MIT primary publisher papers as ambiguous', () => {
+    const html = mit.replace(
+      '</article></main>',
+      '<p>Paper: <a href="https://ieeexplore.ieee.org/document/11714300">SANDO</a></p></article></main>',
+    )
+    expect(() => extract(mitUrl, html))
+      .toThrow('multiple distinct primary research evidence links')
+  })
+
+  it('does not accept IEEE primary links on Google Research in place of NBER/arXiv', () => {
+    const html = google.replace(
+      'https://arxiv.org/abs/2609.20738v2?utm_source=test#paper',
+      'https://ieeexplore.ieee.org/document/11714300',
+    )
+    expect(extract(googleUrl, html).primaryEvidenceUrls).toEqual([])
+  })
+
   it('does not promote a DOI in MIT background text without the Paper label', () => {
     const articleHtml = mit
       .replace('Paper: <a href="https://arxiv.org/abs/2608.28534">paper</a>',
@@ -156,7 +210,7 @@ describe('Google Research and MIT article adapters', () => {
     'https://doi.org.evil.example/10.1109/TRO.2026.3738474',
     'https://example.org/10.1109/TRO.2026.3738474',
     'https://doi.org/not-a-doi',
-    'https://ieeexplore.ieee.org/document/12345678',
+    'https://ieeexplore.ieee.org/document/not-a-number',
   ])('ignores an unverified MIT primary DOI link: %s', link => {
     const html = mit
       .replace('https://arxiv.org/abs/2608.28534', link)
