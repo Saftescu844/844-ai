@@ -12,6 +12,10 @@ import {
   isFlashAiAuthorizedPublicationContext,
 } from '@/lib/flash/ingestion/flashAiAuthorizedPublicationContext'
 
+import {
+  flashPublicationExcerptProblem,
+} from '@/lib/flash/ingestion/flashPublicationExcerptGuard'
+
 const enforceFlashPublicationRBAC: CollectionBeforeOperationHook<'flash-ai'> = ({
   args,
   context,
@@ -599,6 +603,18 @@ export const FlashAI: CollectionConfig = {
     beforeChange: [
       ({ data, originalDoc, req }) => {
         if (!data) return data
+
+        // Only a requested publication is gated. Legacy drafts remain editable.
+        // Fail before any published-state mutation, including authorized jobs.
+        const excerptProblem = flashPublicationExcerptProblem({
+          requestedStatus: data._status,
+          proposedExcerpt: data.excerpt,
+          priorExcerpt: originalDoc?.excerpt,
+        })
+
+        if (excerptProblem) {
+          throw new APIError(excerptProblem, 400)
+        }
 
         if (req.user?.rol !== 'admin') {
           const status =
