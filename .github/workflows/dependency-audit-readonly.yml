@@ -1,0 +1,63 @@
+name: Dependency audit (read-only)
+
+on:
+  pull_request:
+    branches:
+      - staging
+    paths:
+      - .github/workflows/dependency-audit-readonly.yml
+      - scripts/ci/summarize-npm-audit.mjs
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    name: Report vulnerabilities (no fixes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout without saved credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Match Railway Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+
+      - name: Match Railway npm major (runner only)
+        run: npm install --global npm@11 --ignore-scripts --no-audit --no-fund
+
+      - name: Audit lockfile without installing project dependencies
+        shell: bash
+        run: |
+          mkdir -p audit
+          node --version > audit/node-version.txt
+          npm --version > audit/npm-version.txt
+
+          # npm audit exits nonzero when vulnerabilities are found.
+          # Save both raw reports, then validate them separately.
+          set +e
+          npm audit --json > audit/all.json
+          all_exit=$?
+          npm audit --omit=dev --json > audit/production-graph.json
+          production_exit=$?
+          set -e
+
+          printf 'all=%s\nproduction-graph=%s\n' "$all_exit" "$production_exit" > audit/exit-codes.txt
+          node scripts/ci/summarize-npm-audit.mjs
+
+      - name: Preserve audit evidence even if the registry fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-reports
+          path: audit/
+          if-no-files-found: warn
+          retention-days: 14
