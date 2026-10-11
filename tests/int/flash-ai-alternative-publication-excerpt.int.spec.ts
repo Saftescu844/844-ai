@@ -91,7 +91,7 @@ describe('Flash AI alternate Payload publication paths', () => {
     expect(await attempt({
       operation: 'update',
       publishAllLocales: true,
-      documentId: undefined,
+      documentId: null,
       readDraftExcerpt,
     })).toContain('one document ID')
     expect(readDraftExcerpt).not.toHaveBeenCalled()
