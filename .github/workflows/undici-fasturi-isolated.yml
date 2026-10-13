@@ -1,0 +1,263 @@
+name: Security dependency analysis — undici then fast-uri (no deployment)
+
+on:
+  pull_request:
+    branches:
+      - security/sharp0355-remediation-20261013
+    paths:
+      - .github/workflows/undici-fasturi-isolated.yml
+
+permissions:
+  contents: read
+
+jobs:
+  undici:
+    name: undici 7.29.1 — isolated
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci"
+      PAYLOAD_SECRET: "ci-only-placeholder-secret-not-for-runtime"
+      MEDIA_PUBLIC_BASE_URL: "https://example.invalid/media"
+      S3_BUCKET: "ci-only"
+      S3_ACCESS_KEY_ID: "ci-only"
+      S3_SECRET_ACCESS_KEY: "ci-only"
+      S3_REGION: "eu-central-1"
+      S3_ENDPOINT: "https://example.invalid"
+      SITE_URL: "https://example.invalid"
+      BREVO_API_KEY: "ci-not-used"
+      ANTHROPIC_API_KEY: "ci-not-used"
+      OPENAI_API_KEY: "ci-not-used"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+          cache: npm
+      - name: Generate temporary undici-only override and npm lockfile
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import {readFileSync,writeFileSync} from 'node:fs'
+          const p=JSON.parse(readFileSync('package.json','utf8'))
+          assert.equal(p.dependencies.payload,'3.90.2')
+          assert.equal(p.dependencies.sharp,'0.35.5')
+          assert.equal(p.overrides,undefined)
+          p.overrides={undici:'7.29.1'}
+          writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')
+          NODE
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import {readFileSync} from 'node:fs'
+          const lock=JSON.parse(readFileSync('package-lock.json','utf8'))
+          assert.equal(lock.packages['node_modules/undici']?.version,'7.29.1')
+          assert.equal(lock.packages['node_modules/payload']?.version,'3.90.2')
+          assert.equal(lock.packages['node_modules/fast-uri']?.version,'3.1.3')
+          console.log('UNDICI_LOCK_OK: patched undici, Payload unchanged, fast-uri baseline')
+          NODE
+          git diff --stat -- package.json package-lock.json
+      - name: npm ci with temporary undici override
+        run: npm ci --no-audit --no-fund
+      - name: Localhost HTTP GET/POST and Client smoke
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import http from 'node:http'
+          import {once} from 'node:events'
+          import {fetch,Client} from 'undici'
+          import {createRequire} from 'node:module'
+          const require=createRequire(import.meta.url)
+          assert.equal(require('undici/package.json').version,'7.29.1')
+          const server=http.createServer(async(req,res)=>{
+            let body=''
+            for await(const c of req) body+=c.toString()
+            res.setHeader('content-type','text/plain')
+            res.end(req.method+':'+req.url+':'+body)
+          })
+          server.listen(0,'127.0.0.1')
+          await once(server,'listening')
+          const url='http://127.0.0.1:'+server.address().port
+          try {
+            const get=await fetch(url+'/ping')
+            assert.equal(await get.text(),'GET:/ping:')
+            const post=await fetch(url+'/submit',{method:'POST',body:'safe-local-payload'})
+            assert.equal(await post.text(),'POST:/submit:safe-local-payload')
+            const client=new Client(url)
+            try{
+              const result=await client.request({path:'/client',method:'GET'})
+              assert.equal(await result.body.text(),'GET:/client:')
+            }finally{await client.close()}
+            console.log('UNDICI_SMOKE_OK: GET, POST and Client on localhost')
+          }finally{
+            server.close()
+            await once(server,'close')
+          }
+          NODE
+      - name: Prepare temporary Postgres roles, apply migrations
+        env:
+          PAYLOAD_DB_PUSH: "false"
+        run: |
+          node --input-type=module <<'NODE'
+          import pg from 'pg'
+          const c=new pg.Client({connectionString:process.env.DATABASE_URL})
+          await c.connect()
+          await c.query(`DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF;
+          END $$;`)
+          await c.end()
+          NODE
+          npm run db:migrate:up
+          npx tsx scripts/ci/assert-migration-complete.ts
+      - name: Strict undici audit differential (no autofix)
+        run: |
+          npm audit --omit=dev --json > /tmp/undici-audit.json || test "$?" -eq 1
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import {readFileSync} from 'node:fs'
+          const a=JSON.parse(readFileSync('/tmp/undici-audit.json','utf8'))
+          console.log('UNDICI_PRODUCTION_AUDIT',JSON.stringify(a.metadata?.vulnerabilities))
+          assert.ok(a.metadata?.vulnerabilities)
+          assert.equal(a.vulnerabilities?.undici,undefined,'undici advisory remains after patch')
+          assert.equal(a.vulnerabilities?.payload,undefined,'payload remains flagged via undici')
+          NODE
+      - name: Integration tests with temporary undici patch
+        run: npm run test:int
+      - name: Next.js production build with temporary undici patch (no deployment)
+        run: npm run build
+
+  fast_uri:
+    name: fast-uri 3.1.8 — isolated after undici
+    needs: undici
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci"
+      PAYLOAD_SECRET: "ci-only-placeholder-secret-not-for-runtime"
+      MEDIA_PUBLIC_BASE_URL: "https://example.invalid/media"
+      S3_BUCKET: "ci-only"
+      S3_ACCESS_KEY_ID: "ci-only"
+      S3_SECRET_ACCESS_KEY: "ci-only"
+      S3_REGION: "eu-central-1"
+      S3_ENDPOINT: "https://example.invalid"
+      SITE_URL: "https://example.invalid"
+      BREVO_API_KEY: "ci-not-used"
+      ANTHROPIC_API_KEY: "ci-not-used"
+      OPENAI_API_KEY: "ci-not-used"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+          cache: npm
+      - name: Generate temporary fast-uri-only override and npm lockfile
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import {readFileSync,writeFileSync} from 'node:fs'
+          const p=JSON.parse(readFileSync('package.json','utf8'))
+          assert.equal(p.dependencies.payload,'3.90.2')
+          assert.equal(p.dependencies.sharp,'0.35.5')
+          assert.equal(p.overrides,undefined)
+          p.overrides={'fast-uri':'3.1.8'}
+          writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')
+          NODE
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import {readFileSync} from 'node:fs'
+          const lock=JSON.parse(readFileSync('package-lock.json','utf8'))
+          assert.equal(lock.packages['node_modules/fast-uri']?.version,'3.1.8')
+          assert.equal(lock.packages['node_modules/undici']?.version,'7.29.0')
+          assert.equal(lock.packages['node_modules/payload']?.version,'3.90.2')
+          console.log('FAST_URI_LOCK_OK: patched fast-uri, undici still baseline, Payload unchanged')
+          NODE
+          git diff --stat -- package.json package-lock.json
+      - name: npm ci with temporary fast-uri override
+        run: npm ci --no-audit --no-fund
+      - name: URI normalization and Payload AJV smoke
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import {createRequire} from 'node:module'
+          import {resolve} from 'node:path'
+          const require=createRequire(import.meta.url)
+          const uri=require('fast-uri')
+          assert.equal(require('fast-uri/package.json').version,'3.1.8')
+          assert.equal(uri.equal('//%41.com','//a.com'),true,'host normalization regression')
+          const fromPayload=createRequire(resolve('node_modules/payload/package.json'))
+          const Ajv=fromPayload('ajv')
+          const ajv=new Ajv()
+          const validate=ajv.compile({type:'object',properties:{url:{type:'string',format:'uri'}},required:['url']})
+          assert.equal(validate({url:'https://example.com/path'}),true)
+          assert.equal(validate({url:'not an absolute URI'}),false)
+          console.log('FAST_URI_SMOKE_OK: canonicalization and AJV URI validation')
+          NODE
+      - name: Prepare temporary Postgres roles, apply migrations
+        env:
+          PAYLOAD_DB_PUSH: "false"
+        run: |
+          node --input-type=module <<'NODE'
+          import pg from 'pg'
+          const c=new pg.Client({connectionString:process.env.DATABASE_URL})
+          await c.connect()
+          await c.query(`DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF;
+          END $$;`)
+          await c.end()
+          NODE
+          npm run db:migrate:up
+          npx tsx scripts/ci/assert-migration-complete.ts
+      - name: Strict fast-uri audit differential (no autofix)
+        run: |
+          npm audit --omit=dev --json > /tmp/fasturi-audit.json || test "$?" -eq 1
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import {readFileSync} from 'node:fs'
+          const a=JSON.parse(readFileSync('/tmp/fasturi-audit.json','utf8'))
+          console.log('FAST_URI_PRODUCTION_AUDIT',JSON.stringify(a.metadata?.vulnerabilities))
+          assert.ok(a.metadata?.vulnerabilities)
+          assert.equal(a.vulnerabilities?.['fast-uri'],undefined,'fast-uri advisory remains after patch')
+          NODE
+      - name: Integration tests with temporary fast-uri patch
+        run: npm run test:int
+      - name: Next.js production build with temporary fast-uri patch (no deployment)
+        run: npm run build
