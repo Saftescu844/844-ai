@@ -1,0 +1,186 @@
+name: Actual media upload — Payload, temporary S3 and PostgreSQL (no deploy)
+on:
+  pull_request:
+    branches:
+      - security/undici-fasturi-remediation-20261013
+    paths:
+      - .github/workflows/media-e2e-local-s3.yml
+permissions:
+  contents: read
+jobs:
+  media-e2e:
+    name: Authenticated Payload upload with 3 derivatives and S3 reads
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci"
+      PAYLOAD_DB_PUSH: "false"
+      PAYLOAD_SECRET: "ci-only-disposable-test-secret"
+      MEDIA_PUBLIC_BASE_URL: "http://127.0.0.1:9000/ci-media"
+      S3_BUCKET: "ci-media"
+      S3_ENDPOINT: "http://127.0.0.1:9000"
+      S3_REGION: "us-east-1"
+      S3_ACCESS_KEY_ID: "ci-media-root"
+      S3_SECRET_ACCESS_KEY: "ci-media-secret-123456"
+      SITE_URL: "http://127.0.0.1:3000"
+      BREVO_API_KEY: "ci-not-used"
+      ANTHROPIC_API_KEY: "ci-not-used"
+      OPENAI_API_KEY: "ci-not-used"
+    steps:
+      - name: Checkout — readonly
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+          cache: npm
+      - name: Guard local endpoints, versions and install
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import {readFileSync} from 'node:fs'
+          assert.equal(new URL(process.env.DATABASE_URL).hostname,'127.0.0.1')
+          assert.equal(new URL(process.env.S3_ENDPOINT).hostname,'127.0.0.1')
+          assert.equal(process.env.S3_BUCKET,'ci-media')
+          const p=JSON.parse(readFileSync('package-lock.json','utf8')).packages
+          for(const [k,v] of Object.entries({
+            'node_modules/sharp':'0.35.5',
+            'node_modules/undici':'7.29.1',
+            'node_modules/fast-uri':'3.1.8',
+            'node_modules/payload':'3.90.2'
+          }))assert.equal(p[k]?.version,v,k)
+          console.log('SAFE_ISOLATION_AND_VERSIONS_OK')
+          NODE
+          npm ci --no-audit --no-fund
+      - name: Start temporary S3-compatible service
+        run: |
+          docker run -d --rm --name media-s3-ci \
+            -p 127.0.0.1:9000:9000 \
+            -e MINIO_ROOT_USER="$S3_ACCESS_KEY_ID" \
+            -e MINIO_ROOT_PASSWORD="$S3_SECRET_ACCESS_KEY" \
+            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+          for n in {1..40}; do
+            curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null && exit 0
+            sleep 2
+          done
+          docker logs media-s3-ci --tail 40
+          exit 1
+      - name: Create ephemeral S3 bucket and localhost-only public URLs
+        run: |
+          node --input-type=module <<'NODE'
+          import {S3Client,CreateBucketCommand,PutBucketPolicyCommand} from '@aws-sdk/client-s3'
+          const s=new S3Client({
+            region:process.env.S3_REGION,endpoint:process.env.S3_ENDPOINT,forcePathStyle:true,
+            credentials:{accessKeyId:process.env.S3_ACCESS_KEY_ID,secretAccessKey:process.env.S3_SECRET_ACCESS_KEY}
+          })
+          const Bucket=process.env.S3_BUCKET
+          await s.send(new CreateBucketCommand({Bucket}))
+          await s.send(new PutBucketPolicyCommand({Bucket,Policy:JSON.stringify({
+            Version:'2012-10-17',
+            Statement:[{Sid:'CIRead',Effect:'Allow',Principal:'*',Action:'s3:GetObject',Resource:['arn:aws:s3:::'+Bucket+'/*']}]
+          })}))
+          console.log('EPHEMERAL_BUCKET_READY')
+          s.destroy()
+          NODE
+      - name: Run Payload migrations on disposable PostgreSQL
+        run: |
+          node --input-type=module <<'NODE'
+          import pg from 'pg'
+          const c=new pg.Client({connectionString:process.env.DATABASE_URL})
+          await c.connect()
+          await c.query("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF; END $$;")
+          await c.end()
+          NODE
+          npm run db:migrate:up
+          npx tsx scripts/ci/assert-migration-complete.ts
+      - name: Actual Payload admin-auth upload and S3 URL retrieval
+        run: |
+          cat > ci-media-e2e.mts <<'NODE'
+          import assert from 'node:assert/strict'
+          import {writeFileSync} from 'node:fs'
+          import {getPayload} from 'payload'
+          import config from './src/payload.config.ts'
+          import sharp from 'sharp'
+          import {S3Client,HeadObjectCommand,ListObjectsV2Command} from '@aws-sdk/client-s3'
+          const s3=new S3Client({
+            region:process.env.S3_REGION,
+            endpoint:process.env.S3_ENDPOINT,
+            forcePathStyle:true,
+            credentials:{accessKeyId:process.env.S3_ACCESS_KEY_ID!,secretAccessKey:process.env.S3_SECRET_ACCESS_KEY!}
+          })
+          const payload=await getPayload({config})
+          const email='media-ci-admin@example.invalid'
+          const password='ci-only-password-123456'
+          let mediaId:number|string|undefined
+          try {
+            const admin=await payload.create({
+              collection:'useri',overrideAccess:true,
+              data:{email,password,rol:'admin',_verified:true,nume:'CI Media'}
+            })
+            assert.equal(admin.rol,'admin')
+            const auth=await payload.login({collection:'useri',data:{email,password}})
+            assert.equal(auth.user.rol,'admin')
+            const input=await sharp({
+              create:{width:1440,height:960,channels:4,background:{r:100,g:160,b:210,alpha:1}}
+            }).png().toBuffer()
+            writeFileSync('ci-media-upload.png',input)
+            const media=await payload.create({
+              collection:'media',overrideAccess:false,user:auth.user,
+              data:{alt:'Temporary CI image',sursaImagine:'proprie'},filePath:'ci-media-upload.png'
+            })
+            mediaId=media.id
+            const expected=[
+              {label:'original',filename:media.filename,url:media.url,width:1440,height:960},
+              ...([['thumbnail',400,300],['card',768,512],['hero',1280,720]] as const).map(([label,width,height])=>({
+                label,filename:media.sizes?.[label]?.filename,url:media.sizes?.[label]?.url,width,height
+              }))
+            ]
+            for(const item of expected){
+              assert.ok(item.filename,item.label+' filename missing')
+              assert.ok(item.url,item.label+' url missing')
+              assert.ok(item.url!.startsWith('http://127.0.0.1:9000/ci-media/'),item.label+' unexpected URL')
+              const obj=await s3.send(new HeadObjectCommand({Bucket:process.env.S3_BUCKET,Key:item.filename}))
+              assert.ok(obj.ContentLength&&obj.ContentLength>0,item.label+' missing S3 bytes')
+              const response=await fetch(item.url!)
+              assert.equal(response.status,200,item.label+' public URL retrieval')
+              const bytes=Buffer.from(await response.arrayBuffer())
+              const meta=await sharp(bytes).metadata()
+              assert.equal(meta.width,item.width,item.label+' width')
+              assert.equal(meta.height,item.height,item.label+' height')
+              console.log('MEDIA_OBJECT_OK',JSON.stringify({variant:item.label,width:meta.width,height:meta.height,bytes:bytes.length}))
+            }
+            const stored=await payload.findByID({collection:'media',id:media.id,overrideAccess:true})
+            assert.equal(stored.filename,media.filename)
+            console.log('MEDIA_E2E_PASS: authenticated Payload upload, DB metadata, original and 3 S3 images publicly retrievable via localhost')
+          }finally{
+            if(mediaId!==undefined){
+              await payload.delete({collection:'media',id:mediaId,overrideAccess:true})
+              console.log('MEDIA_DB_CLEANUP_OK')
+            }
+            const leftover=await s3.send(new ListObjectsV2Command({Bucket:process.env.S3_BUCKET}))
+            console.log('EPHEMERAL_OBJECT_COUNT_BEFORE_TEARDOWN',leftover.KeyCount??0)
+            s3.destroy()
+          }
+          NODE
+          npx tsx ci-media-e2e.mts
+      - name: Always destroy isolated object-store container
+        if: always()
+        run: |
+          docker rm -f media-s3-ci >/dev/null 2>&1 || true
+          echo 'EPHEMERAL_MINIO_DESTROYED'
