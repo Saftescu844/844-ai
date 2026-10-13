@@ -17,7 +17,7 @@ describe('Flash AI excerpt publication gate (production candidate)', () => {
   it('refuses publication with a missing, blank, or overlong excerpt', () => {
     expect(problem('published', undefined)).toContain('requires')
     expect(problem('published', null, 'Previously approved')).toContain('requires')
-    expect(problem('published', '  \\n  ')).toContain('requires')
+    expect(problem('published', '  \n  ')).toContain('requires')
     expect(problem('published', 'x'.repeat(301))).toContain('300')
   })
 
