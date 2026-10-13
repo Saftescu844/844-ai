@@ -168,7 +168,16 @@ jobs:
             path === 'node_modules/color-convert' ||
             path === 'node_modules/color-name' ||
             path === 'node_modules/detect-libc' ||
-            path === 'node_modules/semver'
+            path === 'node_modules/semver' ||
+            path === 'node_modules/color-string' ||
+            path === 'node_modules/next/node_modules/semver' ||
+            path === 'node_modules/simple-swizzle' ||
+            path === 'node_modules/simple-swizzle/node_modules/is-arrayish' ||
+            (path.startsWith('node_modules/@next/swc-linux-') &&
+              oldLock.packages[path]?.version === lock.packages[path]?.version &&
+              oldLock.packages[path]?.integrity === lock.packages[path]?.integrity &&
+              JSON.stringify({ ...oldLock.packages[path], libc: undefined }) ===
+              JSON.stringify({ ...lock.packages[path], libc: undefined }))
           )
           const unrelated = changed.filter(path => !allowed(path))
           console.log('Changed npm lock nodes:', JSON.stringify(changed))
