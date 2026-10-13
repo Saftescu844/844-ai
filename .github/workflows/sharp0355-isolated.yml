@@ -32,7 +32,6 @@ jobs:
     env:
       CI: "true"
       DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci"
-      PAYLOAD_DB_PUSH: "false"
       PAYLOAD_SECRET: "ci-only-placeholder-secret-not-for-runtime"
       MEDIA_PUBLIC_BASE_URL: "https://example.invalid/media"
       S3_BUCKET: "ci-only"
@@ -115,6 +114,8 @@ jobs:
           await client.end()
           NODE
       - name: Apply migrations to ephemeral Postgres only
+        env:
+          PAYLOAD_DB_PUSH: "false"
         run: |
           npm run db:migrate:up
           npx tsx scripts/ci/assert-migration-complete.ts
