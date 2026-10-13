@@ -1,0 +1,127 @@
+name: Sharp 0.35.5 isolated smoke — no deployment
+
+on:
+  pull_request:
+    branches:
+      - security/next16-payload3902-prod-candidate-20261013
+    paths:
+      - .github/workflows/sharp0355-isolated.yml
+
+permissions:
+  contents: read
+
+jobs:
+  sharp-isolated:
+    name: sharp-0355-temporary-runner-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci"
+      PAYLOAD_DB_PUSH: "false"
+      PAYLOAD_SECRET: "ci-only-placeholder-secret-not-for-runtime"
+      MEDIA_PUBLIC_BASE_URL: "https://example.invalid/media"
+      S3_BUCKET: "ci-only"
+      S3_ACCESS_KEY_ID: "ci-only"
+      S3_SECRET_ACCESS_KEY: "ci-only"
+      S3_REGION: "eu-central-1"
+      S3_ENDPOINT: "https://example.invalid"
+      SITE_URL: "https://example.invalid"
+      BREVO_API_KEY: "ci-not-used"
+      ANTHROPIC_API_KEY: "ci-not-used"
+      OPENAI_API_KEY: "ci-not-used"
+    steps:
+      - name: Checkout isolated branch (never deploy)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node.js 22.17.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+          cache: npm
+      - name: Generate experimental sharp-only manifests in ephemeral runner
+        run: |
+          npm install --package-lock-only --save-exact --ignore-scripts --no-audit --no-fund sharp@0.35.5
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { readFileSync } from 'node:fs'
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
+          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'))
+          assert.equal(pkg.dependencies.sharp, '0.35.5')
+          assert.equal(lock.packages[''].dependencies.sharp, '0.35.5')
+          assert.equal(lock.packages['node_modules/sharp'].version, '0.35.5')
+          console.log('Ephemeral manifest change: sharp 0.34.2 -> 0.35.5; no repository commit')
+          NODE
+          git diff --stat -- package.json package-lock.json
+      - name: Clean install using experimental lockfile
+        run: npm ci --no-audit --no-fund
+      - name: Smoke test safe generated images and all three platform presets
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import sharp from 'sharp'
+          assert.equal(sharp.versions.sharp, '0.35.5')
+          const source = await sharp(Buffer.alloc(32 * 24 * 4, 155), {
+            raw: { width: 32, height: 24, channels: 4 },
+          }).png().toBuffer()
+          const outputs = []
+          for (const format of ['jpeg', 'png', 'webp']) {
+            const encoded = await sharp(source)[format]().toBuffer()
+            for (const [preset, width, height] of [
+              ['thumbnail', 400, 300], ['card', 768, 512], ['hero', 1280, 720],
+            ]) {
+              const out = await sharp(encoded).resize(width, height, { fit: 'cover' }).toBuffer()
+              const m = await sharp(out).metadata()
+              assert.equal(m.width, width)
+              assert.equal(m.height, height)
+              assert.ok(out.length > 0)
+              outputs.push(format + ':' + preset)
+            }
+          }
+          console.log(JSON.stringify({
+            sharp: sharp.versions.sharp,
+            vips: sharp.versions.vips,
+            tests: outputs,
+          }, null, 2))
+          NODE
+      - name: Configure isolated CI roles
+        run: |
+          node --input-type=module <<'NODE'
+          import pg from 'pg'
+          const client = new pg.Client({ connectionString: process.env.DATABASE_URL })
+          await client.connect()
+          await client.query(`DO $$
+            BEGIN
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role NOLOGIN; END IF;
+            END
+          $$;`)
+          await client.end()
+          NODE
+      - name: Apply migrations to ephemeral Postgres only
+        run: |
+          npm run db:migrate:up
+          npx tsx scripts/ci/assert-migration-complete.ts
+      - name: Integration tests with experimental sharp
+        run: npm run test:int
+      - name: Production-mode build with experimental sharp, no deployment
+        run: npm run build
+      - name: Informational production dependency audit
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=low
