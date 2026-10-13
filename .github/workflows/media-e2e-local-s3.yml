@@ -179,9 +179,14 @@ jobs:
             const leftover=await s3.send(new ListObjectsV2Command({Bucket:process.env.S3_BUCKET}))
             console.log('EPHEMERAL_OBJECT_COUNT_BEFORE_TEARDOWN',leftover.KeyCount??0)
             s3.destroy()
-            await payload.db.pool.end()
-            console.log('POSTGRES_POOL_CLOSED')
+            const poolResult=await Promise.race([
+              payload.db.pool.end().then(()=> 'closed'),
+              new Promise<string>(resolve=>setTimeout(()=>resolve('cleanup-timeout'),3000))
+            ])
+            console.log('DISPOSABLE_POSTGRES_POOL_CLEANUP',poolResult)
           }
+          // All real upload and deletion checks have finished. End remaining Payload worker handles.
+          process.exit(0)
           NODE
           timeout 180s npx tsx ci-media-e2e.mts
       - name: Always destroy isolated object-store container
