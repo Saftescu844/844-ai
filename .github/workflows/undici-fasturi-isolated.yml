@@ -224,10 +224,11 @@ jobs:
           const fromPayload=createRequire(resolve('node_modules/payload/package.json'))
           const Ajv=fromPayload('ajv')
           const ajv=new Ajv()
-          const validate=ajv.compile({type:'object',properties:{url:{type:'string',format:'uri'}},required:['url']})
+          ajv.addSchema({$id:'https://example.org/definitions.json',definitions:{url:{type:'string',pattern:'^https://'}}})
+          const validate=ajv.compile({$id:'https://example.org/schema.json',type:'object',properties:{url:{$ref:'./definitions.json#/definitions/url'}},required:['url']})
           assert.equal(validate({url:'https://example.com/path'}),true)
           assert.equal(validate({url:'not an absolute URI'}),false)
-          console.log('FAST_URI_SMOKE_OK: canonicalization and AJV URI validation')
+          console.log('FAST_URI_SMOKE_OK: canonicalization and AJV relative $ref resolution')
           NODE
       - name: Prepare temporary Postgres roles, apply migrations
         env:
