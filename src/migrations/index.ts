@@ -24,6 +24,7 @@ import * as migration_20261003_210058_flash002_source_discovery from './20261003
 import * as migration_20261007_134000_flash_rss_candidate_skip_memory from './20261007_134000_flash_rss_candidate_skip_memory';
 import * as migration_20261009_200000_flash_editorial_subcategories from './20261009_200000_flash_editorial_subcategories';
 import * as migration_20261011_182500_payload_auth_reset_requested_at from './20261011_182500_payload_auth_reset_requested_at';
+import * as migration_20261013_000001_payload_media_objectkey_compat from './20261013_000001_payload_media_objectkey_compat';
 
 export const migrations = [
   {
@@ -155,5 +156,10 @@ export const migrations = [
     up: migration_20261011_182500_payload_auth_reset_requested_at.up,
     down: migration_20261011_182500_payload_auth_reset_requested_at.down,
     name: '20261011_182500_payload_auth_reset_requested_at'
+  },
+  {
+    up: migration_20261013_000001_payload_media_objectkey_compat.up,
+    down: migration_20261013_000001_payload_media_objectkey_compat.down,
+    name: '20261013_000001_payload_media_objectkey_compat'
   },
 ];
