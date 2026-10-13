@@ -8,7 +8,7 @@ on:
       - .github/workflows/sharp0355-isolated.yml
 
 permissions:
-  contents: write # temporary, restricted to GitHub-only remediation branch; never merge this workflow
+  contents: read
 
 jobs:
   sharp-isolated:
@@ -136,61 +136,3 @@ jobs:
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=low
 
-      - name: Save vetted npm-generated manifests to remediation branch only
-        if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'test/sharp0355-isolated-20261013'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REMEDIATION_BRANCH: security/sharp0355-remediation-20261013
-          EXPECTED_BASE: 570c71e4a125f3f7bdbc5be3be477ab738547710
-        run: |
-          # Strictly reject unexpected package.json and unrelated lockfile changes.
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict'
-          import { execFileSync } from 'node:child_process'
-          import { readFileSync } from 'node:fs'
-          const baseline = (path) => JSON.parse(execFileSync('git', ['show', 'HEAD:' + path], { encoding: 'utf8' }))
-          const original = baseline('package.json')
-          const updated = JSON.parse(readFileSync('package.json', 'utf8'))
-          assert.equal(original.dependencies.sharp, '0.34.2')
-          assert.equal(updated.dependencies.sharp, '0.35.5')
-          assert.deepEqual({ ...updated, dependencies: { ...updated.dependencies, sharp: '0.34.2' } }, original)
-          const oldLock = baseline('package-lock.json')
-          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'))
-          assert.equal(lock.packages[''].dependencies.sharp, '0.35.5')
-          assert.equal(lock.packages['node_modules/sharp'].version, '0.35.5')
-          const touched = new Set([...Object.keys(oldLock.packages), ...Object.keys(lock.packages)])
-          const changed = [...touched].filter(path => JSON.stringify(oldLock.packages[path]) !== JSON.stringify(lock.packages[path]))
-          const allowed = path => (
-            path === '' ||
-            path.includes('/sharp') ||
-            path.startsWith('node_modules/@img/') ||
-            path === 'node_modules/color' ||
-            path === 'node_modules/color-convert' ||
-            path === 'node_modules/color-name' ||
-            path === 'node_modules/detect-libc' ||
-            path === 'node_modules/semver' ||
-            path === 'node_modules/color-string' ||
-            path === 'node_modules/next/node_modules/semver' ||
-            path === 'node_modules/simple-swizzle' ||
-            path === 'node_modules/simple-swizzle/node_modules/is-arrayish' ||
-            (path.startsWith('node_modules/@next/swc-linux-') &&
-              oldLock.packages[path]?.version === lock.packages[path]?.version &&
-              oldLock.packages[path]?.integrity === lock.packages[path]?.integrity &&
-              JSON.stringify({ ...oldLock.packages[path], libc: undefined }) ===
-              JSON.stringify({ ...lock.packages[path], libc: undefined }))
-          )
-          const unrelated = changed.filter(path => !allowed(path))
-          console.log('Changed npm lock nodes:', JSON.stringify(changed))
-          assert.deepEqual(unrelated, [], 'Unrelated dependency changes require separate review')
-          NODE
-
-          # Both files are committed only to a dedicated branch pinned to the PR #239 candidate.
-          git fetch --no-tags origin "refs/heads/$REMEDIATION_BRANCH"
-          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_BASE"
-          git worktree add --detach "$RUNNER_TEMP/sharp-remediation" "$EXPECTED_BASE"
-          cp package.json package-lock.json "$RUNNER_TEMP/sharp-remediation/"
-          git -C "$RUNNER_TEMP/sharp-remediation" add -- package.json package-lock.json
-          git -C "$RUNNER_TEMP/sharp-remediation" diff --cached --name-only
-          git -C "$RUNNER_TEMP/sharp-remediation" -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "fix(security): pin sharp 0.35.5 with npm-generated lockfile"
-          gh auth setup-git
-          git -C "$RUNNER_TEMP/sharp-remediation" push origin "HEAD:refs/heads/$REMEDIATION_BRANCH"
