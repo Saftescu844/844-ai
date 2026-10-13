@@ -74,7 +74,7 @@ jobs:
             -p 127.0.0.1:9000:9000 \
             -e MINIO_ROOT_USER="$S3_ACCESS_KEY_ID" \
             -e MINIO_ROOT_PASSWORD="$S3_SECRET_ACCESS_KEY" \
-            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+            kukuruser/minio:RELEASE.2025-09-07T16-13-09Z server /data
           for n in {1..40}; do
             curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null && exit 0
             sleep 2
