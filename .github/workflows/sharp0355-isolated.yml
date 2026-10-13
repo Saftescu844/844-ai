@@ -67,6 +67,15 @@ jobs:
           console.log('Ephemeral manifest change: sharp 0.34.2 -> 0.35.5; no repository commit')
           NODE
           git diff --stat -- package.json package-lock.json
+      - name: Preserve generated manifests for reviewed remediation
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharp0355-npm-generated-manifests
+          path: |
+            package.json
+            package-lock.json
+          retention-days: 2
+          if-no-files-found: error
       - name: Clean install using experimental lockfile
         run: npm ci --no-audit --no-fund
       - name: Smoke test safe generated images and all three platform presets
