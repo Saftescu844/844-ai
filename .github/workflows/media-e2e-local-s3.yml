@@ -130,7 +130,7 @@ jobs:
           let mediaId:number|string|undefined
           try {
             const admin=await payload.create({
-              collection:'useri',overrideAccess:true,
+              collection:'useri',overrideAccess:true,disableVerificationEmail:true,
               data:{email,password,rol:'admin',_verified:true,nume:'CI Media'}
             })
             assert.equal(admin.rol,'admin')
