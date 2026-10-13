@@ -1,3 +1,5 @@
+import { writeSync } from 'node:fs'
+
 import Anthropic from '@anthropic-ai/sdk'
 import { getPayload } from 'payload'
 
@@ -77,7 +79,8 @@ function hasFlag(
 }
 
 function printHelp(): void {
-  console.log(`
+  // Flush help text synchronously before this CLI's explicit process.exit(0).
+  writeSync(1, `
 Flash runtime evaluator — read-only
 
 Usage:
