@@ -8,7 +8,7 @@ on:
       - .github/workflows/undici-fasturi-export.yml
 
 permissions:
-  contents: write # temporary: only permitted for exact, verified destination branch
+  contents: read
 
 jobs:
   combined-security-smoke:
@@ -187,49 +187,3 @@ jobs:
         run: npm run test:int
       - name: Production-mode build with combined patches (no deployment)
         run: npm run build
-      - name: Verify npm-generated manifest diff and save ONLY to security remediation branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET: security/undici-fasturi-remediation-20261013
-          EXPECTED_BASE: 11da8ee1a4841bcf248572c7ec28d3ec1245d12f
-        run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict'
-          import {readFileSync,writeFileSync} from 'node:fs'
-          import {execFileSync} from 'node:child_process'
-          const originalText=execFileSync('git',['show','HEAD:package.json'],{encoding:'utf8'})
-          const original=JSON.parse(originalText)
-          const observed=JSON.parse(readFileSync('package.json','utf8'))
-          const patch={undici:'7.29.1','fast-uri':'3.1.8'}
-          assert.equal(original.dependencies.sharp,'0.35.5')
-          assert.equal(original.dependencies.payload,'3.90.2')
-          assert.equal(original.overrides,undefined)
-          assert.deepEqual(observed,{...original,overrides:patch},'npm modified unrelated package.json fields')
-          const clean=originalText.trimEnd()
-          const last=clean.lastIndexOf('\n}')
-          assert.ok(last>0,'Unexpected package.json format')
-          const compact=clean.slice(0,last)+',\n  "overrides": {\n    "undici": "7.29.1",\n    "fast-uri": "3.1.8"\n  }\n}\n'
-          assert.deepEqual(JSON.parse(compact),observed)
-          writeFileSync('package.json',compact)
-          const before=JSON.parse(execFileSync('git',['show','HEAD:package-lock.json'],{encoding:'utf8'}))
-          const after=JSON.parse(readFileSync('package-lock.json','utf8'))
-          const paths=[...new Set([...Object.keys(before.packages),...Object.keys(after.packages)])]
-          const changed=paths.filter(p=>JSON.stringify(before.packages[p])!==JSON.stringify(after.packages[p]))
-          console.log('LOCK_CHANGED_NODES',JSON.stringify(changed))
-          assert.deepEqual(changed.filter(p=>!['','node_modules/undici','node_modules/fast-uri'].includes(p)),[],'Unexpected unrelated lockfile changes')
-          assert.equal(after.packages['node_modules/undici']?.version,'7.29.1')
-          assert.equal(after.packages['node_modules/fast-uri']?.version,'3.1.8')
-          assert.equal(after.packages['node_modules/sharp']?.version,'0.35.5')
-          assert.equal(after.packages['node_modules/payload']?.version,'3.90.2')
-          console.log('REMEDIATION_DIFF_VALIDATED: only npm-generated undici+fast-uri lock changes')
-          NODE
-          git fetch --no-tags origin "refs/heads/$TARGET"
-          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_BASE"
-          git worktree add --detach "$RUNNER_TEMP/remediation" "$EXPECTED_BASE"
-          cp package.json package-lock.json "$RUNNER_TEMP/remediation/"
-          git -C "$RUNNER_TEMP/remediation" add -- package.json package-lock.json
-          test "$(git -C "$RUNNER_TEMP/remediation" diff --cached --name-only | wc -l)" -eq 2
-          git -C "$RUNNER_TEMP/remediation" diff --cached --name-only
-          git -C "$RUNNER_TEMP/remediation" -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "fix(security): override undici 7.29.1 and fast-uri 3.1.8"
-          gh auth setup-git
-          git -C "$RUNNER_TEMP/remediation" push origin "HEAD:refs/heads/$TARGET"
