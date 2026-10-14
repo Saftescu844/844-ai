@@ -8,6 +8,7 @@
 
 const PROD_PROJECT_REF = 'hyapqvnubhwkwmwudeit'
 const PROD_STORAGE_HOST = `${PROD_PROJECT_REF}.supabase.co`
+const PROD_DIRECT_S3_HOST = `${PROD_PROJECT_REF}.storage.supabase.co`
 const PROD_BUCKET = 'media'
 const PROD_S3_REGION = 'eu-central-1'
 
@@ -107,7 +108,7 @@ function checkPublisherEnvironment(env) {
 
     if (
       !endpoint ||
-      endpoint.hostname !== PROD_STORAGE_HOST ||
+      ![PROD_STORAGE_HOST, PROD_DIRECT_S3_HOST].includes(endpoint.hostname) ||
       safePath(endpoint) !== '/storage/v1/s3'
     ) {
       errors.push('S3_ENDPOINT nu indică endpointul S3 al producției')
