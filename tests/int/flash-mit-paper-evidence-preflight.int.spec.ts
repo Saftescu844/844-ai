@@ -71,6 +71,7 @@ describe('MIT primary-evidence staging preflight diagnostics', () => {
     expect(diagnoseMitPaperEvidence(page, article.primaryEvidenceUrls ?? [])).toEqual({
       status: 'unsupported_labelled_link',
       labelledLinkCount: 1,
+      ambiguousPaperParagraphCount: 0,
       recognizedEvidenceCount: 0,
     })
     expect(skip()).toBe(true)
@@ -82,6 +83,7 @@ describe('MIT primary-evidence staging preflight diagnostics', () => {
     expect(diagnoseMitPaperEvidence(page, article.primaryEvidenceUrls ?? [])).toEqual({
       status: 'missing_paper_label',
       labelledLinkCount: 0,
+      ambiguousPaperParagraphCount: 0,
       recognizedEvidenceCount: 0,
     })
     expect(skip()).toBe(true)
@@ -95,9 +97,40 @@ describe('MIT primary-evidence staging preflight diagnostics', () => {
     expect(diagnoseMitPaperEvidence(page, article.primaryEvidenceUrls ?? [])).toEqual({
       status: 'supported_primary_link',
       labelledLinkCount: 1,
+      ambiguousPaperParagraphCount: 0,
       recognizedEvidenceCount: 1,
     })
     expect(skip()).toBe(false)
+  })
+
+  it('reports ambiguous MIT Paper paragraphs with two links without treating them as evidence', () => {
+    const page = html(
+      '<p>Paper: <a href="https://www.pnas.org/doi/10.1073/pnas.2601234567">One</a> ' +
+      'and <a href="https://www.nature.com/articles/test-study">Two</a></p>',
+    )
+    const { article, identity, skip } = extract(page)
+    expect(article.primaryEvidenceUrls).toEqual([])
+    expect(identity.status).toBe('pending')
+    expect(diagnoseMitPaperEvidence(page, article.primaryEvidenceUrls ?? [])).toEqual({
+      status: 'ambiguous_paper_links',
+      labelledLinkCount: 0,
+      ambiguousPaperParagraphCount: 1,
+      recognizedEvidenceCount: 0,
+    })
+    expect(skip()).toBe(true)
+  })
+
+  it('does not count an unrelated unlabelled publisher citation as a primary Paper link', () => {
+    const page = html(
+      '<p>Previous work: <a href="https://doi.org/10.1109/TRO.2026.3738474">Background</a></p>',
+    )
+    const { article } = extract(page)
+    expect(article.primaryEvidenceUrls).toEqual([])
+    expect(diagnoseMitPaperEvidence(page, [])).toMatchObject({
+      status: 'missing_paper_label',
+      labelledLinkCount: 0,
+      ambiguousPaperParagraphCount: 0,
+    })
   })
 
   it('never relaxes MIT standard trust or the unsupported publisher rule', () => {
@@ -128,6 +161,7 @@ describe('MIT primary-evidence staging preflight diagnostics', () => {
     expect(child).toContain('providerCalled=false')
     expect(child).toContain('!allowProductionOneShot')
     expect(child).toContain('!readOnlyPilot')
-    expect(child.indexOf('shouldSkipUngroundedMitBeforeProvider')).toBeLessThan(child.indexOf('if (allowProviderRequests)'))
+    expect(child.indexOf('    shouldSkipUngroundedMitBeforeProvider({')).toBeGreaterThan(0)
+    expect(child.indexOf('    shouldSkipUngroundedMitBeforeProvider({')).toBeLessThan(child.indexOf('if (allowProviderRequests)'))
   })
 })
