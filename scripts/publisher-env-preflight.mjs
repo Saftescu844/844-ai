@@ -8,20 +8,14 @@
 
 const PROD_PROJECT_REF = 'hyapqvnubhwkwmwudeit'
 const PROD_STORAGE_HOST = `${PROD_PROJECT_REF}.supabase.co`
-const PROD_DIRECT_S3_HOST = `${PROD_PROJECT_REF}.storage.supabase.co`
-const PROD_BUCKET = 'media'
-const PROD_S3_REGION = 'eu-central-1'
 
+// The publisher writes article drafts, not media. S3 credentials stay confined
+// to the Railway service that actually uploads objects.
 const REQUIRED = [
   'DATABASE_URL',
   'PAYLOAD_SECRET',
   'ANTHROPIC_API_KEY',
   'MEDIA_PUBLIC_BASE_URL',
-  'S3_BUCKET',
-  'S3_REGION',
-  'S3_ENDPOINT',
-  'S3_ACCESS_KEY_ID',
-  'S3_SECRET_ACCESS_KEY',
 ]
 
 function parseHttpUrl(value) {
@@ -83,14 +77,6 @@ function checkPublisherEnvironment(env) {
     }
   }
 
-  if (env.S3_BUCKET?.trim() && env.S3_BUCKET.trim() !== PROD_BUCKET) {
-    errors.push('S3_BUCKET nu este bucketul media de producție')
-  }
-
-  if (env.S3_REGION?.trim() && env.S3_REGION.trim() !== PROD_S3_REGION) {
-    errors.push('S3_REGION nu corespunde regiunii configurate pentru producție')
-  }
-
   if (env.MEDIA_PUBLIC_BASE_URL?.trim()) {
     const media = parseHttpUrl(env.MEDIA_PUBLIC_BASE_URL.trim())
 
@@ -103,18 +89,6 @@ function checkPublisherEnvironment(env) {
     }
   }
 
-  if (env.S3_ENDPOINT?.trim()) {
-    const endpoint = parseHttpUrl(env.S3_ENDPOINT.trim())
-
-    if (
-      !endpoint ||
-      ![PROD_STORAGE_HOST, PROD_DIRECT_S3_HOST].includes(endpoint.hostname) ||
-      safePath(endpoint) !== '/storage/v1/s3'
-    ) {
-      errors.push('S3_ENDPOINT nu indică endpointul S3 al producției')
-    }
-  }
-
   if (errors.length) {
     for (const message of errors) {
       // GitHub Actions annotations contain no environment values.
@@ -123,7 +97,7 @@ function checkPublisherEnvironment(env) {
     return false
   }
 
-  console.log('PUBLISHER_ENV_PREFLIGHT_OK: production media/DB targets and required variable names verified; values not printed')
+  console.log('PUBLISHER_ENV_PREFLIGHT_OK: production media URL and required provider/DB config verified; values not printed')
   return true
 }
 
