@@ -8,6 +8,7 @@
 
 const PROD_PROJECT_REF = 'hyapqvnubhwkwmwudeit'
 const PROD_STORAGE_HOST = `${PROD_PROJECT_REF}.supabase.co`
+const PROD_BUCKET = 'media'
 
 // The publisher writes article drafts, not media. S3 credentials stay confined
 // to the Railway service that actually uploads objects.
