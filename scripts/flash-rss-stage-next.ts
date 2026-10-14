@@ -271,6 +271,7 @@ function assertStageNextEnvironment(
 type FlashRssCandidateTransientSkipReason =
   | 'editorial_output_too_short'
   | 'editorial_output_too_long'
+  | 'article_retrieval_http_error'
 
 class FlashRssCandidateTransientSkipError
   extends Error {
@@ -429,6 +430,17 @@ function runPrePersistenceHandoff({
             )
           ? 'editorial_output_too_long'
           : null
+
+    if (
+      combinedOutput.includes(
+        'HTML article retrieval failed: http_error'
+      )
+    ) {
+      throw new FlashRssCandidateTransientSkipError(
+        'article_retrieval_http_error',
+        `Candidate article retrieval failed temporarily: ${articleUrl}`,
+      )
+    }
 
     if (transientEditorialReason) {
       throw new FlashRssCandidateTransientSkipError(
