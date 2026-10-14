@@ -87,6 +87,14 @@ describe('Auto-Publisher production media environment preflight', () => {
     expect(bucket.stderr).toContain('S3_BUCKET')
   })
 
+  it('accepts the alternative official direct Supabase S3 endpoint on the same production project', () => {
+    const run = preflight({
+      S3_ENDPOINT: 'https://hyapqvnubhwkwmwudeit.storage.supabase.co/storage/v1/s3',
+    })
+    expect(run.status).toBe(0)
+    expect(run.stdout).toContain('PUBLISHER_ENV_PREFLIGHT_OK')
+  })
+
   it('rejects a staging database reference without displaying credentials', () => {
     const stagingUrl = 'postgresql://postgres.tvtnpcqawaekhmhyfrnc:an-unsafe-password@aws-0-eu-central-1.pooler.supabase.com:5432/postgres'
     const run = preflight({ DATABASE_URL: stagingUrl })
