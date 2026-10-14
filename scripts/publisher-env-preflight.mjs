@@ -9,6 +9,7 @@
 const PROD_PROJECT_REF = 'hyapqvnubhwkwmwudeit'
 const PROD_STORAGE_HOST = `${PROD_PROJECT_REF}.supabase.co`
 const PROD_BUCKET = 'media'
+const PROD_S3_REGION = 'eu-central-1'
 
 const REQUIRED = [
   'DATABASE_URL',
@@ -63,9 +64,15 @@ function checkPublisherEnvironment(env) {
       const database = new URL(env.DATABASE_URL)
       const username = decodeURIComponent(database.username)
       const validProtocol = ['postgres:', 'postgresql:'].includes(database.protocol)
-      const isProductionDatabase =
-        database.hostname.includes(PROD_PROJECT_REF) ||
-        username.includes(PROD_PROJECT_REF)
+      // Only official Supabase direct and pooler endpoints are accepted.
+      // The mere presence of the project ID in an unrelated host is unsafe.
+      const direct =
+        database.hostname === `db.${PROD_STORAGE_HOST}` &&
+        username === 'postgres'
+      const pooled =
+        database.hostname.endsWith('.pooler.supabase.com') &&
+        username === `postgres.${PROD_PROJECT_REF}`
+      const isProductionDatabase = direct || pooled
 
       if (!validProtocol || !isProductionDatabase) {
         errors.push('DATABASE_URL nu identifică proiectul Supabase de producție')
@@ -77,6 +84,10 @@ function checkPublisherEnvironment(env) {
 
   if (env.S3_BUCKET?.trim() && env.S3_BUCKET.trim() !== PROD_BUCKET) {
     errors.push('S3_BUCKET nu este bucketul media de producție')
+  }
+
+  if (env.S3_REGION?.trim() && env.S3_REGION.trim() !== PROD_S3_REGION) {
+    errors.push('S3_REGION nu corespunde regiunii configurate pentru producție')
   }
 
   if (env.MEDIA_PUBLIC_BASE_URL?.trim()) {
