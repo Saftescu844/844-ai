@@ -1,84 +1,85 @@
-# Auto-Publisher: media environment preflight (GitHub Actions)
+# Auto-Publisher: missing public media URL in GitHub Actions
 
-## Incident and scope
+## Incident and verified scope
 
-On 2026-10-14 the scheduled **Auto-Publisher 844-ai.ro** job on `main`
-failed after RSS ingestion/classification with:
+On 2026-10-14, scheduled **Auto-Publisher 844-ai.ro** on `main`
+([failed workflow](https://github.com/Saftescu844/844-ai/actions/runs/38545632754))
+failed after RSS classification with:
 `MEDIA_PUBLIC_BASE_URL nu este configurată`.
-This GitHub Actions publisher is **not** the Railway staging Flash AI worker.
-The publisher workflow passed only `ANTHROPIC_API_KEY`, `DATABASE_URL`,
-and `PAYLOAD_SECRET`; Payload's S3 media plugin now needs explicit media
-configuration while loading article records.
 
-This patch is prepared first as a **draft PR to `staging`**. It does not
-run a publisher, touch production databases, upload media, migrate schemas, or
-change any existing RSS/editorial logic.
+The GitHub Actions workflow forwarded `ANTHROPIC_API_KEY`, `DATABASE_URL` and
+`PAYLOAD_SECRET`, but did not forward the public media URL required by
+Payload's S3 storage plugin when serializing certain article records.
 
-## Variables required before any future production promotion
+This publisher is **separate from the Railway staging Flash AI worker**.
 
-In **GitHub repository → Settings → Secrets and variables → Actions**,
-configure these **Repository variables**, using the production Supabase project:
+A code review of `publish-rss.ts`, `publish-health.ts`,
+`publish-education.ts`, `publish-business.ts` and `translator.ts`
+confirms they create article drafts and translations; none uploads media.
+Therefore **S3 access keys must not be added to this GitHub Actions workflow**.
+Those belong only to the application/service that needs storage access.
 
-| Variable | Required production value |
+## One new GitHub Actions repository variable
+
+Before promoting this patch to `main`, configure:
+
+**GitHub repository → Settings → Secrets and variables → Actions → Variables**
+
+| Variable | Expected production value |
 | --- | --- |
 | `MEDIA_PUBLIC_BASE_URL` | `https://hyapqvnubhwkwmwudeit.supabase.co/storage/v1/object/public/media` |
-| `S3_BUCKET` | `media` |
-| `S3_REGION` | `eu-central-1` |
-| `S3_ENDPOINT` | `https://hyapqvnubhwkwmwudeit.supabase.co/storage/v1/s3` |
 
-Supabase also documents the direct storage endpoint
-`https://hyapqvnubhwkwmwudeit.storage.supabase.co/storage/v1/s3`.
-The preflight accepts either **official production** endpoint, not a staging or third-party host.
+This is a public URL, so use an Actions **variable**, not a secret. The
+preflight validates that it is an HTTPS URL for the production Supabase
+project `hyapqvnubhwkwmwudeit` and the `media` public bucket.
+A trailing slash is accepted.
 
-Configure or confirm these **Repository secrets** (real production values
-only, never staging values):
+The following **existing GitHub Actions secrets** remain necessary:
 
-- `S3_ACCESS_KEY_ID` — production Supabase S3 access key ID
-- `S3_SECRET_ACCESS_KEY` — production Supabase S3 secret access key
-- `DATABASE_URL` — existing production database connection
-- `PAYLOAD_SECRET` — existing production Payload secret
-- `ANTHROPIC_API_KEY` — existing production Anthropic API key
+- `DATABASE_URL`: production Supabase DB, never staging
+- `PAYLOAD_SECRET`: production Payload secret
+- `ANTHROPIC_API_KEY`: production model API key
 
-**Never copy staging S3 or database credentials.** Do not post credentials
-in pull requests, screenshots, discussion, or repository files. A GitHub
-Actions variable and a GitHub Actions secret are different scopes: make sure
-the names are placed in the correct one.
+The connection must use the official production direct database hostname or
+official Supabase pooler with the project-scoped username. Secrets are
+referenced by name only; their values are never printed.
 
-The publisher is independent of Railway's runtime environment variables.
-Configuring Railway does **not** populate GitHub Actions.
+`S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, and
+`S3_SECRET_ACCESS_KEY` **are not required by these draft-only publisher
+scripts**. They remain configured for the actual Railway/Storage runtime,
+outside this PR. Do not copy Railway secrets to GitHub Actions.
 
-## Fail-closed behavior
+The current actual presence of this new GitHub variable cannot be inferred
+from repository source code or from Railway settings. It must be confirmed
+before any approved production promotion.
 
-`scripts/publisher-env-preflight.mjs` uses only local environment parsing,
-with no network requests or side effects:
+## Preflight and safety
 
-1. Fail if a required variable is missing or blank.
-2. Ensure `NODE_ENV=production` and that `DATABASE_URL` names the production Supabase project.
-3. Ensure the public media URL and S3 endpoint use the documented **production**
-   Supabase project and that the bucket is `media`.
-4. Report only variable **names** and redacted problem types, never values.
-5. Exit nonzero before `npm ci` and, as defense in depth, immediately before
-   `npx tsx publish-*.ts`.
+`scripts/publisher-env-preflight.mjs` parses local environment variables
+only. It does **not** contact the DB, Supabase, S3, or AI provider.
 
-GitHub secrets are passed only to those two steps, **not** at job level or
-to the dependency-install step. The existing cron selection is unchanged.
-`PAYLOAD_DB_PUSH=false` is explicitly passed to the publisher.
+The workflow runs the preflight:
 
-> A successful synthetic CI preflight does not prove that the GitHub
-> repository's actual Actions variables/secrets are populated or that real
-> Supabase/AI calls will succeed. These must be confirmed separately
-> before a user-authorized production promotion.
+1. Before dependency installation, so a missing media URL fails early;
+2. Again immediately before `npx tsx` runs the publisher.
+
+It checks missing values, NODE_ENV, production DB identity, and the exact
+public media destination; diagnostics show only variable **names** and
+failure categories. No credential value, DB URI, or URL value appears
+in logs.
+
+Existing scheduled cron entries and publisher scripts are unchanged.
+`PAYLOAD_DB_PUSH=false` is explicitly set for publisher execution.
 
 ## Validation and release gates
 
-- CI tests use **synthetic values only** and perform **no** provider requests,
-  production database access, S3 operations, or content writes.
-- Review the PR diff: only environment wiring, preflight, tests, and this doc.
-- Keep the PR in Draft until CI is green and operator approves readiness.
-- Integrate into `staging` only with explicit approval; **no automatic
-  Railway deployment or manual production workflow run**.
-- Promote to `main` via a separate approved PR only after the real GitHub
-  variable/secret presence has been confirmed. The expected configured values
-  must match production, never staging.
-- Avoid running `workflow_dispatch` casually: the current workflow defaults
-  to the RSS publisher, which can create review drafts and spend API credits.
+- The integration tests use fake environment values only, no real
+  database, provider, or storage actions.
+- This change is initially a **draft pull request to `staging`** with CI
+  verification, not a production action.
+- Confirm CI green, review the four changed files, then request separate
+  approval before any merge into `staging`.
+- Later promotion into `main` must be **separately approved** and requires
+  operator verification of GitHub Actions variable presence.
+- Do not run `workflow_dispatch` as a simple test: the existing action
+  defaults to RSS publication, which can create drafts and incur AI charges.
