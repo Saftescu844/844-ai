@@ -89,6 +89,18 @@ describe(
         )
 
         expect(source).toContain(
+          'HTML article retrieval failed: http_error',
+        )
+
+        expect(source).toContain(
+          "'article_retrieval_http_error'",
+        )
+
+        expect(source).toContain(
+          "throw new FlashRssCandidateTransientSkipError(",
+        )
+
+        expect(source).toContain(
           'rssCandidateSkipMemory',
         )
 
