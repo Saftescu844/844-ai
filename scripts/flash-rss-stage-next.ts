@@ -351,6 +351,7 @@ function runPrePersistenceHandoff({
         '--target-language',
         targetLanguage,
         '--allow-provider-requests',
+        '--staging-mit-evidence-preflight',
         '--model',
         model,
         '--handoff-output',
@@ -397,6 +398,19 @@ function runPrePersistenceHandoff({
         .join(
           '\n',
         )
+
+    // The child reports only bounded diagnostic categories and counts.
+    // Do not print raw HTML, source text, arbitrary stderr or provider output.
+    const mitDiagnosticLine =
+      stdout
+        ?.split(/\r?\n/)
+        .find(line =>
+          /^FLASH_MIT_PRIMARY_EVIDENCE_DIAGNOSTIC status=(?:supported_primary_link|unsupported_labelled_link|ambiguous_paper_links|missing_paper_label) labelledLinks=\d{1,4} ambiguousParagraphs=\d{1,4} recognizedEvidence=\d{1,4} identityStatus=(?:pending|ambiguous) providerCalled=false$/.test(line),
+        )
+
+    if (mitDiagnosticLine) {
+      console.log(mitDiagnosticLine)
+    }
 
     if (
       combinedOutput.includes(
