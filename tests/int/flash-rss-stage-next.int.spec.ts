@@ -89,7 +89,11 @@ describe(
         )
 
         expect(source).toContain(
-          'HTML article retrieval failed: http_error',
+          'isFlashRssArticleRetrievalHttpFailure',
+        )
+
+        expect(source).toContain(
+          'runFlashRssStageNextAttempts',
         )
 
         expect(source).toContain(
