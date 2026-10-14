@@ -13,11 +13,13 @@ type Element = DefaultTreeAdapterMap['element']
 export type MitPaperEvidenceDiagnosticStatus =
   | 'supported_primary_link'
   | 'unsupported_labelled_link'
+  | 'ambiguous_paper_links'
   | 'missing_paper_label'
 
 export interface MitPaperEvidenceDiagnostic {
   status: MitPaperEvidenceDiagnosticStatus
   labelledLinkCount: number
+  ambiguousPaperParagraphCount: number
   recognizedEvidenceCount: number
 }
 
@@ -70,6 +72,7 @@ export function diagnoseMitPaperEvidence(
 
   const mainElements = visibleElements(main[0]!)
   const labelled = new Set<Element>()
+  let ambiguousPaperParagraphCount = 0
 
   for (const node of mainElements) {
     if (node.tagName !== 'p') continue
@@ -80,6 +83,8 @@ export function diagnoseMitPaperEvidence(
     const links = visibleElements(node).filter(item => item.tagName === 'a')
     if (links.length === 1) {
       labelled.add(links[0]!)
+    } else if (links.length > 1) {
+      ambiguousPaperParagraphCount += 1
     }
   }
 
@@ -96,10 +101,13 @@ export function diagnoseMitPaperEvidence(
   return {
     status: recognizedEvidenceCount > 0
       ? 'supported_primary_link'
-      : labelledLinkCount > 0
-        ? 'unsupported_labelled_link'
-        : 'missing_paper_label',
+      : ambiguousPaperParagraphCount > 0
+        ? 'ambiguous_paper_links'
+        : labelledLinkCount > 0
+          ? 'unsupported_labelled_link'
+          : 'missing_paper_label',
     labelledLinkCount,
+    ambiguousPaperParagraphCount,
     recognizedEvidenceCount,
   }
 }
