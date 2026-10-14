@@ -33,8 +33,9 @@ describe('Auto-Publisher media URL preflight', () => {
     expect(run.status).toBe(0)
     expect(run.stdout).toContain('PUBLISHER_ENV_PREFLIGHT_OK')
     expect(run.stderr).toBe('')
-    for (const value of Object.values(validEnv)) {
-      expect(run.stdout).not.toContain(value)
+    for (const [name, value] of Object.entries(validEnv)) {
+      // NODE_ENV=production is a public mode label, not a credential.
+      if (name !== 'NODE_ENV') expect(run.stdout).not.toContain(value)
     }
   })
 
