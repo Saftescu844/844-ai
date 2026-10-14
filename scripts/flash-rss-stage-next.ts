@@ -39,6 +39,10 @@ import {
   rememberFlashRssCandidateSkip,
   type FlashRssCandidateSkipReason,
 } from '@/lib/flash/ingestion/rssCandidateSkipMemory'
+import {
+  isFlashRssArticleRetrievalHttpFailure,
+  runFlashRssStageNextAttempts,
+} from '@/lib/flash/ingestion/flashRssStageNextAttemptRunner'
 
 const ONE_SHOT_SERVICE_ID =
   '7be51b73-dc87-4a53-9ad4-879c00aecad6'
@@ -432,8 +436,8 @@ function runPrePersistenceHandoff({
           : null
 
     if (
-      combinedOutput.includes(
-        'HTML article retrieval failed: http_error'
+      isFlashRssArticleRetrievalHttpFailure(
+        combinedOutput,
       )
     ) {
       throw new FlashRssCandidateTransientSkipError(
@@ -865,20 +869,16 @@ async function main(): Promise<void> {
     return
   }
 
-  const candidateAttempts =
-    candidates.slice(
-      0,
+  const attemptResult =
+    await runFlashRssStageNextAttempts({
+      candidates,
       maxAttempts,
-    )
-
-  for (
-    const [
-      attemptIndex,
-      candidate,
-    ] of
-      candidateAttempts
-        .entries()
-  ) {
+      processCandidate: async (
+        candidate,
+        attempt,
+      ) => {
+    const attemptIndex =
+      attempt - 1
     console.log(
       'FLASH_RSS_STAGE_NEXT_SELECTED',
     )
@@ -1005,7 +1005,7 @@ async function main(): Promise<void> {
           false,
       })
 
-      return
+      return 'complete'
     } catch (error) {
       if (
         error instanceof
@@ -1028,7 +1028,7 @@ async function main(): Promise<void> {
             error.reason,
         })
 
-        continue
+        return 'skip'
       }
 
       if (
@@ -1089,7 +1089,7 @@ async function main(): Promise<void> {
             error.reason,
         })
 
-        continue
+        return 'skip'
       }
 
       throw error
@@ -1104,6 +1104,11 @@ async function main(): Promise<void> {
         },
       )
     }
+      },
+    })
+
+  if (attemptResult.completed) {
+    return
   }
 
   console.log(
@@ -1112,7 +1117,7 @@ async function main(): Promise<void> {
 
   console.log({
     attemptedCount:
-      candidateAttempts.length,
+      attemptResult.attemptedCount,
     maxAttempts,
     discoveredCount:
       discovered.length,
