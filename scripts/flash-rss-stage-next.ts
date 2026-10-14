@@ -405,7 +405,7 @@ function runPrePersistenceHandoff({
       stdout
         ?.split(/\r?\n/)
         .find(line =>
-          /^FLASH_MIT_PRIMARY_EVIDENCE_DIAGNOSTIC status=(?:supported_primary_link|unsupported_labelled_link|missing_paper_label) labelledLinks=\d{1,4} recognizedEvidence=\d{1,4} identityStatus=(?:pending|ambiguous) providerCalled=false$/.test(line),
+          /^FLASH_MIT_PRIMARY_EVIDENCE_DIAGNOSTIC status=(?:supported_primary_link|unsupported_labelled_link|ambiguous_paper_links|missing_paper_label) labelledLinks=\d{1,4} ambiguousParagraphs=\d{1,4} recognizedEvidence=\d{1,4} identityStatus=(?:pending|ambiguous) providerCalled=false$/.test(line),
         )
 
     if (mitDiagnosticLine) {
