@@ -96,6 +96,20 @@ describe('Auto-Publisher production media environment preflight', () => {
     expect(run.stderr).not.toContain('an-unsafe-password')
   })
 
+  it('rejects lookalike database hosts even if they contain the production project ID', () => {
+    const spoofedUrl = 'postgresql://postgres:fake-password@db.hyapqvnubhwkwmwudeit.supabase.co.attacker.example:5432/postgres'
+    const run = preflight({ DATABASE_URL: spoofedUrl })
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('DATABASE_URL')
+    expect(run.stderr).not.toContain(spoofedUrl)
+  })
+
+  it('requires the documented production S3 region', () => {
+    const run = preflight({ S3_REGION: 'us-east-1' })
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('S3_REGION')
+  })
+
   it('requires production mode and rejects malformed database URLs', () => {
     expect(preflight({ NODE_ENV: 'development' }).status).toBe(1)
     const run = preflight({ DATABASE_URL: 'not-a-database-uri' })
