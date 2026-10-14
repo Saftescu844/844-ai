@@ -89,6 +89,22 @@ describe(
         )
 
         expect(source).toContain(
+          'isFlashRssArticleRetrievalHttpFailure',
+        )
+
+        expect(source).toContain(
+          'runFlashRssStageNextAttempts',
+        )
+
+        expect(source).toContain(
+          "'article_retrieval_http_error'",
+        )
+
+        expect(source).toContain(
+          "throw new FlashRssCandidateTransientSkipError(",
+        )
+
+        expect(source).toContain(
           'rssCandidateSkipMemory',
         )
 
