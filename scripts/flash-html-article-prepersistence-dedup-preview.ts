@@ -1027,6 +1027,7 @@ async function main() {
         'FLASH_MIT_PRIMARY_EVIDENCE_DIAGNOSTIC',
         `status=${diagnostic.status}`,
         `labelledLinks=${diagnostic.labelledLinkCount}`,
+        `ambiguousParagraphs=${diagnostic.ambiguousPaperParagraphCount}`,
         `recognizedEvidence=${diagnostic.recognizedEvidenceCount}`,
         `identityStatus=${eventIdentity.status}`,
         'providerCalled=false',
