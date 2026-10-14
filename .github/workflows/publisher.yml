@@ -25,6 +25,16 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Verifică înainte de instalare configurația media a publicatorului
+        env:
+          NODE_ENV: production
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+          MEDIA_PUBLIC_BASE_URL: ${{ vars.MEDIA_PUBLIC_BASE_URL }}
+          PAYLOAD_DB_PUSH: 'false'
+        run: node scripts/publisher-env-preflight.mjs
+
       - name: Instalează dependențe
         run: npm ci
 
@@ -46,4 +56,9 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
-        run: npx tsx ${{ steps.decide.outputs.script }}
+          MEDIA_PUBLIC_BASE_URL: ${{ vars.MEDIA_PUBLIC_BASE_URL }}
+          PAYLOAD_DB_PUSH: 'false'
+        run: |
+          set -euo pipefail
+          node scripts/publisher-env-preflight.mjs
+          npx tsx ${{ steps.decide.outputs.script }}
