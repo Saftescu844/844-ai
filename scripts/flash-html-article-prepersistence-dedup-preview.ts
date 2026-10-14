@@ -10,6 +10,10 @@ import {
   normalizeFlashHtmlArticleCandidate,
 } from '@/lib/flash/ingestion/articleCandidateNormalization'
 import {
+  diagnoseMitPaperEvidence,
+  shouldSkipUngroundedMitBeforeProvider,
+} from '@/lib/flash/ingestion/mitPaperEvidencePreflight'
+import {
   evaluateFlashArticlePersistenceReadiness,
 } from '@/lib/flash/ingestion/articleCandidatePersistenceReadiness'
 import {
@@ -636,6 +640,11 @@ async function main() {
       '--require-grounded-event-identity',
     )
 
+  const stagingMitEvidencePreflight =
+    hasFlag(
+      '--staging-mit-evidence-preflight',
+    )
+
   if (
     qaRetentionDiagnosticOutput &&
     !allowProviderRequests
@@ -986,6 +995,48 @@ async function main() {
         fingerprints.eventFingerprint,
       targetLanguage,
     })
+
+  if (
+    shouldSkipUngroundedMitBeforeProvider({
+      candidate:
+        normalized,
+      hasGroundedEventFingerprint:
+        Boolean(fingerprints.eventFingerprint),
+      stagingWorkerPreflightEnabled:
+        stagingMitEvidencePreflight &&
+        !allowProductionOneShot &&
+        !readOnlyPilot,
+      hasHandoffOutput:
+        Boolean(handoffOutput),
+      sourceVerificationPassed:
+        sourceVerification.sourceVerificationPassed,
+      strongDuplicateFound:
+        dedup.evidence.sourceDuplicateFound ||
+        dedup.evidence.eventFingerprintDuplicateFound,
+    })
+  ) {
+    const diagnostic =
+      diagnoseMitPaperEvidence(
+        retrieval.textContent,
+        normalized.primaryEvidenceUrls ?? [],
+      )
+
+    // Stable, single-line and content-free. No untrusted URLs or article text.
+    console.log(
+      [
+        'FLASH_MIT_PRIMARY_EVIDENCE_DIAGNOSTIC',
+        `status=${diagnostic.status}`,
+        `labelledLinks=${diagnostic.labelledLinkCount}`,
+        `recognizedEvidence=${diagnostic.recognizedEvidenceCount}`,
+        `identityStatus=${eventIdentity.status}`,
+        'providerCalled=false',
+      ].join(' '),
+    )
+
+    throw new Error(
+      'FlashAI STAGING write input requires grounded event identity or a safe review-only pending identity.',
+    )
+  }
 
   let prePersistenceClassification:
     | null
