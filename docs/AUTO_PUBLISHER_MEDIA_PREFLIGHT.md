@@ -26,6 +26,10 @@ configure these **Repository variables**, using the production Supabase project:
 | `S3_REGION` | `eu-central-1` |
 | `S3_ENDPOINT` | `https://hyapqvnubhwkwmwudeit.supabase.co/storage/v1/s3` |
 
+Supabase also documents the direct storage endpoint
+`https://hyapqvnubhwkwmwudeit.storage.supabase.co/storage/v1/s3`.
+The preflight accepts either **official production** endpoint, not a staging or third-party host.
+
 Configure or confirm these **Repository secrets** (real production values
 only, never staging values):
 
