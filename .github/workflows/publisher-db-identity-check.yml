@@ -1,0 +1,83 @@
+# Manual-only diagnostic. Never scheduled and never invoked by pull_request.
+# Reads one secret locally on the runner; makes no network/DB/AI calls.
+# Intended to run only after a separately approved merge to main.
+name: Publisher DB Identity Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-connection-identity:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Report safe categories only (never credential values)
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from urllib.parse import unquote, urlsplit
+
+          PROD = 'hyapqvnubhwkwmwudeit'
+          STAGING = 'tvtnpcqawaekhmhyfrnc'
+          raw = os.environ.get('DATABASE_URL', '')
+          result = {
+              'SECRET_STATUS': 'missing' if not raw.strip() else 'invalid',
+              'PROJECT': 'unknown',
+              'ROLE': 'other',
+              'METHOD': 'unknown',
+              'MAIN_PREFLIGHT': 'reject',
+              'PR254_PREFLIGHT': 'reject',
+          }
+
+          if raw.strip():
+              try:
+                  parsed = urlsplit(raw)
+                  username = unquote(parsed.username or '')
+                  hostname = (parsed.hostname or '').lower()
+                  valid_protocol = parsed.scheme in ('postgres', 'postgresql')
+                  direct_prod = hostname == f'db.{PROD}.supabase.co'
+                  direct_staging = hostname == f'db.{STAGING}.supabase.co'
+                  pooler = hostname.endswith('.pooler.supabase.com')
+
+                  if direct_prod or direct_staging:
+                      result['METHOD'] = 'direct'
+                  elif pooler:
+                      result['METHOD'] = 'pooler'
+
+                  if direct_prod or (pooler and username.endswith('.' + PROD)):
+                      result['PROJECT'] = 'production'
+                  elif direct_staging or (pooler and username.endswith('.' + STAGING)):
+                      result['PROJECT'] = 'staging'
+
+                  role = username.split('.', 1)[0] if pooler else username
+                  if role in ('postgres', 'app_prod2'):
+                      result['ROLE'] = role
+
+                  base_ok = valid_protocol and (
+                      (direct_prod and username == 'postgres') or
+                      (pooler and username == 'postgres.' + PROD)
+                  )
+                  expanded_ok = valid_protocol and (
+                      (direct_prod and username in ('postgres', 'app_prod2')) or
+                      (pooler and username in ('postgres.' + PROD, 'app_prod2.' + PROD))
+                  )
+
+                  result['MAIN_PREFLIGHT'] = 'accept' if base_ok else 'reject'
+                  result['PR254_PREFLIGHT'] = 'accept' if expanded_ok else 'reject'
+                  result['SECRET_STATUS'] = 'present' if valid_protocol and hostname else 'invalid'
+              except (ValueError, TypeError, UnicodeError):
+                  pass
+
+          # Only fixed-key, allowlisted values are printed; never raw env data,
+          # exception messages, hostname, username beyond approved role labels,
+          # query string or password.
+          for name, value in result.items():
+              print(f'{name}={value}')
+          PY
