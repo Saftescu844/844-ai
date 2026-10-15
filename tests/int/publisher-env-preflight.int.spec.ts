@@ -87,6 +87,35 @@ describe('Auto-Publisher media URL preflight', () => {
     expect(run.status).toBe(0)
   })
 
+  it.each([
+    ['session pooler', 'postgresql://app_prod2.hyapqvnubhwkwmwudeit:fake-password@aws-0-eu-central-1.pooler.supabase.com:5432/postgres'],
+    ['transaction pooler', 'postgresql://app_prod2.hyapqvnubhwkwmwudeit:fake-password@aws-0-eu-central-1.pooler.supabase.com:6543/postgres'],
+    ['direct database', 'postgresql://app_prod2:fake-password@db.hyapqvnubhwkwmwudeit.supabase.co:5432/postgres'],
+  ])('accepts the approved app_prod2 role through %s without connecting', (_mode, databaseUrl) => {
+    const run = preflight({ DATABASE_URL: databaseUrl })
+    expect(run.status).toBe(0)
+    expect(run.stdout).toContain('PUBLISHER_ENV_PREFLIGHT_OK')
+    expect(run.stdout).not.toContain(databaseUrl)
+    expect(run.stderr).toBe('')
+  })
+
+  it('rejects unapproved roles, staging role tenants, spoofed hosts and missing pooler tenant', () => {
+    for (const unsafe of [
+      'postgresql://other_role.hyapqvnubhwkwmwudeit:fake-password@aws-0-eu-central-1.pooler.supabase.com:5432/postgres',
+      'postgresql://app_prod2.tvtnpcqawaekhmhyfrnc:fake-password@aws-0-eu-central-1.pooler.supabase.com:5432/postgres',
+      'postgresql://app_prod2:fake-password@db.tvtnpcqawaekhmhyfrnc.supabase.co:5432/postgres',
+      'postgresql://app_prod2:fake-password@aws-0-eu-central-1.pooler.supabase.com:5432/postgres',
+      'postgresql://app_prod2.hyapqvnubhwkwmwudeit:fake-password@aws-0-eu-central-1.pooler.supabase.com.attacker.example:5432/postgres',
+      'postgresql://other_role:fake-password@db.hyapqvnubhwkwmwudeit.supabase.co:5432/postgres',
+    ]) {
+      const run = preflight({ DATABASE_URL: unsafe })
+      expect(run.status).toBe(1)
+      expect(run.stderr).toContain('DATABASE_URL nu identifică proiectul Supabase de producție')
+      expect(run.stderr).not.toContain(unsafe)
+      expect(run.stderr).not.toContain('fake-password')
+    }
+  })
+
   it('requires production mode and rejects malformed DB URIs', () => {
     expect(preflight({ NODE_ENV: 'development' }).status).toBe(1)
     const run = preflight({ DATABASE_URL: 'not-a-database-uri' })
