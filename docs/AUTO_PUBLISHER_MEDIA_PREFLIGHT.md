@@ -113,12 +113,28 @@ a database connection. The new synthetic tests cover the supported
 connection forms and unsafe variants. No additional database privileges
 or secrets are added.
 
-**Diagnostic limitation:** we cannot read the configured GitHub Actions
-`DATABASE_URL` secret. An `app_prod2` username is a *plausible cause*,
-not a confirmed fact. The operator must independently validate the
-destination/role without displaying credentials. Passing the preflight
-will not on its own establish that live publication can authenticate or
-write successfully.
+**Confirmed diagnostic (2026-10-15):** The independent, manually dispatched
+[Publisher DB Identity Check run #38694917922](https://github.com/Saftescu844/844-ai/actions/runs/38694917922)
+completed successfully on `main` without connecting to PostgreSQL or running
+any publisher. Its allowlisted, credential-free output was:
+- `SECRET_STATUS=present`
+- `PROJECT=production`
+- `ROLE=app_prod2`
+- `METHOD=pooler`
+- `MAIN_PREFLIGHT=reject`
+- `PR254_PREFLIGHT=accept`
+
+This confirms that the GitHub Actions `DATABASE_URL` **URI identifies the
+production Supabase project** using the approved dedicated `app_prod2` role
+via a pooler. It also explains why the old, postgres-only preflight rejected
+the URI and why the explicitly restricted role allowlist in this patch
+accepts it. No URL, hostname, password or credential was printed.
+
+**Limit:** this was local URI classification, **not** a network connection or
+authentication test. It does not prove the password is valid, that the DB is
+reachable, or that article writes/publication will succeed. Preserve
+production/staging isolation and observe scheduled behavior separately after
+an explicitly approved merge.
 
 **Release gates:** draft PR to `main`, CI on its final HEAD, inspect the
 three-file diff and obtain a separate explicit Ready/merge approval.
