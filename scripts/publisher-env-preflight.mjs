@@ -62,12 +62,17 @@ function checkPublisherEnvironment(env) {
       const validProtocol = ['postgres:', 'postgresql:'].includes(database.protocol)
       // Only official Supabase direct and pooler endpoints are accepted.
       // The mere presence of the project ID in an unrelated host is unsafe.
+      // Only the administrator and the explicitly provisioned application
+      // role are allowed. Supavisor requires <ROLE>.<PROJECT-REF>.
+      const approvedRoles = ['postgres', 'app_prod2']
       const direct =
         database.hostname === `db.${PROD_STORAGE_HOST}` &&
-        username === 'postgres'
+        approvedRoles.includes(username)
       const pooled =
         database.hostname.endsWith('.pooler.supabase.com') &&
-        username === `postgres.${PROD_PROJECT_REF}`
+        approvedRoles.some(
+          role => username === `${role}.${PROD_PROJECT_REF}`,
+        )
       const isProductionDatabase = direct || pooled
 
       if (!validProtocol || !isProductionDatabase) {
