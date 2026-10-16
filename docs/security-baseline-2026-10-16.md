@@ -33,3 +33,13 @@ Next steps before security promotion:
 - Remaining high findings concentrate around transitive Payload tooling (chokidar, braces, micromatch, sass, find-node-modules, findup-sync), ESLint tooling, and their dependency advisories. Do not force old major releases to silence advisory cascades.
 - **Not a production approval:** verify full CI, production-only npm audit, upgrade/compatibility concerns in Payload and Next.js, and a staging rollout before main merge.
 - The temporary writable PR workflow is removed; only the read-only inventory remains.
+
+## Payload 3.91 schema compatibility — CI finding
+- CI run `38870757378`: PostgreSQL ephemeral migrations, ACL checks, rehearsal and lint succeeded; integration failed **1/1325** because Payload 3.91 queries missing `useri.reset_password_requested_at` (SQLSTATE 42703). Build was skipped. This is a real schema compatibility issue, not a flaky test.
+- Verified via **read-only** information_schema on production: `useri.reset_password_requested_at` and `media._objectkey` are absent. Staging already has corresponding schema migrations from its earlier Payload upgrade.
+- Reuse the **exact two existing staging migration files**:
+  `20261011_182500_payload_auth_reset_requested_at.ts` and
+  `20261013_000001_payload_media_objectkey_compat.ts`.
+  Register them in `src/migrations/index.ts`; both `up` operations only add nullable columns with `IF NOT EXISTS`, without backfilling or changing records.
+- These migration files are only **proposals within Draft PR #259**, and their execution is authorized **only on temporary GitHub CI databases**. Production and staging Supabase remain unchanged.
+- Before eventual promotion, validate controlled staging migration, migration history, backup/restore, and separately approve any live migration/deploy. **Do not merge this PR yet.**
