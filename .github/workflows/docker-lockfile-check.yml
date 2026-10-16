@@ -1,0 +1,36 @@
+name: Docker lockfile install verification
+
+on:
+  pull_request:
+    branches: [staging, main]
+    paths:
+      - Dockerfile
+      - package.json
+      - package-lock.json
+      - .github/workflows/docker-lockfile-check.yml
+
+permissions:
+  contents: read
+
+jobs:
+  docker-dependencies:
+    name: docker-dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build actual Docker dependency stage with npm ci
+        run: docker build --target deps --progress=plain -t 844-ai-deps-check .
+
+      - name: Check installed dependency tree and audit inside image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm 844-ai-deps-check sh -c '
+            set -eu
+            npm ls next payload --depth=0
+            npm audit --json > /tmp/npm-audit.json || true
+            node -e "const fs=require(\"node:fs\"); const r=JSON.parse(fs.readFileSync(\"/tmp/npm-audit.json\", \"utf8\")); if (!r.metadata?.vulnerabilities) process.exit(1); console.log(\"DOCKER_AUDIT_COUNTS=\"+JSON.stringify(r.metadata.vulnerabilities));"
+          '
