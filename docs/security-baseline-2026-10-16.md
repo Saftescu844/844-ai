@@ -23,3 +23,13 @@ Next steps before security promotion:
 3. Test Node 22 publisher compatibility and patched dependencies on an isolated branch.
 4. CI green, staging validation, explicit merge and deploy approvals.
 5. Keep editorial PR #256 in Draft and independent.
+
+## Reproducible remediation candidate on PR #259
+- Generated lockfile commit: `9c4c480d78c7cfa9e66bf4662c04c860edec9c03`, created by a temporary branch-restricted workflow. Temporary write workflow removed in subsequent commit.
+- Node 22.17.0; Next.js 16.4.2; Payload 3.91.0 (all direct Payload packages aligned); sharp 0.35.5; Vitest 4.1.12; eslint-config-next 16.4.2.
+- Targeted transitive overrides: fast-uri 3.1.8, js-yaml 4.3.2, source-map-js 1.2.2, fast-copy 3.1.0, nanoid 3.3.20, browserslist 4.28.7. `brace-expansion` was refreshed inside compatible ranges (1.1.21 and 5.0.12) in the generated lock.
+- npm install --package-lock-only succeeded, npm ci --ignore-scripts succeeded; generated lockfile is reproducible.
+- npm audit all for the candidate: **18 affected packages (0 critical, 13 high, 5 moderate)**, down from 34 (3 critical, 22 high, 9 moderate).
+- Remaining high findings concentrate around transitive Payload tooling (chokidar, braces, micromatch, sass, find-node-modules, findup-sync), ESLint tooling, and their dependency advisories. Do not force old major releases to silence advisory cascades.
+- **Not a production approval:** verify full CI, production-only npm audit, upgrade/compatibility concerns in Payload and Next.js, and a staging rollout before main merge.
+- The temporary writable PR workflow is removed; only the read-only inventory remains.
