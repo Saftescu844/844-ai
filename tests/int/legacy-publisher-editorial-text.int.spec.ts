@@ -90,9 +90,9 @@ describe('legacy publisher excerpt and Romanian SEO', () => {
       expect(source).toContain(
         'excerpt: excerptRo, continut: htmlToLexical(art.continut)',
       )
-      expect((source.match(/draft:\\s*true/g) ?? []).length)
+      expect((source.match(/draft:\s*true/g) ?? []).length)
         .toBeGreaterThanOrEqual(3)
-      expect((source.match(/editorialStatus:\\s*'review'/g) ?? []).length)
+      expect((source.match(/editorialStatus:\s*'review'/g) ?? []).length)
         .toBe(2)
       expect(source).not.toContain('publishedAt:')
     })
