@@ -61,12 +61,73 @@ describe('legacy publisher excerpt and Romanian SEO', () => {
     expect(seo.metaTitle.length).toBeLessThanOrEqual(
       PUBLISHER_SEO_TITLE_LIMIT,
     )
-    expect(title.startsWith(seo.metaTitle)).toBe(true)
+    expect(
+      title.startsWith(
+        seo.metaTitle.endsWith('…')
+          ? seo.metaTitle.slice(0, -1)
+          : seo.metaTitle,
+      ),
+    ).toBe(true)
     expect(seo.metaDescription.length).toBeGreaterThan(0)
     expect(seo.metaDescription.length).toBeLessThanOrEqual(
       PUBLISHER_SEO_DESCRIPTION_LIMIT,
     )
     expect(excerpt.startsWith(seo.metaDescription.slice(0, -1))).toBe(true)
+  })
+
+
+  it('avoids Romanian connecting words at the end of a shortened SEO title', () => {
+    const title =
+      'Un laborator european prezintă o nouă metodă de evaluare a inteligenței artificiale'
+    const seo = buildRomanianPublisherSeo(title, 'Rezumat.')
+    expect(seo.metaTitle).toBe(
+      'Un laborator european prezintă o nouă metodă de evaluare…',
+    )
+    expect(seo.metaTitle.length).toBeLessThanOrEqual(PUBLISHER_SEO_TITLE_LIMIT)
+    expect(seo.metaTitle).not.toMatch(/\b(?:a|de|și|prin|pentru|cu)…$/u)
+  })
+
+  it('drops unfinished coordinated phrases instead of leaving a dangling conjunction', () => {
+    const title =
+      'Asistența clinică prin inteligență artificială și limitele noilor sisteme de sprijin'
+    expect(buildRomanianPublisherSeo(title, 'Rezumat.').metaTitle).toBe(
+      'Asistența clinică prin inteligență artificială…',
+    )
+  })
+
+  it('keeps a full title if already short enough', () => {
+    expect(buildRomanianPublisherSeo('Actualizări AI', 'Rezumat.').metaTitle)
+      .toBe('Actualizări AI')
+  })
+
+  it('does not split a long unbreakable SEO token or fabricate words', () => {
+    const seo = buildRomanianPublisherSeo('X'.repeat(90), 'Rezumat valid.')
+    expect(seo.metaTitle).toBe('')
+    expect(seo.metaDescription).toBe('Rezumat valid.')
+  })
+
+  it('fails closed for an unbreakable excerpt without cutting inside a word', () => {
+    const excerpt = 'x'.repeat(PUBLISHER_EXCERPT_LIMIT + 80)
+    expect(normalizePublisherExcerpt(excerpt)).toBe('')
+    expect(buildRomanianPublisherSeo('Titlu', excerpt).metaDescription).toBe('')
+  })
+
+  it('does not mistake Dr. for a sentence-ending period', () => {
+    const sentence =
+      'Dr. Ionescu descrie o metodă care îmbunătățește evaluarea clinică bazată pe inteligență artificială și care este destinată personalului medical.'
+    const excerpt =
+      'Introducere scurtă. ' + sentence + ' Alte detalii '.repeat(45)
+    expect(normalizePublisherExcerpt(excerpt, 170)).toBe(
+      'Introducere scurtă. ' + sentence,
+    )
+  })
+
+  it('does not split on Prof. or single-letter initials', () => {
+    const sentence =
+      'Prof. A. Popescu descrie un sistem de analiză care îi ajută pe experții din laboratoare să înțeleagă mai bine rezultatele unor cercetări recente.'
+    expect(
+      normalizePublisherExcerpt(sentence + ' Informații '.repeat(33), 160),
+    ).toBe(sentence)
   })
 
   for (const filename of publishers) {
