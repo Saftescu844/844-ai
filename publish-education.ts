@@ -99,6 +99,7 @@ async function main() {
   console.log('[3] Încerc până la ' + deProiectat.length + ' candidați, țintă ' + MAX_ARTICOLE + ' articole...\n')
 
   let publicate = 0
+  const incompleteTranslationIds: Array<string | number> = []
   for (const stire of deProiectat) {
     if (publicate >= MAX_ARTICOLE) break // oprire când am publicat efectiv suficiente, nu doar încercat
     console.log('  → [' + stire.scor + '/10, ' + stire.subcategorie + '] "' + stire.titlu.substring(0, 45) + '..." (' + stire.sursa + ')')
@@ -156,13 +157,24 @@ async function main() {
           })
           await payload.update({ collection: 'articole', id: creat.id, draft: true, data: { versiuneAlternativa: creatEn.id } as any })
           console.log('    ✓ TRADUS (ID ' + creatEn.id + ')')
+        } else {
+          incompleteTranslationIds.push(creat.id)
+          console.error('    [Translator] EN incomplet pentru articolul RO ID ' + creat.id)
         }
-      } catch (e: any) { console.log('    [Translator] eșuat: ' + e.message) }
+      } catch (e: any) {
+        incompleteTranslationIds.push(creat.id)
+        console.error('    [Translator] EȘEC EN pentru articolul RO ID ' + creat.id + ': ' + e.message)
+      }
     } catch (e: any) {
       console.log('    EROARE: ' + e.message)
     }
   }
   console.log('\n=== GATA: ' + publicate + ' ciorne Educație create pentru revizuire ===\n')
+  if (incompleteTranslationIds.length > 0) {
+    console.error('TRANSLATION_INCOMPLETE_RO_IDS=' + incompleteTranslationIds.join(','))
+    console.error('Execuție parțială: unele ciorne RO nu au pereche EN; recuperare separată necesară')
+    process.exit(1)
+  }
   process.exit(0)
 }
 main().catch((err) => { console.error('\nEROARE FATALĂ:', err.message); process.exit(1) })
