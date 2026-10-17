@@ -7,7 +7,7 @@ vi.mock('@anthropic-ai/sdk', () => ({
   },
 }))
 
-import { traduceArticol } from '../../translator'
+import { traduceArticol, TranslationRequiresEditorialReviewError } from '../../translator'
 
 const source = {
   titlu: 'Titlu românesc',
@@ -140,6 +140,47 @@ describe('Legacy RO→EN translation response validation (mocked provider)', () 
     } finally {
       log.mockRestore()
     }
+  })
+
+  it('classifies a provider refusal as editorial intervention without retry or leaking text', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      createMessage.mockResolvedValue({
+        stop_reason: 'refusal',
+        content: [],
+        usage: { output_tokens: 0 },
+      })
+      await expect(traduceArticol(source)).rejects.toBeInstanceOf(
+        TranslationRequiresEditorialReviewError,
+      )
+      expect(createMessage).toHaveBeenCalledTimes(1)
+      const logs = log.mock.calls.map((args) => args.join(' ')).join('\n')
+      expect(logs).toContain('"reason":"provider_refusal"')
+      expect(logs).toContain('"retry":false')
+      expect(logs).toContain('EDITORIAL_INTERVENTION_REQUIRED')
+      expect(logs).not.toContain(source.titlu)
+      expect(logs).not.toContain(source.excerpt)
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('does not accept a refusal even when the provider returns full-looking content', async () => {
+    createMessage.mockResolvedValue({
+      stop_reason: 'refusal',
+      content: [{ type: 'text', text: complete }],
+      usage: { output_tokens: 350 },
+    })
+    await expect(traduceArticol(source)).rejects.toThrow('EDITORIAL_INTERVENTION_REQUIRED')
+    expect(createMessage).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry a refusal received on the final permitted attempt', async () => {
+    createMessage
+      .mockResolvedValueOnce(response('###TITLU###\nIncomplete'))
+      .mockResolvedValueOnce({ stop_reason: 'refusal', content: [], usage: { output_tokens: 0 } })
+    await expect(traduceArticol(source)).rejects.toThrow('EDITORIAL_INTERVENTION_REQUIRED')
+    expect(createMessage).toHaveBeenCalledTimes(2)
   })
 
 })
