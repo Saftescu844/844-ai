@@ -9,3 +9,9 @@
 !public/
 !public/**
 !Dockerfile.retention
+!vitest.config.mts
+!vitest.setup.ts
+!translator.ts
+!tests/
+!tests/int/
+!tests/int/**
