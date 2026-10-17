@@ -1,100 +1,66 @@
 /**
- * Recovery for a legacy RO article whose EN draft was not created.
- * Default mode is read-only. Production writes require separate approval,
- * --apply and --confirm-article-id=<same ID>. Never schedule this script.
+ * Legacy RO -> EN draft recovery. Dry-run by default.
+ *
+ * Examples:
+ *   npx tsx scripts/recover-legacy-translation.ts --article-id=1066
+ *   # ONLY after separately approved:
+ *   npx tsx scripts/recover-legacy-translation.ts --article-id=1066 --apply --confirm-article-id=1066
+ *
+ * Never schedule this command. Do not supply production credentials during
+ * an isolated test; do not use --apply on production without explicit approval.
  */
 import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { traduceArticol, slugEn } from '../translator'
+import { recoverLegacyTranslation } from './legacy-translation-recovery-core'
 
-async function main() {
+async function main(): Promise<void> {
   const idArg = process.argv.find((arg) => arg.startsWith('--article-id='))
   const articleId = Number(idArg?.split('=')[1])
   if (!Number.isSafeInteger(articleId) || articleId < 1) {
     throw new Error('Required: --article-id=<positive integer>')
   }
   const apply = process.argv.includes('--apply')
-  const confirmed = process.argv.includes(`--confirm-article-id=${articleId}`)
-  if (apply && !confirmed) {
-    throw new Error('Write blocked: explicit --confirm-article-id=<same ID> required')
+  if (apply && !process.argv.includes(`--confirm-article-id=${articleId}`)) {
+    throw new Error('Write blocked: --confirm-article-id=<same ID> is required')
   }
+  if (apply && process.env.PAYLOAD_DB_PUSH !== 'false') {
+    throw new Error('Write blocked: PAYLOAD_DB_PUSH must be explicitly false')
+  }
+
   const payload = await getPayload({ config })
-  const source = await payload.findByID({
-    collection: 'articole', id: articleId, depth: 0, draft: true,
-  })
-  if (source.limba !== 'ro' || source._status === 'published') {
-    throw new Error('Only an unpublished Romanian article can be recovered')
-  }
-  const linkedId = typeof source.versiuneAlternativa === 'object'
-    ? source.versiuneAlternativa?.id : source.versiuneAlternativa
-  const existing = await payload.find({
-    collection: 'articole', depth: 0, draft: true, limit: 10,
-    where: { versiuneAlternativa: { equals: articleId } },
-  })
-  const english = existing.docs.filter((doc) => doc.limba === 'en')
-  if (linkedId || english.length > 1 || existing.docs.some((doc) => doc.limba !== 'en')) {
-    throw new Error('Unexpected language links; manual editorial review required')
-  }
-  if (english.length === 1) {
-    console.log(`Existing EN draft ID ${english[0].id}; RO link ${apply ? 'will be repaired' : 'missing (dry-run)'}`)
-    if (apply) {
-      await payload.update({
-        collection: 'articole', id: articleId, draft: true,
-        data: { versiuneAlternativa: english[0].id },
-      })
-    }
+  const deps = { payload, translate: traduceArticol, slugEnglish: slugEn }
+
+  if (!apply) {
+    const result = await recoverLegacyTranslation(deps, articleId, false)
+    console.log('DRY-RUN only; no article changes or AI requests:', result)
     return
   }
-  console.log(`RO draft ${articleId} lacks an English partner; ${apply ? 'authorized recovery' : 'DRY-RUN: no writes'}`)
-  if (!apply) return
 
-  const translated = await traduceArticol({
-    titlu: source.titlu,
-    excerpt: source.excerpt || '',
-    continut: source.continut,
-  })
-  if (!translated?.titlu || !translated.excerpt || !translated.continut) {
-    throw new Error('Translation failed; RO draft unchanged, no EN draft created')
-  }
-
-  // Recheck before creating so a repeat invocation does not duplicate EN.
-  const recheck = await payload.find({
-    collection: 'articole', depth: 0, draft: true, limit: 1,
-    where: { versiuneAlternativa: { equals: articleId } },
-  })
-  if (recheck.docs.length !== 0) throw new Error('EN partner appeared; abort duplicate creation')
-
-  const created = await payload.create({
-    collection: 'articole', draft: true,
-    data: {
-      titlu: translated.titlu,
-      slug: slugEn(translated.titlu),
-      limba: 'en',
-      pilon: source.pilon,
-      tip: source.tip,
-      excerpt: translated.excerpt.substring(0, 298),
-      continut: translated.continut,
-      sursaNume: source.sursaNume,
-      sursaLink: source.sursaLink,
-      editorialStatus: 'review',
-      generatAutomat: true,
-      versiuneAlternativa: articleId,
-      metaTitle: translated.metaTitle.substring(0, 58),
-      metaDescription: translated.metaDescription.substring(0, 158),
-      ...(source.subcategorie ? { subcategorie: source.subcategorie } : {}),
-      ...(source.subcategorieEducatie ? { subcategorieEducatie: source.subcategorieEducatie } : {}),
-    } as any,
-  })
+  // Serialize opt-in recovery operations for the same RO ID across CLI runs.
+  // A dedicated session-level advisory lock is held until both drafts link.
+  const client = await payload.db.pool.connect()
+  let locked = false
   try {
-    await payload.update({
-      collection: 'articole', id: articleId, draft: true,
-      data: { versiuneAlternativa: created.id },
-    })
-  } catch (error) {
-    console.error(`EN draft ${created.id} created but reciprocal link failed; rerun recovery after review`)
-    throw error
+    const result = await client.query(
+      'SELECT pg_try_advisory_lock($1, $2) AS locked',
+      [844, articleId],
+    )
+    locked = result.rows[0]?.locked === true
+    if (!locked) throw new Error('Concurrent recovery already running for this article')
+    const outcome = await recoverLegacyTranslation(deps, articleId, true)
+    console.log('RECOVERY RESULT:', outcome)
+  } finally {
+    if (locked) {
+      try {
+        await client.query('SELECT pg_advisory_unlock($1, $2)', [844, articleId])
+      } finally {
+        client.release()
+      }
+    } else {
+      client.release()
+    }
   }
-  console.log(`Recovered EN draft ${created.id} and linked it to RO ${articleId}; remains in review`)
 }
 main().catch((error) => { console.error(error.message); process.exitCode = 1 })
