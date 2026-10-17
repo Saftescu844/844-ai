@@ -129,7 +129,7 @@ describe('Legacy RO→EN translation response validation (mocked provider)', () 
   it('does not print raw provider error messages or credentials', async () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     try {
-      createMessage.mockRejectedValue(new Error('TOP_SECRET_PROVIDER_TOKEN_123'))
+      createMessage.mockImplementation(() => { throw new Error('TOP_SECRET_PROVIDER_TOKEN_123') })
       await expect(traduceArticol(source)).resolves.toBeNull()
       expect(createMessage).toHaveBeenCalledTimes(2)
       const logs = log.mock.calls.map((args) => args.join(' ')).join('\n')
