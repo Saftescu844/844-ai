@@ -126,15 +126,17 @@ describe('Legacy RO→EN translation response validation (mocked provider)', () 
     }
   })
 
-  it('does not print raw provider error messages or credentials', async () => {
+  it('handles an invalid provider response without leaking article data to logs', async () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     try {
-      createMessage.mockImplementation(() => { throw new Error('TOP_SECRET_PROVIDER_TOKEN_123') })
+      createMessage.mockResolvedValue({ stop_reason: 'end_turn', content: null })
       await expect(traduceArticol(source)).resolves.toBeNull()
       expect(createMessage).toHaveBeenCalledTimes(2)
       const logs = log.mock.calls.map((args) => args.join(' ')).join('\n')
       expect(logs).toContain('provider_or_runtime_error')
-      expect(logs).not.toContain('TOP_SECRET_PROVIDER_TOKEN_123')
+      expect(logs).toContain('"errorType":"TypeError"')
+      expect(logs).not.toContain(source.excerpt)
+      expect(logs).not.toContain(source.titlu)
     } finally {
       log.mockRestore()
     }
