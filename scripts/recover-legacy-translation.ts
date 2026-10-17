@@ -12,7 +12,7 @@
 import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '@payload-config'
-import { traduceArticol, slugEn } from '../translator'
+import { traduceArticol, slugEn, TranslationRequiresEditorialReviewError } from '../translator'
 import { recoverLegacyTranslation } from './legacy-translation-recovery-core'
 
 async function main(): Promise<void> {
@@ -63,7 +63,13 @@ async function main(): Promise<void> {
     }
   }
 }
-main().then(() => process.exit(0)).catch((error) => {
-  console.error(error.message)
+main().then(() => process.exit(0)).catch((error: unknown) => {
+  if (error instanceof TranslationRequiresEditorialReviewError) {
+    // GitHub Actions annotation: a terminal editorial handoff, not a retryable failure.
+    // No source text, generated response, request metadata or credentials are logged.
+    console.error('::error title=Editorial review required::' + error.message)
+  } else {
+    console.error(error instanceof Error ? error.message : 'Unknown recovery error')
+  }
   process.exit(1)
 })

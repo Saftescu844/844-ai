@@ -43,6 +43,17 @@ export interface TraducereRezultat {
   metaDescription: string
 }
 
+/**
+ * A model refusal is an editorial handoff, not a malformed completion.
+ * Callers must not silently retry or treat this as a transient API error.
+ */
+export class TranslationRequiresEditorialReviewError extends Error {
+  constructor() {
+    super('EDITORIAL_INTERVENTION_REQUIRED: provider refused translation; manual editorial review required; no retry')
+    this.name = 'TranslationRequiresEditorialReviewError'
+  }
+}
+
 // Traduce un articol RO → EN. Returnează null dacă eșuează (nu strică RO).
 export async function traduceArticol(articolRo: {
   titlu: string
@@ -91,6 +102,19 @@ export async function traduceArticol(articolRo: {
       max_tokens: 5000,
       messages: [{ role: 'user', content: prompt }],
     })
+    // Explicit provider refusals must never be retried, even if a partial response exists.
+    // Emit only fixed categories and counts, not the article or provider output.
+    if (resp.stop_reason === 'refusal') {
+      console.log('    [Translator] Safe diagnostic: ' + JSON.stringify({
+        attempt: retryCount + 1,
+        reason: 'provider_refusal',
+        stopReason: 'refusal',
+        outputTokens: resp.usage?.output_tokens ?? null,
+        retry: false,
+        action: 'EDITORIAL_INTERVENTION_REQUIRED',
+      }))
+      throw new TranslationRequiresEditorialReviewError()
+    }
     // Anthropic may return several text content blocks; discard thinking/tool blocks.
     // Diagnostics below report only schema/usage, never model output or article text.
     const textParts = resp.content.filter((block) => block.type === 'text')
@@ -180,6 +204,8 @@ export async function traduceArticol(articolRo: {
       metaDescription: metaDescription || excerpt,
     }
   } catch (e: unknown) {
+    // Refusals are terminal, classified editorial events, never technical retries.
+    if (e instanceof TranslationRequiresEditorialReviewError) throw e
     // Provider errors can include request metadata. Never print their raw messages.
     const type = e instanceof Error && /^[A-Za-z][A-Za-z0-9_]{0,47}$/.test(e.name)
       ? e.name : 'OtherError'
