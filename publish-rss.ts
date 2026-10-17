@@ -120,6 +120,7 @@ async function main() {
 
   // ── 3. Generează + publică ──
   let publicate = 0
+  const incompleteTranslationIds: Array<string | number> = []
   for (const stire of deProiectat) {
     if (publicate >= MAX_ARTICOLE) break // oprire când am publicat efectiv suficiente, nu doar încercat
     const pilonSlug = PILON_SLUG[stire.pilon] || 'stiri'
@@ -191,9 +192,13 @@ async function main() {
           // legăm reciproc RO → EN
           await payload.update({ collection: 'articole', id: creat.id, draft: true, data: { versiuneAlternativa: creatEn.id } as any })
           console.log('    ✓ TRADUS în engleză (ID ' + creatEn.id + '), legat reciproc')
+        } else {
+          incompleteTranslationIds.push(creat.id)
+          console.error('    [Translator] EN incomplet pentru articolul RO ID ' + creat.id)
         }
       } catch (e: any) {
-        console.log('    [Translator] Traducerea a eșuat (ciorna RO rămâne disponibilă pentru revizuire): ' + e.message)
+        incompleteTranslationIds.push(creat.id)
+        console.error('    [Translator] EȘEC EN pentru articolul RO ID ' + creat.id + ': ' + e.message)
       }
     } catch (e: any) {
       console.log('    EROARE: ' + e.message)
@@ -201,6 +206,11 @@ async function main() {
   }
 
   console.log('\n=== GATA: ' + publicate + ' ciorne create pentru revizuire ===\n')
+  if (incompleteTranslationIds.length > 0) {
+    console.error('TRANSLATION_INCOMPLETE_RO_IDS=' + incompleteTranslationIds.join(','))
+    console.error('Execuție parțială: unele ciorne RO nu au pereche EN; recuperare separată necesară')
+    process.exit(1)
+  }
   process.exit(0)
 }
 

@@ -48,7 +48,7 @@ export async function traduceArticol(articolRo: {
   titlu: string
   excerpt: string
   continut: any
-}): Promise<TraducereRezultat | null> {
+}, retryCount = 0): Promise<TraducereRezultat | null> {
   try {
     const blocsToti = lexicalToBlocks(articolRo.continut)
     // separăm blocurile de TEXT (trimise la Claude) de nodurile upload (păstrate neschimbate)
@@ -88,7 +88,7 @@ export async function traduceArticol(articolRo: {
 
     const resp = await client.messages.create({
       model: 'claude-sonnet-5',
-      max_tokens: 3000,
+      max_tokens: 5000,
       messages: [{ role: 'user', content: prompt }],
     })
     const raw = (resp.content.find((b: any) => b.type === 'text') as any)?.text || ''
@@ -105,9 +105,9 @@ export async function traduceArticol(articolRo: {
     const metaTitle = extrage('METATITLE', 'METADESC')
     const metaDescription = extrage('METADESC', 'END')
 
-    if (!titlu || !continutRaw) {
-      console.log('    [Translator] Răspuns incomplet, traducerea sare peste')
-      return null
+    if (resp.stop_reason === 'max_tokens' || !titlu || !excerpt || !continutRaw) {
+      console.log('    [Translator] Răspuns incomplet' + (retryCount === 0 ? ', reîncerc o dată' : ', traducerea necesită recuperare'))
+      return retryCount === 0 ? traduceArticol(articolRo, 1) : null
     }
 
     // reasamblăm blocurile de TEXT traduse, apoi reintroducem upload-urile la poziția corectă
@@ -121,9 +121,25 @@ export async function traduceArticol(articolRo: {
       }
     }
     if (Object.keys(textTradusPeIndex).length === 0) {
-      console.log('    [Translator] Nu am putut reasambla conținutul, sar peste')
-      return null
+      console.log('    [Translator] Conținut invalid' + (retryCount === 0 ? ', reîncerc o dată' : ', traducerea necesită recuperare'))
+      return retryCount === 0 ? traduceArticol(articolRo, 1) : null
     }
+    // Nu salva o traducere cu paragrafe lipsă, duplicate sau tipuri schimbate.
+    const expectedIndexes = blocuriText.map((_, i) => i)
+    const actualIndexes = Object.keys(textTradusPeIndex).map(Number)
+    const rawIndexes = [...continutRaw.matchAll(/^\[(\d+)\|([HP])\]/gm)].map((m) => Number(m[1]))
+    const complete = actualIndexes.length === expectedIndexes.length
+      && rawIndexes.length === expectedIndexes.length
+      && expectedIndexes.every((i) => {
+        const original = blocuriText[i]
+        const translated = textTradusPeIndex[i]
+        return translated && translated.tip === (original.tip === 'heading' ? 'heading' : 'paragraph')
+      })
+    if (!complete) {
+      console.log('    [Translator] Blocuri lipsă/duplicate' + (retryCount === 0 ? ', reîncerc o dată' : ', traducerea necesită recuperare'))
+      return retryCount === 0 ? traduceArticol(articolRo, 1) : null
+    }
+
     const blocuriFinale: { tip: string; tag?: string; text: string; raw?: any }[] = []
     if (uploadDupa[-1]) for (const raw of uploadDupa[-1]) blocuriFinale.push({ tip: 'upload', text: '', raw })
     for (let i = 0; i < blocuriText.length; i++) {
@@ -140,7 +156,7 @@ export async function traduceArticol(articolRo: {
     }
   } catch (e: any) {
     console.log('    [Translator] Eroare: ' + e.message)
-    return null
+    return retryCount === 0 ? traduceArticol(articolRo, 1) : null
   }
 }
 
