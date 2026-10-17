@@ -123,6 +123,18 @@ describe('Legacy RO -> EN translation recovery (mocked; no DB or AI requests)', 
     expect(t.create).not.toHaveBeenCalled()
   })
 
+  it('surfaces editorial refusal and makes no article writes', async () => {
+    const t = setup()
+    t.translate.mockRejectedValueOnce(
+      new Error('EDITORIAL_INTERVENTION_REQUIRED: provider refused translation; manual editorial review required; no retry'),
+    )
+    await expect(recoverLegacyTranslation(t.deps, 1066, true))
+      .rejects.toThrow('EDITORIAL_INTERVENTION_REQUIRED')
+    expect(t.translate).toHaveBeenCalledTimes(1)
+    expect(t.create).not.toHaveBeenCalled()
+    expect(t.update).not.toHaveBeenCalled()
+  })
+
   it('rejects ambiguous reverse links', async () => {
     const t = setup({ reverse: [{ id: 2001, limba: 'en' }, { id: 2002, limba: 'en' }] })
     await expect(recoverLegacyTranslation(t.deps, 1066, true))
@@ -147,5 +159,7 @@ describe('Translator and CLI safeguards', () => {
     expect(text).toContain('pg_try_advisory_lock')
     expect(text).toContain('pg_advisory_unlock')
     expect(text).toContain('if (!apply)')
+    expect(text).toContain('TranslationRequiresEditorialReviewError')
+    expect(text).toContain('::error title=Editorial review required::')
   })
 })
