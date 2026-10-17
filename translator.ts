@@ -105,7 +105,7 @@ export async function traduceArticol(articolRo: {
     const metaTitle = extrage('METATITLE', 'METADESC')
     const metaDescription = extrage('METADESC', 'END')
 
-    if (!titlu || !continutRaw) {
+    if (resp.stop_reason === 'max_tokens' || !titlu || !excerpt || !continutRaw) {
       console.log('    [Translator] Răspuns incomplet' + (retryCount === 0 ? ', reîncerc o dată' : ', traducerea necesită recuperare'))
       return retryCount === 0 ? traduceArticol(articolRo, 1) : null
     }
