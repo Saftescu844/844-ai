@@ -1,0 +1,117 @@
+# Opt-in, single-article legacy translation recovery.
+# This workflow is NEVER scheduled, triggered on push/PR, or tied to Railway deploys.
+# Approval to merge this file does NOT authorize a workflow run or an EN draft write.
+name: Legacy EN Recovery 1066 (manual only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'dry-run (no changes) or apply (creates/relinks EN review draft)'
+        type: choice
+        required: true
+        default: dry-run
+        options:
+          - dry-run
+          - apply
+      confirmation:
+        description: 'For apply ONLY: enter APROB_RECUPERAREA_EN_1066_PROD after separate approval'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: legacy-en-recovery-1066-production
+  cancel-in-progress: false
+
+jobs:
+  recover-1066:
+    # Never use secrets on a feature branch, fork, PR or staging ref.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Verify manual mode and independent apply confirmation
+        shell: bash
+        env:
+          RECOVERY_MODE: ${{ inputs.mode }}
+          RECOVERY_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          case "$RECOVERY_MODE" in
+            dry-run)
+              echo 'MODE=DRY_RUN; no writes or model requests are authorized.'
+              ;;
+            apply)
+              if [[ "$RECOVERY_CONFIRMATION" != 'APROB_RECUPERAREA_EN_1066_PROD' ]]; then
+                echo '::error::Apply blocked: independent explicit confirmation for article 1066 is required.'
+                exit 1
+              fi
+              echo 'MODE=APPLY; article=1066; additional CLI safeguards remain enabled.'
+              ;;
+            *)
+              echo '::error::Unexpected recovery mode.'
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout the manually selected main commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up supported Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.17.0'
+          cache: npm
+
+      - name: Fail closed unless secrets point to production
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MEDIA_PUBLIC_BASE_URL: ${{ vars.MEDIA_PUBLIC_BASE_URL }}
+        run: node scripts/publisher-env-preflight.mjs
+
+      - name: Install locked dependencies without production secrets
+        run: npm ci
+
+      - name: Recheck production configuration and run read-only dry-run
+        env:
+          NODE_ENV: production
+          PAYLOAD_DB_PUSH: 'false'
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MEDIA_PUBLIC_BASE_URL: ${{ vars.MEDIA_PUBLIC_BASE_URL }}
+        run: |
+          set -euo pipefail
+          node scripts/publisher-env-preflight.mjs
+          npx tsx scripts/recover-legacy-translation.ts --article-id=1066
+          echo 'RECOVERY_1066_DRY_RUN_OK: no article changes or translation requests.'
+
+      - name: Apply recovery only after separate explicit approval
+        if: ${{ inputs.mode == 'apply' }}
+        env:
+          NODE_ENV: production
+          PAYLOAD_DB_PUSH: 'false'
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MEDIA_PUBLIC_BASE_URL: ${{ vars.MEDIA_PUBLIC_BASE_URL }}
+          RECOVERY_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          if [[ "$RECOVERY_CONFIRMATION" != 'APROB_RECUPERAREA_EN_1066_PROD' ]]; then
+            echo '::error::Apply confirmation missing; refusing write.'
+            exit 1
+          fi
+          node scripts/publisher-env-preflight.mjs
+          npx tsx scripts/recover-legacy-translation.ts --article-id=1066 --apply --confirm-article-id=1066
+          echo 'RECOVERY_1066_APPLY_COMPLETED: review drafts only; publication NOT requested.'
