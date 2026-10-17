@@ -164,36 +164,7 @@ export async function traduceArticol(articolRo: {
       return retryCount === 0 ? traduceArticol(articolRo, 1) : null
     }
 
-    // reasamblăm blocurile de TEXT traduse, apoi reintroducem upload-urile la poziția corectă
-    const textTradusPeIndex: Record<number, { tip: string; tag?: string; text: string }> = {}
-    for (const linie of continutRaw.split('\n')) {
-      const m = linie.match(/^\[(\d+)\|([HP])\]\s*(.*)$/)
-      if (m) {
-        const text = m[3].trim()
-        if (!text) continue
-        textTradusPeIndex[parseInt(m[1])] = { tip: m[2] === 'H' ? 'heading' : 'paragraph', tag: m[2] === 'H' ? 'h3' : undefined, text }
-      }
-    }
-    if (Object.keys(textTradusPeIndex).length === 0) {
-      console.log('    [Translator] Conținut invalid' + (retryCount === 0 ? ', reîncerc o dată' : ', traducerea necesită recuperare'))
-      return retryCount === 0 ? traduceArticol(articolRo, 1) : null
-    }
-    // Nu salva o traducere cu paragrafe lipsă, duplicate sau tipuri schimbate.
-    const expectedIndexes = blocuriText.map((_, i) => i)
-    const actualIndexes = Object.keys(textTradusPeIndex).map(Number)
-    const rawIndexes = [...continutRaw.matchAll(/^\[(\d+)\|([HP])\]/gm)].map((m) => Number(m[1]))
-    const complete = actualIndexes.length === expectedIndexes.length
-      && rawIndexes.length === expectedIndexes.length
-      && expectedIndexes.every((i) => {
-        const original = blocuriText[i]
-        const translated = textTradusPeIndex[i]
-        return translated && translated.tip === (original.tip === 'heading' ? 'heading' : 'paragraph')
-      })
-    if (!complete) {
-      console.log('    [Translator] Blocuri lipsă/duplicate' + (retryCount === 0 ? ', reîncerc o dată' : ', traducerea necesită recuperare'))
-      return retryCount === 0 ? traduceArticol(articolRo, 1) : null
-    }
-
+    // Reassemble only after strict block validation above has passed.
     const blocuriFinale: { tip: string; tag?: string; text: string; raw?: any }[] = []
     if (uploadDupa[-1]) for (const raw of uploadDupa[-1]) blocuriFinale.push({ tip: 'upload', text: '', raw })
     for (let i = 0; i < blocuriText.length; i++) {
