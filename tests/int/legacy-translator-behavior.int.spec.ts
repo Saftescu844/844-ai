@@ -78,4 +78,68 @@ describe('Legacy RO→EN translation response validation (mocked provider)', () 
     expect(result?.titlu).toBe('English title')
     expect(createMessage).toHaveBeenCalledTimes(2)
   })
+  it('combines multiple provider text parts into a complete answer', async () => {
+    const pivot = complete.indexOf('###CONTINUT###')
+    createMessage.mockResolvedValueOnce({
+      stop_reason: 'end_turn',
+      content: [
+        { type: 'text', text: complete.slice(0, pivot) },
+        { type: 'text', text: complete.slice(pivot) },
+      ],
+    })
+    const result = await traduceArticol(source)
+    expect(result?.continut.root.children).toHaveLength(2)
+    expect(createMessage).toHaveBeenCalledTimes(1)
+  })
+
+  it('accepts complete body and END marker when optional SEO sections are omitted', async () => {
+    const withoutSeo = complete.split('###METATITLE###')[0] + '###END###'
+    createMessage.mockResolvedValueOnce(response(withoutSeo))
+    const result = await traduceArticol(source)
+    expect(result?.titlu).toBe('English title')
+    expect(result?.metaTitle).toBe('English title')
+    expect(result?.metaDescription).toBe('English abstract')
+    expect(createMessage).toHaveBeenCalledTimes(1)
+  })
+
+  it('requires END marker and never accepts an unfinished answer', async () => {
+    createMessage.mockResolvedValue(response(complete.replace('###END###', '')))
+    await expect(traduceArticol(source)).resolves.toBeNull()
+    expect(createMessage).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports only safe categories and counts for malformed provider output', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const secretContent = 'SENSITIVE_EXCERPT_AND_PRIVATE_PROVIDER_OUTPUT'
+      createMessage.mockResolvedValue(response(secretContent, 'max_tokens'))
+      await expect(traduceArticol(source)).resolves.toBeNull()
+      expect(createMessage).toHaveBeenCalledTimes(2)
+      const logs = log.mock.calls.map((args) => args.join(' ')).join('\n')
+      expect(logs).toContain('missing_sections_or_truncated_response')
+      expect(logs).toContain('"stopReason":"max_tokens"')
+      expect(logs).toContain('"attempt":2')
+      expect(logs).not.toContain(secretContent)
+      expect(logs).not.toContain(source.excerpt)
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('handles an invalid provider response without leaking article data to logs', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      createMessage.mockResolvedValue({ stop_reason: 'end_turn', content: null })
+      await expect(traduceArticol(source)).resolves.toBeNull()
+      expect(createMessage).toHaveBeenCalledTimes(2)
+      const logs = log.mock.calls.map((args) => args.join(' ')).join('\n')
+      expect(logs).toContain('provider_or_runtime_error')
+      expect(logs).toContain('"errorType":"TypeError"')
+      expect(logs).not.toContain(source.excerpt)
+      expect(logs).not.toContain(source.titlu)
+    } finally {
+      log.mockRestore()
+    }
+  })
+
 })

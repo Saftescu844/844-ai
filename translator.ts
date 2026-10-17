@@ -91,7 +91,29 @@ export async function traduceArticol(articolRo: {
       max_tokens: 5000,
       messages: [{ role: 'user', content: prompt }],
     })
-    const raw = (resp.content.find((b: any) => b.type === 'text') as any)?.text || ''
+    // Anthropic may return several text content blocks; discard thinking/tool blocks.
+    // Diagnostics below report only schema/usage, never model output or article text.
+    const textParts = resp.content.filter((block) => block.type === 'text')
+    const raw = textParts.map((block) => block.text).join('\n')
+    const missingMarkers = ['TITLU', 'EXCERPT', 'CONTINUT', 'END']
+      .filter((marker) => !raw.includes('###' + marker + '###'))
+    const outputTokens = resp.usage?.output_tokens ?? null
+    const report = (reason: string, actualBlocks: number | null = null) => {
+      console.log('    [Translator] Safe diagnostic: ' + JSON.stringify({
+        attempt: retryCount + 1,
+        reason,
+        stopReason: resp.stop_reason ?? 'unknown',
+        outputTokens,
+        textParts: textParts.length,
+        expectedTextBlocks: blocuriText.length,
+        actualTextBlocks: actualBlocks,
+        missingMarkers,
+        optionalSeo: {
+          metaTitle: raw.includes('###METATITLE###'),
+          metaDescription: raw.includes('###METADESC###'),
+        },
+      }))
+    }
 
     const extrage = (a: string, b: string) => {
       const re = new RegExp('###' + a + '###([\\s\\S]*?)###' + b + '###')
@@ -101,16 +123,19 @@ export async function traduceArticol(articolRo: {
 
     const titlu = extrage('TITLU', 'EXCERPT')
     const excerpt = extrage('EXCERPT', 'CONTINUT')
-    const continutRaw = extrage('CONTINUT', 'METATITLE')
-    const metaTitle = extrage('METATITLE', 'METADESC')
+    // SEO metadata is optional: complete article content may end directly at END.
+    // Never use end-of-string as a boundary, since that might accept a truncated answer.
+    const continutRaw = raw.match(/###CONTINUT###([\s\S]*?)(?=###(?:METATITLE|METADESC|END)###)/)?.[1]?.trim() || ''
+    const metaTitle = extrage('METATITLE', 'METADESC') || extrage('METATITLE', 'END')
     const metaDescription = extrage('METADESC', 'END')
 
-    if (resp.stop_reason === 'max_tokens' || !titlu || !excerpt || !continutRaw) {
-      console.log('    [Translator] Răspuns incomplet' + (retryCount === 0 ? ', reîncerc o dată' : ', traducerea necesită recuperare'))
+    if (!['end_turn', 'stop_sequence'].includes(resp.stop_reason ?? '')
+      || missingMarkers.length > 0 || !titlu || !excerpt || !continutRaw) {
+      report('missing_sections_or_truncated_response')
       return retryCount === 0 ? traduceArticol(articolRo, 1) : null
     }
 
-    // reasamblăm blocurile de TEXT traduse, apoi reintroducem upload-urile la poziția corectă
+    // Strictly reject malformed, duplicate or missing numbered text blocks.
     const textTradusPeIndex: Record<number, { tip: string; tag?: string; text: string }> = {}
     for (const linie of continutRaw.split('\n')) {
       const m = linie.match(/^\[(\d+)\|([HP])\]\s*(.*)$/)
@@ -121,10 +146,9 @@ export async function traduceArticol(articolRo: {
       }
     }
     if (Object.keys(textTradusPeIndex).length === 0) {
-      console.log('    [Translator] Conținut invalid' + (retryCount === 0 ? ', reîncerc o dată' : ', traducerea necesită recuperare'))
+      report('no_valid_text_blocks', 0)
       return retryCount === 0 ? traduceArticol(articolRo, 1) : null
     }
-    // Nu salva o traducere cu paragrafe lipsă, duplicate sau tipuri schimbate.
     const expectedIndexes = blocuriText.map((_, i) => i)
     const actualIndexes = Object.keys(textTradusPeIndex).map(Number)
     const rawIndexes = [...continutRaw.matchAll(/^\[(\d+)\|([HP])\]/gm)].map((m) => Number(m[1]))
@@ -136,10 +160,11 @@ export async function traduceArticol(articolRo: {
         return translated && translated.tip === (original.tip === 'heading' ? 'heading' : 'paragraph')
       })
     if (!complete) {
-      console.log('    [Translator] Blocuri lipsă/duplicate' + (retryCount === 0 ? ', reîncerc o dată' : ', traducerea necesită recuperare'))
+      report('missing_duplicate_or_mistyped_blocks', rawIndexes.length)
       return retryCount === 0 ? traduceArticol(articolRo, 1) : null
     }
 
+    // Reassemble only after strict block validation above has passed.
     const blocuriFinale: { tip: string; tag?: string; text: string; raw?: any }[] = []
     if (uploadDupa[-1]) for (const raw of uploadDupa[-1]) blocuriFinale.push({ tip: 'upload', text: '', raw })
     for (let i = 0; i < blocuriText.length; i++) {
@@ -154,8 +179,13 @@ export async function traduceArticol(articolRo: {
       metaTitle: metaTitle || titlu,
       metaDescription: metaDescription || excerpt,
     }
-  } catch (e: any) {
-    console.log('    [Translator] Eroare: ' + e.message)
+  } catch (e: unknown) {
+    // Provider errors can include request metadata. Never print their raw messages.
+    const type = e instanceof Error && /^[A-Za-z][A-Za-z0-9_]{0,47}$/.test(e.name)
+      ? e.name : 'OtherError'
+    console.log('    [Translator] Safe diagnostic: ' + JSON.stringify({
+      attempt: retryCount + 1, reason: 'provider_or_runtime_error', errorType: type,
+    }))
     return retryCount === 0 ? traduceArticol(articolRo, 1) : null
   }
 }
