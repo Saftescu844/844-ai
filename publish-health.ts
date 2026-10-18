@@ -4,6 +4,7 @@ import config from '@payload-config'
 import Anthropic from '@anthropic-ai/sdk'
 import Parser from 'rss-parser'
 import { traduceArticol, slugEn } from './translator'
+import { buildRomanianPublisherSeo, normalizePublisherExcerpt } from './src/lib/legacy-publisher-editorial-text'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const parser = new Parser({ timeout: 15000 })
@@ -132,6 +133,8 @@ async function main() {
       const extrage = (a: string, b: string) => { const re = new RegExp('###' + a + '###([\\s\\S]*?)###' + b + '###'); const mm = raw.match(re); return mm ? mm[1].trim() : '' }
       const art = { titlu: extrage('TITLU', 'EXCERPT'), excerpt: extrage('EXCERPT', 'CONTINUT'), continut: extrage('CONTINUT', 'TAGS'), tags: extrage('TAGS', 'END').split(',').map((t: string) => t.trim()).filter(Boolean) }
       if (!art.titlu || !art.continut) { console.log('    Răspuns incomplet, sar peste'); continue }
+      const excerptRo = normalizePublisherExcerpt(art.excerpt || '')
+      const seoRo = buildRomanianPublisherSeo(art.titlu, excerptRo)
 
       const creat = await payload.create({
         collection: 'articole',
@@ -139,7 +142,7 @@ async function main() {
         data: {
           titlu: art.titlu, slug: slug(art.titlu), limba: 'ro', pilon: categorieId, tip: 'stire-auto',
           subcategorie: stire.subcategorie,
-          excerpt: (art.excerpt || '').substring(0, 298), continut: htmlToLexical(art.continut),
+          excerpt: excerptRo, ...seoRo, continut: htmlToLexical(art.continut),
           sursaNume: stire.sursa, sursaLink: stire.link,
           tags: (art.tags || []).map((t: string) => ({ tag: t })),
           editorialStatus: 'review',
@@ -151,7 +154,7 @@ async function main() {
 
       // traducere EN
       try {
-        const tradus = await traduceArticol({ titlu: art.titlu, excerpt: art.excerpt || '', continut: htmlToLexical(art.continut) })
+        const tradus = await traduceArticol({ titlu: art.titlu, excerpt: excerptRo, continut: htmlToLexical(art.continut) })
         if (tradus) {
           const creatEn = await payload.create({
             collection: 'articole',
@@ -159,7 +162,7 @@ async function main() {
             data: {
               titlu: tradus.titlu, slug: slugEn(tradus.titlu), limba: 'en', pilon: categorieId, tip: 'stire-auto',
               subcategorie: stire.subcategorie,
-              excerpt: (tradus.excerpt || '').substring(0, 298), continut: tradus.continut,
+              excerpt: normalizePublisherExcerpt(tradus.excerpt || ''), continut: tradus.continut,
               sursaNume: stire.sursa, sursaLink: stire.link,
               tags: (art.tags || []).map((t: string) => ({ tag: t })),
               editorialStatus: 'review',
