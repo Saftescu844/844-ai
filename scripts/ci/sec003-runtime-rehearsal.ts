@@ -19,6 +19,7 @@ let runtime: pg.Pool | undefined
 let payload: import('payload').Payload | undefined
 try {
   await owner.query(await readFile(new URL('../security/sec003-provision-runtime.sql', import.meta.url), 'utf8'))
+  console.log('SEC-003: provisioning complete')
   // Generated, ephemeral CI password. Never logged; never used outside the service container.
   await owner.query(`ALTER ROLE payload_runtime LOGIN PASSWORD '${password}'`)
   source.username = 'payload_runtime'
@@ -51,6 +52,7 @@ try {
   assert.equal(publicACL.rows[0].n, 0)
   const policies = await owner.query("SELECT count(*)::int AS n FROM pg_policies WHERE schemaname='public' AND policyname='sec003_payload_runtime' AND roles=ARRAY['payload_runtime']::name[]")
   assert.equal(policies.rows[0].n, 5)
+  console.log('SEC-003: privilege and policy checks complete')
 
   process.env.DATABASE_URL = source.toString()
   process.env.PAYLOAD_DB_MODE = 'runtime'
@@ -72,6 +74,7 @@ try {
   config.jobs.autoRun = []
   const { getPayload } = await import('payload')
   payload = await getPayload({ config })
+  console.log('SEC-003: restricted Payload initialized')
   assert.equal(payload.db.prodMigrations, undefined)
   assert.equal(payload.db.push, false)
   assert.equal(payload.db.disableCreateDatabase, true)
@@ -80,6 +83,7 @@ try {
   const actor = { ...user, collection: 'useri' as const }
   const login = await payload.login({ collection: 'useri', data: { email: user.email, password } })
   assert.ok(login.token)
+  console.log('SEC-003: login complete')
   const sessions = await runtime.query('SELECT count(*)::int AS n FROM public.useri_sessions WHERE _parent_id=$1', [user.id])
   assert.ok(sessions.rows[0].n > 0)
   await assert.rejects(payload.find({ collection: 'useri', overrideAccess: false }))
@@ -109,8 +113,13 @@ try {
   assert.ok(job.id)
   await payload.delete({ collection: 'payload-jobs', id: job.id, overrideAccess: true })
   console.log('SEC-003 PASS: privilege denials, ACLs, RLS, real Payload login/session, draft/version, newsletter, comments, search read and job queue/delete')
+} catch (error) {
+  console.error('SEC-003 rehearsal failed:', error instanceof Error ? error.message : 'unknown error')
+  process.exitCode = 1
 } finally {
-  await payload?.destroy()
-  await runtime?.end()
-  await owner.end()
+  // Payload may retain its initial pool client; do not hide an assertion behind teardown.
+  const timer = setTimeout(() => process.exit(process.exitCode || 0), 10_000)
+  await Promise.all([payload?.destroy(), runtime?.end(), owner.end()])
+  clearTimeout(timer)
 }
+process.exit(process.exitCode || 0)
