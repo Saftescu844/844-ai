@@ -1,3 +1,4 @@
+import * as migration_20261020_110000_sec002_function_default_execute from './20261020_110000_sec002_function_default_execute';
 import * as migration_20260730_185012_baseline_current_schema from './20260730_185012_baseline_current_schema';
 import * as migration_20260809_162701_sitesettings_initial_schema from './20260809_162701_sitesettings_initial_schema';
 import * as migration_20260813_150153_search_infrastructure from './20260813_150153_search_infrastructure';
@@ -161,5 +162,10 @@ export const migrations = [
     up: migration_20261013_000001_payload_media_objectkey_compat.up,
     down: migration_20261013_000001_payload_media_objectkey_compat.down,
     name: '20261013_000001_payload_media_objectkey_compat'
+  },
+  {
+    up: migration_20261020_110000_sec002_function_default_execute.up,
+    down: migration_20261020_110000_sec002_function_default_execute.down,
+    name: '20261020_110000_sec002_function_default_execute',
   },
 ];

@@ -143,6 +143,24 @@ try {
     `DB-003 (${label}): unsafe default privileges detected in schema public: ${JSON.stringify(defaultAclLeaks.rows)}`,
   )
 
+  // Missing global rows mean PostgreSQL built-in defaults, including PUBLIC
+  // EXECUTE. Schema-only checks cannot detect this inherited permission.
+  const globalFunctionLeaks = await client.query(`
+    SELECT a.privilege_type
+    FROM aclexplode(COALESCE(
+      (SELECT defaclacl FROM pg_default_acl
+       WHERE defaclrole = 'postgres'::regrole
+         AND defaclobjtype = 'f' AND defaclnamespace = 0),
+      acldefault('f', 'postgres'::regrole)
+    )) a
+    WHERE a.privilege_type = 'EXECUTE'
+      AND (a.grantee = 0 OR a.grantee IN (
+        'anon'::regrole, 'authenticated'::regrole
+      ))
+  `)
+  assert.equal(globalFunctionLeaks.rows.length, 0,
+    `SEC-002 (${label}): postgres global function defaults expose EXECUTE`)
+
   console.log(
     `DB-003 PASS (${label}): no public-schema CREATE/object/function/default ACL exposure for anon/authenticated`,
   )
