@@ -8,17 +8,8 @@ const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  experimental: {
-    serverActions: {
-      allowedOrigins: [
-        'localhost:3000',
-        '*.app.github.dev',
-        'silver-acorn-6447rrj6r6q34xjr-3000.app.github.dev',
-        '*.up.railway.app',
-        '844-ai.ro',
-      ],
-    },
-  },
+  // Keep Next.js same-origin Server Actions protection in every environment.
+  // Do not trust other tenants of Railway or GitHub through wildcard origins.
   images: {
     localPatterns: [
       {
