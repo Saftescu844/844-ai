@@ -180,6 +180,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Rehearse SEC-003 restricted runtime on ephemeral CI database
+        run: npx tsx scripts/ci/sec003-runtime-rehearsal.ts
+
       - name: Integration tests
         run: npm run test:int
 

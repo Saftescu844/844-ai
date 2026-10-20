@@ -1,6 +1,7 @@
 import { buildConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { migrations } from './migrations'
+import { assertRuntimeDatabase, databaseRuntimeOptions } from './lib/database-runtime'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -31,8 +32,14 @@ import { brevoEmailAdapter } from './lib/brevo-email-adapter'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+const databaseRuntime = databaseRuntimeOptions()
 
 export default buildConfig({
+  onInit: async (payload) => {
+    if (databaseRuntime.restricted) {
+      await assertRuntimeDatabase(payload.db.pool, migrations.map(({ name }) => name))
+    }
+  },
   email: brevoEmailAdapter(),
 
   plugins: [
@@ -120,10 +127,11 @@ export default buildConfig({
   // === Bază de date: PostgreSQL pe Supabase ===
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL || '' },
-    prodMigrations: migrations,
+    prodMigrations: databaseRuntime.restricted ? undefined : migrations,
+    disableCreateDatabase: databaseRuntime.restricted,
     // Activare explicită doar pentru baze locale temporare.
     // Staging și producția folosesc exclusiv migrații controlate.
-    push: process.env.PAYLOAD_DB_PUSH === 'true',
+    push: databaseRuntime.restricted ? false : process.env.PAYLOAD_DB_PUSH === 'true',
   }),
 
   // === Localizare la nivel de câmp (pentru Tool-uri, Roadmaps, Cursuri) ===
