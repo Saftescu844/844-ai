@@ -26,6 +26,8 @@ import * as migration_20261009_200000_flash_editorial_subcategories from './2026
 import * as migration_20261011_182500_payload_auth_reset_requested_at from './20261011_182500_payload_auth_reset_requested_at';
 import * as migration_20261013_000001_payload_media_objectkey_compat from './20261013_000001_payload_media_objectkey_compat';
 
+import * as migration_20261020_110000_sec002_function_default_execute from './20261020_110000_sec002_function_default_execute';
+
 export const migrations = [
   {
     up: migration_20260730_185012_baseline_current_schema.up,
@@ -161,5 +163,10 @@ export const migrations = [
     up: migration_20261013_000001_payload_media_objectkey_compat.up,
     down: migration_20261013_000001_payload_media_objectkey_compat.down,
     name: '20261013_000001_payload_media_objectkey_compat'
+  },
+  {
+    up: migration_20261020_110000_sec002_function_default_execute.up,
+    down: migration_20261020_110000_sec002_function_default_execute.down,
+    name: '20261020_110000_sec002_function_default_execute',
   },
 ];

@@ -123,6 +123,9 @@ jobs:
             npx tsx scripts/ci/assert-migration-complete.ts
           fi
 
+      - name: Rehearse SEC-002 function defaults on ephemeral CI database
+        run: npx tsx scripts/ci/function-default-execute-rehearsal.ts
+
       - name: Guard public ACLs on primary CI database
         env:
           DB_GUARD_LABEL: "primary-ci"
