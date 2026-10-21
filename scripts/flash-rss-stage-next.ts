@@ -1,3 +1,7 @@
+import { FlashRssControlledFailure, FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
+
+let diagnostics: FlashRssRunDiagnostics | undefined
+
 import {
   spawnSync,
 } from 'node:child_process'
@@ -467,22 +471,10 @@ function runPrePersistenceHandoff({
       )
     }
 
-    throw new Error(
-      [
-        `Pre-persistence ${targetLanguage.toUpperCase()} handoff failed.`,
-        stderr
-          ? `stderr: ${stderr}`
-          : '',
-        stdout
-          ? `stdout: ${stdout}`
-          : '',
-      ]
-        .filter(
-          Boolean,
-        )
-        .join(
-          '\n',
-        ),
+    throw new FlashRssControlledFailure(
+      result.signal ? 'RSS_CHILD_SIGNAL' :
+        result.error && 'code' in result.error && result.error.code === 'ENOBUFS'
+          ? 'RSS_CHILD_OUTPUT_LIMIT' : 'RSS_HANDOFF_FAILED',
     )
   }
 
@@ -544,6 +536,8 @@ async function main(): Promise<void> {
     printHelp()
     return
   }
+
+  diagnostics = new FlashRssRunDiagnostics()
 
   const allowStage =
     hasFlag(
@@ -657,8 +651,12 @@ async function main(): Promise<void> {
     )
   }
 
+  await diagnostics.checkpoint('database')
   const payload =
     await createPayload()
+
+  await diagnostics.start(payload, model, process.env.RAILWAY_GIT_COMMIT_SHA ?? 'flash-rss-diagnostics-v1')
+  await diagnostics.checkpoint('source-planning')
 
   const plans =
     await planFlashRssIngestionSources(
@@ -727,6 +725,7 @@ async function main(): Promise<void> {
       continue
     }
 
+    await diagnostics.checkpoint('feed-retrieval', plan.sourceId)
     const xml =
       await fetchFlashRssFeedXml({
         feedUrl:
@@ -749,6 +748,7 @@ async function main(): Promise<void> {
     )
   }
 
+  await diagnostics.checkpoint('candidate-selection', null)
   const existing =
     await payload.find({
       collection:
@@ -784,6 +784,9 @@ async function main(): Promise<void> {
             ),
       ),
     )
+
+  diagnostics.scan({ selectedSourceCount: selectedPlans.length, discoveredCount: discovered.length,
+    existingSourceUrlCount: existingSourceUrls.size, rememberedRejectedUrlCount })
 
   const candidates =
     discovered
@@ -864,6 +867,7 @@ async function main(): Promise<void> {
     candidates.length ===
     0
   ) {
+    diagnostics.result('empty')
     console.log(
       'FLASH_RSS_STAGE_NEXT_EMPTY',
     )
@@ -891,6 +895,7 @@ async function main(): Promise<void> {
         candidate,
         attempt,
       ) => {
+    diagnostics!.candidate(attempt, candidate.sourceId)
     const attemptIndex =
       attempt - 1
     console.log(
@@ -934,6 +939,7 @@ async function main(): Promise<void> {
       )
 
     try {
+      await diagnostics!.checkpoint('generation-ro')
       runPrePersistenceHandoff({
         sourceId:
           candidate.sourceId,
@@ -946,6 +952,7 @@ async function main(): Promise<void> {
           roPath,
       })
 
+      await diagnostics!.checkpoint('generation-en')
       runPrePersistenceHandoff({
         sourceId:
           candidate.sourceId,
@@ -981,6 +988,7 @@ async function main(): Promise<void> {
           enHandoff,
         )
 
+      await diagnostics!.checkpoint('pair-persistence')
       const result =
         await createFlashAiAtomicReviewPair({
           payload,
@@ -990,6 +998,7 @@ async function main(): Promise<void> {
             true,
         })
 
+      diagnostics!.result('pair-created', result)
       console.log(
         'FLASH_RSS_STAGE_NEXT_OK',
       )
@@ -1025,6 +1034,7 @@ async function main(): Promise<void> {
         error instanceof
           FlashRssCandidateTransientSkipError
       ) {
+        diagnostics!.skipped(error.reason)
         console.log(
           'FLASH_RSS_STAGE_NEXT_SKIP_TRANSIENT',
         )
@@ -1049,6 +1059,7 @@ async function main(): Promise<void> {
         error instanceof
           FlashRssCandidateSkipError
       ) {
+        diagnostics!.skipped(error.reason)
         const nextMemory =
           rememberFlashRssCandidateSkip({
             value:
@@ -1125,6 +1136,7 @@ async function main(): Promise<void> {
     return
   }
 
+  diagnostics.result('no-eligible-candidate')
   console.log(
     'FLASH_RSS_STAGE_NEXT_NO_ELIGIBLE_CANDIDATE',
   )
@@ -1150,27 +1162,17 @@ async function main(): Promise<void> {
 }
 
 main()
-  .then(
-    () => {
-      process.exit(
-        0,
-      )
-    },
-  )
-  .catch(
-    error => {
-      console.error(
-        'FLASH_RSS_STAGE_NEXT_FAILED',
-      )
-
-      console.error(
-        error instanceof Error
-          ? error.message
-          : error,
-      )
-
-      process.exit(
-        1,
-      )
-    },
-  )
+  .then(async () => {
+    await diagnostics?.finish()
+    process.exit(0)
+  })
+  .catch(async (error: unknown) => {
+    // Never emit arbitrary child stderr, raw provider responses or credentials.
+    try {
+      await diagnostics?.finish(true, error instanceof FlashRssControlledFailure ? error.code : undefined)
+    } catch {
+      // The diagnostic writer already emitted its bounded fallback error code.
+    }
+    console.error('FLASH_RSS_STAGE_NEXT_FAILED')
+    process.exit(1)
+  })

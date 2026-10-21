@@ -872,6 +872,7 @@ export interface FlashAi {
  */
 export interface FlashEngineRun {
   id: number;
+  runKind: string;
   /**
    * Relația curentă către Flash. Poate deveni null dacă documentul Flash este șters.
    */
@@ -879,7 +880,7 @@ export interface FlashEngineRun {
   /**
    * ID-ul original al Flash-ului evaluat, păstrat independent de existența ulterioară a documentului.
    */
-  flashIdSnapshot: number;
+  flashIdSnapshot?: number | null;
   /**
    * Identificator unic al unei execuții Flash Engine.
    */
@@ -1545,6 +1546,7 @@ export interface FlashAiSelect<T extends boolean = true> {
  * via the `definition` "flash-engine-runs_select".
  */
 export interface FlashEngineRunsSelect<T extends boolean = true> {
+  runKind?: T;
   flash?: T;
   flashIdSnapshot?: T;
   runId?: T;
