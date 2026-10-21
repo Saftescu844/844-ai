@@ -1,4 +1,11 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, NumberFieldSingleValidation } from 'payload'
+
+const validateFlashRunSnapshot: NumberFieldSingleValidation = (value, { data }) => {
+  const runKind = data && typeof data === 'object' && 'runKind' in data ? data.runKind : undefined
+  return (runKind === 'rss-ingestion' && value == null) ||
+    (typeof value === 'number' && Number.isInteger(value) && value >= 1)
+    ? true : 'ID-ul Flash trebuie să fie un număr întreg pozitiv.'
+}
 
 export const FlashEngineRuns: CollectionConfig = {
   slug: 'flash-engine-runs',
@@ -41,6 +48,16 @@ export const FlashEngineRuns: CollectionConfig = {
 
   fields: [
     {
+      name: 'runKind',
+      type: 'text',
+      required: true,
+      defaultValue: 'evaluation',
+      validate: (value: string | null | undefined) =>
+        value === 'evaluation' || value === 'rss-ingestion'
+          ? true : 'Tip de execuție necunoscut.',
+      admin: { readOnly: true },
+    },
+    {
       name: 'flash',
       type: 'relationship',
       relationTo: 'flash-ai',
@@ -56,15 +73,9 @@ export const FlashEngineRuns: CollectionConfig = {
     {
       name: 'flashIdSnapshot',
       type: 'number',
-      required: true,
       index: true,
       min: 1,
-      validate: (value: number | null | undefined) =>
-        typeof value === 'number' &&
-        Number.isInteger(value) &&
-        value >= 1
-          ? true
-          : 'ID-ul Flash trebuie să fie un număr întreg pozitiv.',
+      validate: validateFlashRunSnapshot,
       admin: {
         readOnly: true,
         description:

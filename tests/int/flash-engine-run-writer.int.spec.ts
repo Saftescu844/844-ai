@@ -24,6 +24,7 @@ function fakeRun(
     Partial<FlashEngineRun> = {},
 ): FlashEngineRun {
   return {
+    runKind: 'evaluation',
     id:
       41,
 
@@ -119,6 +120,7 @@ describe(
               'flash-engine-runs',
 
             data: {
+              runKind: 'evaluation',
               flash:
                 7,
 

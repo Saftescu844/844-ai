@@ -163,6 +163,7 @@ export async function startFlashEngineRun({
       'flash-engine-runs',
 
     data: {
+      runKind: 'evaluation',
       flash:
         normalizedFlashId,
 
