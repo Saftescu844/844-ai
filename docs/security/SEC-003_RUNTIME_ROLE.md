@@ -40,7 +40,7 @@ not an active credential. Existing `app_prod2` is neither modified nor reused.
 ## Required deployment design — approval needed, staging first
 
 1. Review CI results and provisioning SQL; record a fresh backup and rollback point.
-2. Create a separate migration service/job, using the exact application image/commit.
+2. Create a separate migration service/job, using the migration image built from the exact approved application commit.
    Its DATABASE_URL is privileged and its PAYLOAD_DB_MODE is legacy (or unset).
    It runs `npm run db:migrate:up` and verifies migration completeness, then exits.
    Never serve HTTP from it. No automatic trigger is configured by this PR.
@@ -82,3 +82,42 @@ Keep the existing deployed image/commit until acceptance. Stop rollout on failed
 A temporary return to the previous credential is an explicit, approved restoration of
 the old risk; do not do it automatically. Do not DROP ROLE or revoke grants while runtime
 connections depend on them. Record all credential changes without recording secret values.
+
+## Staging integration and packaged job (2026-10-21)
+
+PR #270 is based on staging 544cb6d0861b5e0c1a01e4804d8d16c7e0490488,
+not on main. It preserves staging's production-mode db:migrate:up command.
+Dockerfile.migrations installs the pinned lockfile, copies source and the dedicated
+runner, runs as node, and performs no Next build or database work at build time.
+It is a separate image from the web image, built from the same approved commit.
+The existing CI-only verifier remains unchanged.
+
+The job requires SEC003_RUN_MIGRATIONS=approved, SEC003_MIGRATION_TARGET=staging,
+and SEC003_MIGRATION_APPROVED_SHA equal to RAILWAY_GIT_COMMIT_SHA. It accepts
+only resilient-harmony / a589dc28-1c59-468c-9eb4-351fce8fa17b / payload-migrations,
+the staging Supabase reference, port 5432 direct/session pooler and sslmode=verify-full.
+Production is deliberately rejected. Certificate trust must be verified before activation;
+never weaken TLS to get past a failed check.
+
+The runner verifies the SQL identity, holds a session advisory lock against another
+instance of this runner, invokes npm run db:migrate:up once, then independently
+checks every compiled migration name and core schema markers. It exits nonzero
+if any phase fails. The lock does not coordinate other migration entry points:
+old web/worker startup migrators must be controlled during the approved cutover.
+Raw CLI/driver errors are suppressed to avoid leaking credentials. This means
+failure diagnosis requires a separate secret-safe inspection.
+
+CI tests rejection gates without connecting to any host, then builds and runs the
+actual Docker image against 127.0.0.1:5432/ci only, with CI placeholders. The CI
+path requires CI=true and its own matching GITHUB_SHA approval. This rehearses
+an already migrated database; a hosted first-use execution remains untested.
+
+Railway target configuration: Dockerfile.migrations, no HTTP domain, no TCP proxy,
+no cron, restart NEVER, no pre-deploy command, manual release only. Start command
+is the image CMD. Add only the required migration database credential and Payload
+configuration after approval; do not copy web API/email/AI keys by default.
+The execution flag is per approved release and must not enable automatic triggers.
+
+Railway refused the empty service again on 2026-10-21 with
+“Deploys have been paused temporarily”. No service, source, variable or deployment
+was created. This PR packages the job but does not activate it.
