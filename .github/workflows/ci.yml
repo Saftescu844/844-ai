@@ -182,6 +182,28 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test SEC-003 migration target gates
+        run: node --test scripts/security/migration-target.test.mjs
+
+      - name: Build and rehearse isolated migration image
+        timeout-minutes: 8
+        env:
+          SEC003_RUN_MIGRATIONS: "approved"
+          SEC003_MIGRATION_TARGET: "ci"
+          SEC003_MIGRATION_APPROVED_SHA: ${{ github.sha }}
+        run: |
+          docker build -f Dockerfile.migrations -t sec003-migrations-ci .
+          docker run --rm --network host \
+            -e CI -e GITHUB_SHA -e DATABASE_URL -e PAYLOAD_SECRET \
+            -e SEC003_RUN_MIGRATIONS -e SEC003_MIGRATION_TARGET -e SEC003_MIGRATION_APPROVED_SHA \
+            -e MEDIA_PUBLIC_BASE_URL -e S3_BUCKET -e S3_ACCESS_KEY_ID -e S3_SECRET_ACCESS_KEY \
+            -e S3_REGION -e S3_ENDPOINT -e SITE_URL -e BREVO_API_KEY \
+            -e ANTHROPIC_API_KEY -e OPENAI_API_KEY sec003-migrations-ci
+
+      - name: Rehearse SEC-003 restricted runtime on ephemeral CI database
+        timeout-minutes: 5
+        run: npx tsx scripts/ci/sec003-runtime-rehearsal.ts
+
       - name: Integration tests
         run: npm run test:int
 
