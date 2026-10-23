@@ -785,8 +785,8 @@ async function main(): Promise<void> {
       ),
     )
 
-  diagnostics.scan({ selectedSourceCount: selectedPlans.length, discoveredCount: discovered.length,
-    existingSourceUrlCount: existingSourceUrls.size, rememberedRejectedUrlCount })
+  let filteredExistingCandidateCount = 0
+  let filteredRememberedRejectedCandidateCount = 0
 
   const candidates =
     discovered
@@ -814,16 +814,24 @@ async function main(): Promise<void> {
               canonicalUrl,
             )
           ) {
+            filteredExistingCandidateCount += 1
             return false
           }
 
-          return !activeSkippedUrlsBySourceId
-            .get(
-              candidate.sourceId,
-            )
-            ?.has(
-              canonicalUrl,
-            )
+          if (
+            activeSkippedUrlsBySourceId
+              .get(
+                candidate.sourceId,
+              )
+              ?.has(
+                canonicalUrl,
+              )
+          ) {
+            filteredRememberedRejectedCandidateCount += 1
+            return false
+          }
+
+          return true
         },
       )
       .sort(
@@ -863,6 +871,11 @@ async function main(): Promise<void> {
         },
       )
 
+  diagnostics.scan({ selectedSourceCount: selectedPlans.length, discoveredCount: discovered.length,
+    eligibleCandidateCount: candidates.length, filteredExistingCandidateCount,
+    filteredRememberedRejectedCandidateCount, existingSourceUrlCount: existingSourceUrls.size,
+    rememberedRejectedUrlCount })
+
   if (
     candidates.length ===
     0
@@ -880,6 +893,10 @@ async function main(): Promise<void> {
       existingSourceUrlCount:
         existingSourceUrls.size,
       rememberedRejectedUrlCount,
+      eligibleCandidateCount:
+        candidates.length,
+      filteredExistingCandidateCount,
+      filteredRememberedRejectedCandidateCount,
       requestedCandidateUrl:
         normalizedRequestedCandidateUrl,
     })
@@ -1097,6 +1114,16 @@ async function main(): Promise<void> {
           ),
         )
 
+        diagnostics!.setRememberedRejectedUrlCount(
+          Array.from(
+            activeSkippedUrlsBySourceId.values(),
+          ).reduce(
+            (total, urls) =>
+              total + urls.size,
+            0,
+          ),
+        )
+
         console.log(
           'FLASH_RSS_STAGE_NEXT_SKIP_REMEMBERED',
         )
@@ -1147,6 +1174,10 @@ async function main(): Promise<void> {
     maxAttempts,
     discoveredCount:
       discovered.length,
+    eligibleCandidateCount:
+      candidates.length,
+    filteredExistingCandidateCount,
+    filteredRememberedRejectedCandidateCount,
     rememberedRejectedUrlCount:
       Array.from(
         activeSkippedUrlsBySourceId.values(),
