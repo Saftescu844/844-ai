@@ -67,9 +67,12 @@ describe('RSS diagnostics without provider or database requests', () => {
     expect(JSON.parse(f.lines.at(-1)!)).toMatchObject({ status: 'success', correlationId: f.audit.runId })
   })
 
-  it('correlates HTTP and editorial skips across three candidates', async () => {
+  it('correlates filtering, final rejection memory and skips across three candidates', async () => {
     const f = fixture()
     await f.audit.start(f.payload, 'test-model', 'test-sha')
+    f.audit.scan({ selectedSourceCount: 2, discoveredCount: 20, eligibleCandidateCount: 3,
+      filteredExistingCandidateCount: 7, filteredRememberedRejectedCandidateCount: 10,
+      existingSourceUrlCount: 23, rememberedRejectedUrlCount: 10 })
     await runFlashRssStageNextAttempts({ candidates: [1, 2, 3, 4], maxAttempts: 3,
       processCandidate: async (_, attempt) => {
         f.audit.candidate(attempt, 6)
@@ -77,9 +80,13 @@ describe('RSS diagnostics without provider or database requests', () => {
         f.audit.skipped(attempt === 1 ? 'article_retrieval_http_error' : 'event_identity_not_grounded')
         return 'skip'
       } })
+    f.audit.setRememberedRejectedUrlCount(11)
     f.audit.result('no-eligible-candidate')
     await f.audit.finish()
     expect(f.update.mock.lastCall?.[0].data).toMatchObject({ status: 'completed', evidenceSummary: {
+      selectedSourceCount: 2, discoveredCount: 20, eligibleCandidateCount: 3,
+      filteredExistingCandidateCount: 7, filteredRememberedRejectedCandidateCount: 10,
+      existingSourceUrlCount: 23, rememberedRejectedUrlCount: 11,
       attemptedCount: 3, skippedCount: 3, lastSkipReason: 'event_identity_not_grounded', outcome: 'no-eligible-candidate' } })
   })
 
