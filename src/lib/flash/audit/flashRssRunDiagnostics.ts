@@ -1,3 +1,4 @@
+import type { EditorialDiagnosticMetadata } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import { randomUUID } from 'node:crypto'
 import type { Payload } from 'payload'
 import { serializeStructuredRuntimeEvent } from '@/lib/observability/structuredRuntimeEvent'
@@ -47,6 +48,8 @@ export class FlashRssRunDiagnostics {
   private filteredDailyBudgetCandidateCount = 0
   private existingSourceUrlCount = 0
   private rememberedRejectedUrlCount = 0
+  private editorialHandoffDiagnosticCount = 0
+  private lastEditorialDiagnostic: EditorialDiagnosticMetadata | null = null
   private finished = false
 
   constructor(
@@ -68,6 +71,13 @@ export class FlashRssRunDiagnostics {
       existingSourceUrlCount: this.existingSourceUrlCount, rememberedRejectedUrlCount: this.rememberedRejectedUrlCount,
       attemptedCount: this.attemptedCount, skippedCount: this.skippedCount,
       outcome: this.outcome, lastSkipReason: this.lastSkipReason, roId: this.roId, enId: this.enId,
+      editorialDiagnosticVersion: this.lastEditorialDiagnostic ? 'editorial-selection-preview-v1' : null,
+      editorialHandoffDiagnosticCount: this.editorialHandoffDiagnosticCount,
+      lastEditorialFormat: this.lastEditorialDiagnostic?.format ?? null,
+      lastEditorialDisposition: this.lastEditorialDiagnostic?.disposition ?? null,
+      lastEditorialIdentity: this.lastEditorialDiagnostic?.identity ?? null,
+      lastEditorialReasons: this.lastEditorialDiagnostic?.reasons.join(',') ?? null,
+      lastEditorialDateKnown: this.lastEditorialDiagnostic?.dateKnown ?? null,
       durationMs: Math.max(0, this.now() - this.startedMs) }
   }
 
@@ -118,6 +128,12 @@ export class FlashRssRunDiagnostics {
   candidate(attempt: number, sourceId: number) {
     this.attemptedCount = attempt
     this.sourceId = sourceId
+  }
+
+  editorialDiagnostic(metadata: EditorialDiagnosticMetadata) {
+    this.editorialHandoffDiagnosticCount += 1
+    this.lastEditorialDiagnostic = { ...metadata, reasons: [...metadata.reasons] }
+    this.log('noop')
   }
 
   skipped(reason: RssSkipReason) {

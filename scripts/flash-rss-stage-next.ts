@@ -1,3 +1,4 @@
+import { observeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import { FlashRssControlledFailure, FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
 
 let diagnostics: FlashRssRunDiagnostics | undefined
@@ -375,6 +376,8 @@ function runPrePersistenceHandoff({
           CHILD_OUTPUT_LIMIT,
       },
     )
+
+  observeEditorialDiagnostic(result.stdout, metadata => diagnostics?.editorialDiagnostic(metadata))
 
   if (
     result.status !==

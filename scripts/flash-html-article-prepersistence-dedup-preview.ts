@@ -1,3 +1,4 @@
+import { diagnoseRuntimeEditorialSelection, serializeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import {
   buildVerifiedFlashEditorialLexicalContent,
 } from '@/lib/flash/editorialContentLexical'
@@ -919,6 +920,19 @@ async function main() {
         confirmedBodyIdentity,
       },
     )
+
+  // Diagnostic-only, staging opt-in. Never substitutes for identity, dedup or writer checks.
+  if (stagingMitEvidencePreflight && !allowProductionOneShot && !readOnlyPilot) {
+    try {
+      console.log(serializeEditorialDiagnostic(diagnoseRuntimeEditorialSelection({
+        html: retrieval.textContent, candidate: normalized,
+        sourceVerified: sourceVerification.sourceVerificationPassed,
+        identityStatus: eventIdentity.status, assessedAt: new Date().toISOString(),
+      })))
+    } catch {
+      console.log('FLASH_EDITORIAL_SELECTION_DIAGNOSTIC_UNAVAILABLE')
+    }
+  }
 
   const groundedEventFingerprint =
     eventIdentity.status === 'grounded' &&

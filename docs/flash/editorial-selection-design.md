@@ -102,3 +102,17 @@ Helperul nu detectează singur formatul paginilor: consumă observații explicit
 Rafinarea fișei interviului: textul original include afirmații despre rezultate de cercetare, pe lângă opinii. Dispoziția precisă a preview-ului este `needs_primary_evidence`, cu actualitatea și identitatea încă nerezolvate; aceasta precizează motivul revizuirii recomandate în tabelul editorial. Profilul și prezentarea Concourse sunt evaluate ca materiale de context, fără a propune preluarea rezultatelor concrete ca noutăți.
 
 Validare locală: 13 teste noi și 20 de regresie, 33/33 PASS; TypeScript, ESLint pe fișierele noi și diff-check PASS. Preview offline și --help executate cu `node --import tsx`, fără acces DB sau provider. Runtime local Node 24; CI Node 22 rămâne necesar înainte de integrare. Nicio conexiune la worker, nicio modificare de schemă, memorie de respingere sau flag de sursă.
+
+## Integrare diagnostică pregătită după PR #275
+
+Bază: staging `ffe716b`. Implementare propusă în `editorialSelectionDiagnostic.ts`, apelată după extragere și evaluarea identității, înaintea filtrului existent de identitate. Este activă numai sub opt-in-ul staging existent (`--staging-mit-evidence-preflight`), în afara traseului production-one-shot/read-only-pilot. Nu mută și nu înlocuiește gate-urile existente și nu schimbă enumurile CMS, clasificatorul, încercările sau memoria respingerilor.
+
+Observația automată inițială este restrânsă: un singur main vizibil, un singur container MIT `news-article--topics`, linkul exact de aceeași origine `/topic/interview`, cu textul Interview, după sourceVerificationPassed. Navigația, conținutul ascuns și teaserele sunt ignorate. În lipsa acestei probe formatul rămâne unknown; Paper, titlurile și topicul Faculty nu clasifică automat articolul. Acest indiciu observă formatul declarat, nu adevărul afirmațiilor.
+
+Natura afirmațiilor, relevanța și actualitatea rămân unclear în diagnosticul runtime; dovada primară nu este declarată verificată. Prin urmare acest diagnostic nu poate promova automat un articol. Fișele umane ale pilotului nu sunt importate în runtime.
+
+Child-ul emite numai categorii controlate și dateKnown, fără text/URL/eroare/provider output. Părintele acceptă exact un mesaj valid pe handoff (RO sau EN); mesajele duplicate/nevalide sunt ignorate, iar erorile observatorului nu schimbă decizia de succes/skip/eșec a handoffului. Evaluarea nu face cereri suplimentare: folosește HTML-ul deja extras, deci nu introduce cache de rețea, TTL sau o coadă nouă.
+
+FlashEngineRuns.evidenceSummary reține versiunea diagnosticului, numărul de handoffuri cu diagnostic și ultimul format/dispoziție/identitate/motive/dateKnown. Numărul este per handoff, nu per candidat; un candidat poate avea RO și EN. Logurile existente corelează rezultatele intermediare cu runId, sursa și încercarea. Rezumatul păstrează ultimul diagnostic, nu istoricul complet. Nu este necesară migrare.
+
+Validare locală: 91 teste în 15 fișiere PASS (inclusiv 8 noi: extragere limitată, refuzul conținutului ascuns/extern, transport strict, observator fără efect asupra handoffului și audit în colecția existentă), TypeScript, ESLint și diff-check PASS. Node local 24; CI pe Node 22 este necesar înaintea integrării. Niciun deploy și nicio modificare în baze în timpul pregătirii.
