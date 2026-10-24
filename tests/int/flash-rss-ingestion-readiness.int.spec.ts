@@ -7,6 +7,7 @@ import {
 
 import {
   assessFlashRssIngestionSource,
+  filterFlashRssCandidatesWithinDailySourceBudgets,
   parseFlashRssCandidates,
   planFlashRssIngestionSources,
 } from '@/lib/flash/ingestion/rssCandidateIngestion'
@@ -35,6 +36,10 @@ function source(
       'paraphrase' as const,
     allowAutoPublish:
       false,
+    maxCandidatesPerScan:
+      10,
+    maxCandidatesPerDay:
+      40,
     ...overrides,
   }
 }
@@ -66,6 +71,10 @@ describe(
             'paraphrase',
           allowAutoPublish:
             false,
+          maxCandidatesPerScan:
+            10,
+          maxCandidatesPerDay:
+            40,
           candidateSkipMemory:
             [],
           ready:
@@ -132,6 +141,18 @@ describe(
           result.candidateSkipMemory,
         ).toEqual(
           [],
+        )
+
+        expect(
+          result.maxCandidatesPerScan,
+        ).toBe(
+          10,
+        )
+
+        expect(
+          result.maxCandidatesPerDay,
+        ).toBe(
+          40,
         )
       },
     )
@@ -304,7 +325,7 @@ describe(
     )
 
     it(
-      'caps parsing at 50 items and supports deterministic parser injection',
+      'caps parsing at the per-source limit and supports deterministic parser injection',
       async () => {
         const parseFeed =
           vi.fn(
@@ -343,14 +364,164 @@ describe(
         expect(
           result.totalItems,
         ).toBe(
-          50,
+          10,
         )
 
         expect(
           result.candidates,
         ).toHaveLength(
-          50,
+          10,
         )
+      },
+    )
+  },
+)
+
+describe(
+  'Flash RSS per-source daily budget',
+  () => {
+    const nowMs =
+      Date.parse(
+        '2026-10-24T12:00:00.000Z',
+      )
+
+    const plan =
+      assessFlashRssIngestionSource(
+        source({
+          id:
+            7,
+          feedRSS:
+            'https://openai.com/news/rss.xml',
+          maxCandidatesPerScan:
+            1,
+          maxCandidatesPerDay:
+            1,
+        }),
+      )
+
+    const candidate = {
+      sourceId:
+        7,
+      sourceName:
+        'OpenAI News',
+      sourceRole:
+        'primary' as const,
+      editorialTrust:
+        'high' as const,
+      citationMode:
+        'paraphrase' as const,
+      feedUrl:
+        'https://openai.com/news/rss.xml',
+      title:
+        'A new education update',
+      concreteUrl:
+        'https://openai.com/news/education-update',
+      publishedAt:
+        '2026-10-24T11:00:00.000Z',
+      summary:
+        null,
+    }
+
+    it(
+      'counts a recent reciprocal RO/EN pair as one candidate and blocks the source at its limit',
+      () => {
+        const existing =
+          [
+            'ro',
+            'en',
+          ].map(
+            () => ({
+              createdAt:
+                '2026-10-24T10:00:00.000Z',
+              generatAutomat:
+                true,
+              surseFlash: [
+                {
+                  sursa:
+                    7,
+                  url:
+                    'https://openai.com/news/already-created',
+                },
+              ],
+            }),
+          )
+
+        const result =
+          filterFlashRssCandidatesWithinDailySourceBudgets(
+            [
+              candidate,
+            ],
+            [
+              plan,
+            ],
+            existing,
+            nowMs,
+          )
+
+        expect(
+          result,
+        ).toEqual({
+          candidates:
+            [],
+          filteredCount:
+            1,
+        })
+      },
+    )
+
+    it(
+      'ignores manual and expired records so an eligible source remains available',
+      () => {
+        const result =
+          filterFlashRssCandidatesWithinDailySourceBudgets(
+            [
+              candidate,
+            ],
+            [
+              plan,
+            ],
+            [
+              {
+                createdAt:
+                  '2026-10-24T11:00:00.000Z',
+                generatAutomat:
+                  false,
+                surseFlash: [
+                  {
+                    sursa:
+                      7,
+                    url:
+                      'https://openai.com/news/manual',
+                  },
+                ],
+              },
+              {
+                createdAt:
+                  '2026-10-23T11:59:59.000Z',
+                generatAutomat:
+                  true,
+                surseFlash: [
+                  {
+                    sursa:
+                      7,
+                    url:
+                      'https://openai.com/news/expired',
+                  },
+                ],
+              },
+            ],
+            nowMs,
+          )
+
+        expect(
+          result,
+        ).toEqual({
+          candidates: [
+            candidate,
+          ],
+          filteredCount:
+            0,
+        })
       },
     )
   },

@@ -5,6 +5,7 @@ import type {
 } from 'payload'
 
 import type {
+  FlashAi,
   Surse,
 } from '@/payload-types'
 
@@ -25,6 +26,8 @@ export interface FlashRssIngestionSourcePlan {
   citationMode:
     Surse['citationMode']
   allowAutoPublish: boolean
+  maxCandidatesPerScan: number
+  maxCandidatesPerDay: number
   candidateSkipMemory:
     Surse['rssCandidateSkipMemory']
   ready: boolean
@@ -72,7 +75,17 @@ type FlashRssIngestionSourceRecord =
     | 'editorialTrust'
     | 'citationMode'
     | 'allowAutoPublish'
+    | 'maxCandidatesPerScan'
+    | 'maxCandidatesPerDay'
     | 'rssCandidateSkipMemory'
+  >
+
+type FlashRssDailyBudgetRecord =
+  Pick<
+    FlashAi,
+    | 'createdAt'
+    | 'generatAutomat'
+    | 'surseFlash'
   >
 
 interface FlashRssFeedItem {
@@ -140,6 +153,49 @@ function normalizeOptionalText(
     : null
 }
 
+function normalizePositiveInteger(
+  value: number | null | undefined,
+  fallback: number,
+  maximum: number,
+): number {
+  return Number.isInteger(
+    value,
+  ) &&
+    (value ?? 0) > 0
+    ? Math.min(
+        value ?? fallback,
+        maximum,
+      )
+    : fallback
+}
+
+function relationID(
+  relation:
+    | number
+    | { id: number }
+    | null
+    | undefined,
+): number | null {
+  if (
+    typeof relation ===
+    'number'
+  ) {
+    return relation
+  }
+
+  if (
+    relation &&
+    typeof relation ===
+      'object' &&
+    typeof relation.id ===
+      'number'
+  ) {
+    return relation.id
+  }
+
+  return null
+}
+
 function normalizePublishedAt(
   value:
     string | null | undefined,
@@ -169,6 +225,20 @@ export function assessFlashRssIngestionSource(
   source:
     FlashRssIngestionSourceRecord,
 ): FlashRssIngestionSourcePlan {
+  const maxCandidatesPerScan =
+    normalizePositiveInteger(
+      source.maxCandidatesPerScan,
+      10,
+      20,
+    )
+
+  const maxCandidatesPerDay =
+    normalizePositiveInteger(
+      source.maxCandidatesPerDay,
+      40,
+      500,
+    )
+
   const registeredSourceUrl =
     normalizeHttpUrl(
       source.url,
@@ -193,6 +263,8 @@ export function assessFlashRssIngestionSource(
       allowAutoPublish:
         source.allowAutoPublish ===
         true,
+      maxCandidatesPerScan,
+      maxCandidatesPerDay,
       candidateSkipMemory:
         source.rssCandidateSkipMemory ??
         [],
@@ -224,6 +296,8 @@ export function assessFlashRssIngestionSource(
       allowAutoPublish:
         source.allowAutoPublish ===
         true,
+      maxCandidatesPerScan,
+      maxCandidatesPerDay,
       candidateSkipMemory:
         source.rssCandidateSkipMemory ??
         [],
@@ -257,6 +331,8 @@ export function assessFlashRssIngestionSource(
       allowAutoPublish:
         source.allowAutoPublish ===
         true,
+      maxCandidatesPerScan,
+      maxCandidatesPerDay,
       candidateSkipMemory:
         source.rssCandidateSkipMemory ??
         [],
@@ -283,6 +359,8 @@ export function assessFlashRssIngestionSource(
     allowAutoPublish:
       source.allowAutoPublish ===
       true,
+    maxCandidatesPerScan,
+    maxCandidatesPerDay,
     candidateSkipMemory:
       source.rssCandidateSkipMemory ??
       [],
@@ -290,6 +368,144 @@ export function assessFlashRssIngestionSource(
       true,
     blocker:
       null,
+  }
+}
+
+export function filterFlashRssCandidatesWithinDailySourceBudgets(
+  candidates:
+    FlashRssCandidate[],
+  plans:
+    FlashRssIngestionSourcePlan[],
+  existing:
+    FlashRssDailyBudgetRecord[],
+  nowMs:
+    number = Date.now(),
+): {
+  candidates: FlashRssCandidate[]
+  filteredCount: number
+} {
+  const cutoffMs =
+    nowMs -
+    24 * 60 * 60 * 1_000
+
+  const recentUrlsBySourceId =
+    new Map<
+      number,
+      Set<string>
+    >()
+
+  for (
+    const flash of
+      existing
+  ) {
+    if (
+      flash.generatAutomat !==
+      true
+    ) {
+      continue
+    }
+
+    const createdAtMs =
+      Date.parse(
+        flash.createdAt,
+      )
+
+    if (
+      Number.isNaN(
+        createdAtMs,
+      ) ||
+      createdAtMs <
+        cutoffMs ||
+      createdAtMs >
+        nowMs
+    ) {
+      continue
+    }
+
+    for (
+      const source of
+        flash.surseFlash ?? []
+    ) {
+      const sourceId =
+        relationID(
+          source.sursa,
+        )
+
+      const sourceUrl =
+        normalizeHttpUrl(
+          source.url,
+        )
+
+      if (
+        sourceId === null ||
+        !sourceUrl
+      ) {
+        continue
+      }
+
+      const urls =
+        recentUrlsBySourceId.get(
+          sourceId,
+        ) ??
+        new Set<string>()
+
+      urls.add(
+        sourceUrl,
+      )
+
+      recentUrlsBySourceId.set(
+        sourceId,
+        urls,
+      )
+    }
+  }
+
+  const planBySourceId =
+    new Map(
+      plans.map(
+        plan => [
+          plan.sourceId,
+          plan,
+        ] as const,
+      ),
+    )
+
+  let filteredCount = 0
+
+  const withinBudget =
+    candidates.filter(
+      candidate => {
+        const plan =
+          planBySourceId.get(
+            candidate.sourceId,
+          )
+
+        if (!plan) {
+          filteredCount += 1
+          return false
+        }
+
+        const recentCount =
+          recentUrlsBySourceId.get(
+            candidate.sourceId,
+          )?.size ?? 0
+
+        if (
+          recentCount >=
+          plan.maxCandidatesPerDay
+        ) {
+          filteredCount += 1
+          return false
+        }
+
+        return true
+      },
+    )
+
+  return {
+    candidates:
+      withinBudget,
+    filteredCount,
   }
 }
 
@@ -375,16 +591,20 @@ export async function parseFlashRssCandidates(
     )
   }
 
-  const maxItems =
+  const requestedMaxItems =
     Number.isInteger(
       options.maxItems,
     ) &&
     (options.maxItems ?? 0) > 0
-      ? Math.min(
-          options.maxItems ?? 20,
-          50,
-        )
+      ? options.maxItems ?? 20
       : 20
+
+  const maxItems =
+    Math.min(
+      requestedMaxItems,
+      source.maxCandidatesPerScan,
+      50,
+    )
 
   const parseFeed =
     options.parseFeed ??

@@ -97,6 +97,14 @@ describe(
         )
 
         expect(source).toContain(
+          'filterFlashRssCandidatesWithinDailySourceBudgets',
+        )
+
+        expect(source).toContain(
+          'filteredDailyBudgetCandidateCount',
+        )
+
+        expect(source).toContain(
           "'article_retrieval_http_error'",
         )
 

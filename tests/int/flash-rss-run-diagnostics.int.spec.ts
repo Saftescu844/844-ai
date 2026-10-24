@@ -72,6 +72,7 @@ describe('RSS diagnostics without provider or database requests', () => {
     await f.audit.start(f.payload, 'test-model', 'test-sha')
     f.audit.scan({ selectedSourceCount: 2, discoveredCount: 20, eligibleCandidateCount: 3,
       filteredExistingCandidateCount: 7, filteredRememberedRejectedCandidateCount: 10,
+      filteredDailyBudgetCandidateCount: 2,
       existingSourceUrlCount: 23, rememberedRejectedUrlCount: 10 })
     await runFlashRssStageNextAttempts({ candidates: [1, 2, 3, 4], maxAttempts: 3,
       processCandidate: async (_, attempt) => {
@@ -86,6 +87,7 @@ describe('RSS diagnostics without provider or database requests', () => {
     expect(f.update.mock.lastCall?.[0].data).toMatchObject({ status: 'completed', evidenceSummary: {
       selectedSourceCount: 2, discoveredCount: 20, eligibleCandidateCount: 3,
       filteredExistingCandidateCount: 7, filteredRememberedRejectedCandidateCount: 10,
+      filteredDailyBudgetCandidateCount: 2,
       existingSourceUrlCount: 23, rememberedRejectedUrlCount: 11,
       attemptedCount: 3, skippedCount: 3, lastSkipReason: 'event_identity_not_grounded', outcome: 'no-eligible-candidate' } })
   })
