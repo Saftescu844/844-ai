@@ -107,6 +107,8 @@ export type FlashRssFeedParser =
   }>
 
 export interface ParseFlashRssCandidatesOptions {
+  /** Runner must apply the source limit after eligibility filtering. */
+  scanBeforeEligibility?: boolean
   maxItems?: number
   parseFeed?:
     FlashRssFeedParser
@@ -509,6 +511,24 @@ export function filterFlashRssCandidatesWithinDailySourceBudgets(
   }
 }
 
+/** Input must already be filtered and sorted newest first. No provider calls. */
+export function limitFlashRssEligibleCandidates(
+  candidates: FlashRssCandidate[],
+  plans: FlashRssIngestionSourcePlan[],
+  maxPerSource: number,
+): { candidates: FlashRssCandidate[]; filteredCount: number } {
+  const limits = new Map(plans.map(plan => [plan.sourceId,
+    Math.min(plan.maxCandidatesPerScan, maxPerSource)]))
+  const counts = new Map<number, number>()
+  const selected = candidates.filter(candidate => {
+    const count = counts.get(candidate.sourceId) ?? 0
+    if (count >= (limits.get(candidate.sourceId) ?? 0)) return false
+    counts.set(candidate.sourceId, count + 1)
+    return true
+  })
+  return { candidates: selected, filteredCount: candidates.length - selected.length }
+}
+
 export async function planFlashRssIngestionSources(
   payload:
     FlashRssIngestionPayload,
@@ -602,7 +622,7 @@ export async function parseFlashRssCandidates(
   const maxItems =
     Math.min(
       requestedMaxItems,
-      source.maxCandidatesPerScan,
+      options.scanBeforeEligibility ? 50 : source.maxCandidatesPerScan,
       50,
     )
 
