@@ -325,7 +325,7 @@ describe(
     )
 
     it(
-      'caps parsing at the per-source limit and supports deterministic parser injection',
+      'preserves the per-source parsing limit for other callers',
       async () => {
         const parseFeed =
           vi.fn(

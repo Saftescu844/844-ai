@@ -22,6 +22,7 @@ import {
 } from '@/lib/flash/jobs/queueFlashEngineEvaluationJob'
 import {
   filterFlashRssCandidatesWithinDailySourceBudgets,
+  limitFlashRssEligibleCandidates,
   planFlashRssIngestionSources,
   parseFlashRssCandidates,
   type FlashRssCandidate,
@@ -185,7 +186,8 @@ Usage:
 
 Behavior:
   - reads active allowIngestion=true RSS sources
-  - fetches at most 10 items per configured source
+  - examines at most 50 feed entries per source before known/rejected URL filtering
+  - retains at most --max-items eligible candidates per source, within its configured limit
   - skips candidates whose source URL is already used by any FlashAI draft/published record
   - tries at most 3 newest remaining candidates per run
   - allows pending event identity only through the existing safe review-only bridge; otherwise fails closed
@@ -740,7 +742,8 @@ async function main(): Promise<void> {
         plan,
         xml,
         {
-          maxItems,
+          maxItems: 50,
+          scanBeforeEligibility: true,
         },
       )
 
@@ -847,7 +850,7 @@ async function main(): Promise<void> {
     dailyBudgetResult
       .filteredCount
 
-  const candidates =
+  const sortedEligibleCandidates =
     dailyBudgetResult
       .candidates
       .sort(
@@ -887,9 +890,15 @@ async function main(): Promise<void> {
         },
       )
 
+  const scanLimitResult = limitFlashRssEligibleCandidates(
+    sortedEligibleCandidates, selectedPlans, maxItems,
+  )
+  const candidates = scanLimitResult.candidates
+  const filteredScanLimitCandidateCount = scanLimitResult.filteredCount
+
   diagnostics.scan({ selectedSourceCount: selectedPlans.length, discoveredCount: discovered.length,
     eligibleCandidateCount: candidates.length, filteredExistingCandidateCount,
-    filteredRememberedRejectedCandidateCount, filteredDailyBudgetCandidateCount,
+    filteredRememberedRejectedCandidateCount, filteredDailyBudgetCandidateCount, filteredScanLimitCandidateCount,
     existingSourceUrlCount: existingSourceUrls.size,
     rememberedRejectedUrlCount })
 
