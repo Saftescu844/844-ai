@@ -21,6 +21,7 @@ import {
   FLASH_ENGINE_STAGING_RAILWAY_TARGET,
 } from '@/lib/flash/jobs/queueFlashEngineEvaluationJob'
 import {
+  filterFlashRssCandidatesWithinDailySourceBudgets,
   planFlashRssIngestionSources,
   parseFlashRssCandidates,
   type FlashRssCandidate,
@@ -788,7 +789,7 @@ async function main(): Promise<void> {
   let filteredExistingCandidateCount = 0
   let filteredRememberedRejectedCandidateCount = 0
 
-  const candidates =
+  const eligibleBeforeDailyBudget =
     discovered
       .filter(
         candidate => {
@@ -834,6 +835,21 @@ async function main(): Promise<void> {
           return true
         },
       )
+
+  const dailyBudgetResult =
+    filterFlashRssCandidatesWithinDailySourceBudgets(
+      eligibleBeforeDailyBudget,
+      selectedPlans,
+      existing.docs,
+    )
+
+  const filteredDailyBudgetCandidateCount =
+    dailyBudgetResult
+      .filteredCount
+
+  const candidates =
+    dailyBudgetResult
+      .candidates
       .sort(
         (
           a,
@@ -873,7 +889,8 @@ async function main(): Promise<void> {
 
   diagnostics.scan({ selectedSourceCount: selectedPlans.length, discoveredCount: discovered.length,
     eligibleCandidateCount: candidates.length, filteredExistingCandidateCount,
-    filteredRememberedRejectedCandidateCount, existingSourceUrlCount: existingSourceUrls.size,
+    filteredRememberedRejectedCandidateCount, filteredDailyBudgetCandidateCount,
+    existingSourceUrlCount: existingSourceUrls.size,
     rememberedRejectedUrlCount })
 
   if (
@@ -897,6 +914,7 @@ async function main(): Promise<void> {
         candidates.length,
       filteredExistingCandidateCount,
       filteredRememberedRejectedCandidateCount,
+      filteredDailyBudgetCandidateCount,
       requestedCandidateUrl:
         normalizedRequestedCandidateUrl,
     })

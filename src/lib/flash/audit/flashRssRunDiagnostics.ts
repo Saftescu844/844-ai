@@ -43,6 +43,7 @@ export class FlashRssRunDiagnostics {
   private eligibleCandidateCount = 0
   private filteredExistingCandidateCount = 0
   private filteredRememberedRejectedCandidateCount = 0
+  private filteredDailyBudgetCandidateCount = 0
   private existingSourceUrlCount = 0
   private rememberedRejectedUrlCount = 0
   private finished = false
@@ -61,6 +62,7 @@ export class FlashRssRunDiagnostics {
       eligibleCandidateCount: this.eligibleCandidateCount,
       filteredExistingCandidateCount: this.filteredExistingCandidateCount,
       filteredRememberedRejectedCandidateCount: this.filteredRememberedRejectedCandidateCount,
+      filteredDailyBudgetCandidateCount: this.filteredDailyBudgetCandidateCount,
       existingSourceUrlCount: this.existingSourceUrlCount, rememberedRejectedUrlCount: this.rememberedRejectedUrlCount,
       attemptedCount: this.attemptedCount, skippedCount: this.skippedCount,
       outcome: this.outcome, lastSkipReason: this.lastSkipReason, roId: this.roId, enId: this.enId,
@@ -94,12 +96,14 @@ export class FlashRssRunDiagnostics {
 
   scan(counts: { selectedSourceCount: number; discoveredCount: number; eligibleCandidateCount: number;
     filteredExistingCandidateCount: number; filteredRememberedRejectedCandidateCount: number;
+    filteredDailyBudgetCandidateCount: number;
     existingSourceUrlCount: number; rememberedRejectedUrlCount: number }) {
     this.selectedSourceCount = counts.selectedSourceCount
     this.discoveredCount = counts.discoveredCount
     this.eligibleCandidateCount = counts.eligibleCandidateCount
     this.filteredExistingCandidateCount = counts.filteredExistingCandidateCount
     this.filteredRememberedRejectedCandidateCount = counts.filteredRememberedRejectedCandidateCount
+    this.filteredDailyBudgetCandidateCount = counts.filteredDailyBudgetCandidateCount
     this.existingSourceUrlCount = counts.existingSourceUrlCount
     this.rememberedRejectedUrlCount = counts.rememberedRejectedUrlCount
   }
