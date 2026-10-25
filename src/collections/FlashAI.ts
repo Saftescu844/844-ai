@@ -407,6 +407,11 @@ export const FlashAI: CollectionConfig = {
         {
           name: 'sourcePublishedAt',
           type: 'date',
+          admin: {
+            components: {
+              Field: '/src/components/admin/SourcePublicationDateField',
+            },
+          },
         },
         {
           name: 'primary',
