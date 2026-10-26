@@ -183,6 +183,9 @@ jobs:
         run: npm run lint
 
       - name: Integration tests
+        env:
+          # CLI subprocesses run concurrently; keep their TSX transforms process-local.
+          TSX_DISABLE_CACHE: "1"
         run: npm run test:int
 
       - name: Production build

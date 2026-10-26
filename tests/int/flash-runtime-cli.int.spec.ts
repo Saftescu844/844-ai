@@ -17,6 +17,7 @@ const CLI_TEST_TIMEOUT_MS =
 function runCli(
   args:
     string[],
+  startupImport?: string,
 ) {
   const env = {
     ...process.env,
@@ -32,6 +33,7 @@ function runCli(
     process.execPath,
     [
       '--import=tsx/esm',
+      ...(startupImport ? ['--import', startupImport] : []),
       script,
       ...args,
     ],
@@ -67,6 +69,23 @@ function output(
 describe(
   'Flash runtime CLI',
   () => {
+    it('rejects invalid arguments before resolving application or provider modules', () => {
+      const loader = `export async function resolve(specifier, context, nextResolve) {
+        if (specifier === 'payload' || specifier === '@payload-config' || specifier === '@anthropic-ai/sdk') {
+          throw new Error('APPLICATION_MODULE_LOADED_BEFORE_GUARDS');
+        }
+        return nextResolve(specifier, context);
+      }`
+      const loaderUrl = `data:text/javascript,${encodeURIComponent(loader)}`
+      const bootstrap = `import { register } from 'node:module'; register(${JSON.stringify(loaderUrl)}, import.meta.url);`
+      const result = runCli(['--flash-id', 'abc', '--model', 'test-model'],
+        `data:text/javascript,${encodeURIComponent(bootstrap)}`)
+      expect(result.status).toBe(1)
+      expect(output(result)).toContain('Invalid --flash-id: abc')
+      expect(output(result)).not.toContain('APPLICATION_MODULE_LOADED_BEFORE_GUARDS')
+    }, CLI_TEST_TIMEOUT_MS)
+
+
     it(
       'prints help without provider access',
       () => {

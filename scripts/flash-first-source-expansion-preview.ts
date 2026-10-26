@@ -41,7 +41,8 @@ async function main() {
       try {
         const plan = assessFlashRssIngestionSource({ id: 7, nume: source.name, url: source.sourceUrl,
           feedRSS: source.discoveryUrl, sourceRole: 'primary', editorialTrust: 'standard',
-          citationMode: 'paraphrase', allowAutoPublish: false, rssCandidateSkipMemory: [] })
+          citationMode: 'paraphrase', allowAutoPublish: false, rssCandidateSkipMemory: [],
+          maxCandidatesPerScan: source.maxCandidatesPerScan, maxCandidatesPerDay: 40 })
         const parsed = await parseFlashRssCandidates(plan, document, { maxItems: 50, scanBeforeEligibility: true })
         const fresh = filterFlashRssFreshCandidates(parsed.candidates, { now })
         console.log(JSON.stringify({ key: source.key, status: 'feed_parsed', items: parsed.totalItems,

@@ -1,3 +1,5 @@
+export {}
+
 const ENGINE_VERSION =
   'flash-runtime-persist-cli-v1'
 
