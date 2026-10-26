@@ -1,5 +1,5 @@
 import { extractFlashHtmlArticle } from '../src/lib/flash/ingestion/htmlArticleExtraction'
-import Parser from 'rss-parser'
+import { assessFlashRssIngestionSource, parseFlashRssCandidates } from '../src/lib/flash/ingestion/rssCandidateIngestion'
 import { FLASH_DISCOVERY_CATALOG } from '../src/lib/flash/ingestion/flashDiscoveryCatalog'
 import { fetchFlashRssFeedXml } from '../src/lib/flash/ingestion/rssFeedRetriever'
 import { assessInstitutionalHtmlSource, parseInstitutionalHtmlCandidates } from '../src/lib/flash/ingestion/institutionalHtmlDiscovery'
@@ -18,7 +18,7 @@ async function main() {
   const sources = FLASH_DISCOVERY_CATALOG.filter(s => ['ec-ai', 'unesco-education', 'openai-news', 'anthropic-news'].includes(s.key))
   if (!process.argv.includes('--probe')) {
     console.log(JSON.stringify(sources.map(s => ({ key: s.key, method: s.method, url: s.discoveryUrl,
-      articleAdapterAvailable: ['ec-ai', 'unesco-education'].includes(s.key), activated: false }))))
+      articleAdapterAvailable: ['ec-ai', 'unesco-education', 'openai-news'].includes(s.key), activated: false }))))
     return
   }
   if (process.env.RAILWAY_PROJECT_ID !== FLASH_ENGINE_STAGING_RAILWAY_TARGET.projectId ||
@@ -39,8 +39,22 @@ async function main() {
     }
     if (source.key === 'openai-news') {
       try {
-        const parsed = await new Parser().parseString(document)
-        console.log(JSON.stringify({ key: source.key, status: 'feed_parsed_article_adapter_pending', items: parsed.items.length, providerCalled: false }))
+        const plan = assessFlashRssIngestionSource({ id: 7, nume: source.name, url: source.sourceUrl,
+          feedRSS: source.discoveryUrl, sourceRole: 'primary', editorialTrust: 'standard',
+          citationMode: 'paraphrase', allowAutoPublish: false, rssCandidateSkipMemory: [] })
+        const parsed = await parseFlashRssCandidates(plan, document, { maxItems: 50, scanBeforeEligibility: true })
+        const fresh = filterFlashRssFreshCandidates(parsed.candidates, { now })
+        console.log(JSON.stringify({ key: source.key, status: 'feed_parsed', items: parsed.totalItems,
+          freshCandidates: fresh.candidates.length, dateRejections: fresh.rejected, providerCalled: false }))
+        const first = fresh.candidates.sort((a, b) => b.publishedAt!.localeCompare(a.publishedAt!))[0]
+        if (first) {
+          const articleHtml = await fetchFlashRssFeedXml({ feedUrl: first.concreteUrl,
+            registeredSourceUrl: source.sourceUrl, documentType: 'html' })
+          const article = extractFlashHtmlArticle(source.sourceUrl, first.concreteUrl, articleHtml)
+          console.log(JSON.stringify({ key: source.key, status: 'article_extracted',
+            paragraphs: article.bodyParagraphs.length, words: article.bodyText.trim().split(/\s+/).length,
+            publicationDate: article.publicationDate, providerCalled: false }))
+        }
       } catch { failures += 1; console.log(JSON.stringify({ key: source.key, status: 'parse_failed', providerCalled: false })) }
     } else if (source.key === 'anthropic-news') {
       console.log(JSON.stringify({ key: source.key, status: 'retrieved_article_adapter_pending', providerCalled: false }))

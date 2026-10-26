@@ -10,6 +10,7 @@ export type RssRunStage = 'bootstrap' | 'database' | 'source-planning' | 'feed-r
   'candidate-selection' | 'generation-ro' | 'generation-en' | 'pair-persistence'
 export type RssRunOutcome = 'empty' | 'no-eligible-candidate' | 'pair-created'
 export type RssSkipReason = 'event_identity_not_grounded' | 'strong_duplicate' |
+  'article_layout_not_supported' |
   'article_publication_not_current' | 'article_retrieval_http_error' | 'editorial_output_too_short' | 'editorial_output_too_long'
 
 export type RssControlledFailureCode = 'RSS_ALL_SOURCES_FAILED' | 'RSS_CHILD_SIGNAL' | 'RSS_CHILD_OUTPUT_LIMIT' | 'RSS_HANDOFF_FAILED'
