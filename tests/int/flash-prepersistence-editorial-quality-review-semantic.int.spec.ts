@@ -139,6 +139,53 @@ function reviewedRaw(
 describe(
   'Flash pre-persistence editorial quality review semantic producer',
   () => {
+    it('gives EN repair exact paragraph losses while retaining the original source set and one retry', async () => {
+      const editorial = { ...draft, language: 'en' as const,
+        editorialParagraphs: [words(300, 'first'), words(300, 'second')] }
+      const calls: Array<{ runId: string; systemPrompt: string; userPrompt: string }> = []
+      const producer = createFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+        provider: 'test', model: 'test', executor: async input => {
+          calls.push(input)
+          return JSON.stringify({ language: 'en', editorialTitle: 'Corrected title',
+            paragraphEdits: [{ paragraphIndex: 0, replacement: words(calls.length === 1 ? 200 : 250, 'corrected') }] })
+        },
+      })
+      const result = await runFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+        producer, input: { candidate, classification, editorial, targetLanguage: 'en', runId: 'en-repair' },
+      })
+      expect(calls).toHaveLength(2)
+      const initial = JSON.parse(calls[0]!.userPrompt.split('\n\n').at(-1)!)
+      expect(initial.qualityReviewConstraints).toMatchObject({
+        originalWordCount: 600, minimumRetainedWordCount: 510, maximumNetWordReduction: 90,
+        paragraphWordCounts: [{ paragraphIndex: 0, originalWordCount: 300 }, { paragraphIndex: 1, originalWordCount: 300 }],
+      })
+      const feedback = JSON.parse(calls[1]!.userPrompt.split('\n\n').at(-1)!)
+      expect(feedback).toMatchObject({ wordsBelowMinimum: 10, paragraphWordLosses: [
+        { paragraphIndex: 0, edited: true, originalWordCount: 300, reviewedWordCount: 200, netWordsRemoved: 100 },
+        { paragraphIndex: 1, edited: false, originalWordCount: 300, reviewedWordCount: 300, netWordsRemoved: 0 },
+      ] })
+      expect(calls[1]!.systemPrompt).toContain('Do not undo a necessary factual correction')
+      expect(calls[1]!.userPrompt).toContain(candidate.bodyText)
+      expect(result).toMatchObject({ ok: true, wordCount: 550 })
+      if (result.ok) expect(result.editorial.editorialParagraphs[1]).toBe(editorial.editorialParagraphs[1])
+    })
+
+    it('keeps EN below-minimum edits blocked after the single repair', async () => {
+      let calls = 0
+      const producer = createFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+        provider: 'test', model: 'test', executor: async () => {
+          calls++
+          return JSON.stringify({ language: 'en', editorialTitle: 'Faithful title',
+            paragraphEdits: [{ paragraphIndex: 0, replacement: words(450, 'supported') }] })
+        },
+      })
+      const result = await runFlashPrePersistenceEditorialQualityReviewSemanticProducer({
+        producer, input: { candidate, classification, editorial: { ...draft, language: 'en' }, targetLanguage: 'en', runId: 'en-block' },
+      })
+      expect(calls).toBe(2)
+      expect(result).toMatchObject({ ok: false, editorial: null, reason: 'invalid_output_quality_review_retention' })
+    })
+
     it(
       'builds a bounded source-fidelity and Romanian-proofreading prompt',
       () => {
