@@ -335,6 +335,7 @@ function runPrePersistenceHandoff({
   targetLanguage,
   model,
   outputPath,
+  classificationHandoffPath,
 }: {
   sourceId: number
   articleUrl: string
@@ -342,6 +343,7 @@ function runPrePersistenceHandoff({
     'ro' | 'en'
   model: string
   outputPath: string
+  classificationHandoffPath?: string
 }): void {
   const result =
     spawnSync(
@@ -364,6 +366,7 @@ function runPrePersistenceHandoff({
         model,
         '--handoff-output',
         outputPath,
+        ...(classificationHandoffPath ? ['--classification-handoff-input', classificationHandoffPath] : []),
       ],
       {
         cwd:
@@ -1010,6 +1013,7 @@ async function main(): Promise<void> {
         model,
         outputPath:
           enPath,
+        classificationHandoffPath: roPath,
       })
 
       const [
