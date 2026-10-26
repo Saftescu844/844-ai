@@ -1,9 +1,10 @@
 import { extractUnescoArticle, institutionalArticleUrl } from './institutionalHtmlDiscovery'
 import { extractOpenAiNewsArticle, openAiNewsArticleUrl } from './openAiNewsArticleAdapter'
+import { extractAnthropicNewsArticle, anthropicNewsArticleUrl } from './anthropicNewsArticleAdapter'
 import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import type { FlashHtmlArticleExtraction } from './htmlArticleExtraction'
 
-export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news'
+export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news' | 'anthropic-news'
 type Node = DefaultTreeAdapterMap['node']
 type Element = DefaultTreeAdapterMap['element']
 
@@ -19,6 +20,10 @@ export function researchArticleAdapterForUrl(
   const registered = new URL(registeredSourceUrl)
   const final = new URL(finalUrl)
   const sourceHost = host(registered)
+  if (sourceHost === 'anthropic.com') {
+    anthropicNewsArticleUrl(registeredSourceUrl, finalUrl)
+    return 'anthropic-news'
+  }
   if (sourceHost === 'openai.com') {
     openAiNewsArticleUrl(registeredSourceUrl, finalUrl)
     return 'openai-news'
@@ -261,6 +266,7 @@ export function extractResearchArticle(
   if (!adapter) throw new Error('No research article adapter for this source.')
   if (adapter === 'unesco-education') return extractUnescoArticle(registeredSourceUrl, finalUrlValue, html)
   if (adapter === 'openai-news') return extractOpenAiNewsArticle(registeredSourceUrl, finalUrlValue, html)
+  if (adapter === 'anthropic-news') return extractAnthropicNewsArticle(registeredSourceUrl, finalUrlValue, html)
   const all = elements(parse(html))
   const language = attr(one(all.filter(node => node.tagName === 'html'), 'HTML document'), 'lang')
   if (!language || !/^en(?:-[a-z0-9]+)*$/i.test(language)) {
