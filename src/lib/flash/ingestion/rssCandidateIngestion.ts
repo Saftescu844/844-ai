@@ -1,3 +1,4 @@
+import { assessInstitutionalHtmlSource } from './institutionalHtmlDiscovery'
 import { flashPublicationTimestamp } from './flashPublicationFreshness'
 import Parser from 'rss-parser'
 
@@ -14,12 +15,14 @@ export type FlashRssIngestionBlocker =
   | 'invalid_feed_url'
   | 'invalid_source_url'
   | 'missing_feed_rss'
+  | 'unsupported_html_discovery'
 
 export interface FlashRssIngestionSourcePlan {
   sourceId: number
   sourceName: string
   registeredSourceUrl: string
   feedUrl: string | null
+  discoveryMethod?: 'rss' | 'html'
   sourceRole:
     Surse['sourceRole']
   editorialTrust:
@@ -527,6 +530,7 @@ export function limitFlashRssEligibleCandidates(
 export async function planFlashRssIngestionSources(
   payload:
     FlashRssIngestionPayload,
+  options: { includeHtml?: boolean } = {},
 ): Promise<
   FlashRssIngestionSourcePlan[]
 > {
@@ -564,9 +568,9 @@ export async function planFlashRssIngestionSources(
 
   return sources.docs.map(
     source =>
-      assessFlashRssIngestionSource(
-        source,
-      ),
+      options.includeHtml && source.discoveryMethod === 'html'
+        ? assessInstitutionalHtmlSource(source)
+        : assessFlashRssIngestionSource(source),
   )
 }
 

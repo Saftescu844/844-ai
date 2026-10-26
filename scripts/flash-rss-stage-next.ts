@@ -1,3 +1,4 @@
+import { parseInstitutionalHtmlCandidates } from '@/lib/flash/ingestion/institutionalHtmlDiscovery'
 import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { observeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import { FlashRssControlledFailure, FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
@@ -188,7 +189,7 @@ Usage:
     [--candidate-url https://example.com/article]
 
 Behavior:
-  - reads active allowIngestion=true RSS sources
+  - reads active allowIngestion=true RSS sources and explicitly supported institutional HTML listings
   - examines at most 50 feed entries per source before known/rejected URL filtering
   - retains at most --max-items eligible candidates per source, within its configured limit
   - skips candidates whose source URL is already used by any FlashAI draft/published record
@@ -687,6 +688,7 @@ async function main(): Promise<void> {
   const plans =
     await planFlashRssIngestionSources(
       payload,
+      { includeHtml: true },
     )
 
   const selectedPlans =
@@ -752,27 +754,24 @@ async function main(): Promise<void> {
     }
 
     await diagnostics.checkpoint('feed-retrieval', plan.sourceId)
-    const xml =
-      await fetchFlashRssFeedXml({
-        feedUrl:
-          plan.feedUrl,
-        registeredSourceUrl:
-          plan.registeredSourceUrl,
-      })
+    try {
+      const document = await fetchFlashRssFeedXml({ feedUrl: plan.feedUrl,
+        registeredSourceUrl: plan.registeredSourceUrl,
+        documentType: plan.discoveryMethod === 'html' ? 'html' : 'rss' })
+      if (plan.discoveryMethod === 'html') {
+        discovered.push(...parseInstitutionalHtmlCandidates(plan, document))
+      } else {
+        const parsed = await parseFlashRssCandidates(plan, document, { maxItems: 50, scanBeforeEligibility: true })
+        discovered.push(...parsed.candidates)
+      }
+    } catch {
+      // A source refusal or layout failure must not stop other registered sources.
+      diagnostics.sourceDiscoveryFailed(plan.sourceId)
+    }
+  }
 
-    const parsed =
-      await parseFlashRssCandidates(
-        plan,
-        xml,
-        {
-          maxItems: 50,
-          scanBeforeEligibility: true,
-        },
-      )
-
-    discovered.push(
-      ...parsed.candidates,
-    )
+  if (selectedPlans.length > 0 && diagnostics.allSourcesFailed(selectedPlans.length)) {
+    throw new FlashRssControlledFailure('RSS_ALL_SOURCES_FAILED')
   }
 
   await diagnostics.checkpoint('candidate-selection', null)

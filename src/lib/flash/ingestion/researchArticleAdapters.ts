@@ -1,7 +1,8 @@
+import { extractUnescoArticle, institutionalArticleUrl } from './institutionalHtmlDiscovery'
 import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import type { FlashHtmlArticleExtraction } from './htmlArticleExtraction'
 
-export type ResearchArticleAdapter = 'google-research' | 'mit-news'
+export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education'
 type Node = DefaultTreeAdapterMap['node']
 type Element = DefaultTreeAdapterMap['element']
 
@@ -17,6 +18,10 @@ export function researchArticleAdapterForUrl(
   const registered = new URL(registeredSourceUrl)
   const final = new URL(finalUrl)
   const sourceHost = host(registered)
+  if (sourceHost === 'unesco.org') {
+    if (!institutionalArticleUrl(registeredSourceUrl, finalUrl)) throw new Error('Unsupported UNESCO article URL.')
+    return 'unesco-education'
+  }
   if (!['research.google', 'news.mit.edu'].includes(sourceHost)) return null
   for (const url of [registered, final]) {
     if (url.protocol !== 'https:' || url.username || url.password || url.port) {
@@ -249,6 +254,7 @@ export function extractResearchArticle(
 ): FlashHtmlArticleExtraction {
   const adapter = researchArticleAdapterForUrl(registeredSourceUrl, finalUrlValue)
   if (!adapter) throw new Error('No research article adapter for this source.')
+  if (adapter === 'unesco-education') return extractUnescoArticle(registeredSourceUrl, finalUrlValue, html)
   const all = elements(parse(html))
   const language = attr(one(all.filter(node => node.tagName === 'html'), 'HTML document'), 'lang')
   if (!language || !/^en(?:-[a-z0-9]+)*$/i.test(language)) {
