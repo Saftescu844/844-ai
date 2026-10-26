@@ -1,3 +1,4 @@
+import type { FlashPublicationFreshnessReason } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import type { EditorialDiagnosticMetadata } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import { randomUUID } from 'node:crypto'
 import type { Payload } from 'payload'
@@ -8,7 +9,7 @@ export type RssRunStage = 'bootstrap' | 'database' | 'source-planning' | 'feed-r
   'candidate-selection' | 'generation-ro' | 'generation-en' | 'pair-persistence'
 export type RssRunOutcome = 'empty' | 'no-eligible-candidate' | 'pair-created'
 export type RssSkipReason = 'event_identity_not_grounded' | 'strong_duplicate' |
-  'article_retrieval_http_error' | 'editorial_output_too_short' | 'editorial_output_too_long'
+  'article_publication_not_current' | 'article_retrieval_http_error' | 'editorial_output_too_short' | 'editorial_output_too_long'
 
 export type RssControlledFailureCode = 'RSS_CHILD_SIGNAL' | 'RSS_CHILD_OUTPUT_LIMIT' | 'RSS_HANDOFF_FAILED'
 export class FlashRssControlledFailure extends Error {
@@ -50,6 +51,8 @@ export class FlashRssRunDiagnostics {
   private rememberedRejectedUrlCount = 0
   private editorialHandoffDiagnosticCount = 0
   private lastEditorialDiagnostic: EditorialDiagnosticMetadata | null = null
+  private freshnessPolicy: { now: number; maxAgeDays: number } | null = null
+  private freshnessRejected: Record<FlashPublicationFreshnessReason, number> | null = null
   private finished = false
 
   constructor(
@@ -62,6 +65,13 @@ export class FlashRssRunDiagnostics {
 
   private summary() {
     return { runKind: 'rss-ingestion', stage: this.stage, sourceId: this.sourceId,
+      freshnessPolicyVersion: this.freshnessPolicy ? 'rss-publication-freshness-v1' : null,
+      freshnessMaxAgeDays: this.freshnessPolicy?.maxAgeDays ?? null,
+      freshnessReferenceUtc: this.freshnessPolicy ? new Date(this.freshnessPolicy.now).toISOString() : null,
+      filteredStaleDateCount: this.freshnessRejected?.too_old ?? 0,
+      filteredMissingDateCount: this.freshnessRejected?.missing_date ?? 0,
+      filteredInvalidDateCount: this.freshnessRejected?.invalid_date ?? 0,
+      filteredFutureDateCount: this.freshnessRejected?.future_date ?? 0,
       selectedSourceCount: this.selectedSourceCount, discoveredCount: this.discoveredCount,
       eligibleCandidateCount: this.eligibleCandidateCount,
       filteredExistingCandidateCount: this.filteredExistingCandidateCount,
@@ -119,6 +129,13 @@ export class FlashRssRunDiagnostics {
     this.filteredScanLimitCandidateCount = counts.filteredScanLimitCandidateCount ?? 0
     this.existingSourceUrlCount = counts.existingSourceUrlCount
     this.rememberedRejectedUrlCount = counts.rememberedRejectedUrlCount
+  }
+
+  freshness(policy: { now: number; maxAgeDays: number }, result: {
+    rejected: Record<FlashPublicationFreshnessReason, number>
+  }) {
+    this.freshnessPolicy = { ...policy }
+    this.freshnessRejected = { ...result.rejected }
   }
 
   setRememberedRejectedUrlCount(count: number) {

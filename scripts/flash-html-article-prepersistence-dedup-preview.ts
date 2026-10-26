@@ -1,3 +1,4 @@
+import { assessFlashPublicationFreshness, flashPublicationTimestamp, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { readFile } from 'node:fs/promises'
 import { reuseFlashPairClassification } from '@/lib/flash/ingestion/flashPairClassificationReuse'
 import { diagnoseRuntimeEditorialSelection, serializeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
@@ -262,6 +263,7 @@ Usage:
     [--read-only-pilot] \
     [--require-grounded-event-identity] \
     [--classification-handoff-input ./tmp/ro.json] \
+    [--rss-freshness-now 2026-10-26T09:00:00Z --rss-max-age-days 30] \
     [--target-language ro|en] \
     [--allow-short-draft-repair (requires --allow-provider-requests)] \
     [--allow-provider-requests --model gpt-5.6-terra] \
@@ -621,6 +623,17 @@ async function main() {
     throw new Error('Classification handoff input requires a path.')
   }
 
+  const rssFreshnessNow = readOption('--rss-freshness-now')
+  const rssMaxAgeDays = readOption('--rss-max-age-days')
+  let rssFreshnessPolicy: { now: number; maxAgeDays: number } | null = null
+  if (hasFlag('--rss-freshness-now') || hasFlag('--rss-max-age-days')) {
+    const reference = flashPublicationTimestamp(rssFreshnessNow)
+    if (!rssFreshnessNow || !rssMaxAgeDays || reference === null) {
+      throw new Error('RSS freshness requires both a valid UTC reference time and max-age-days.')
+    }
+    rssFreshnessPolicy = { now: reference, maxAgeDays: parseFlashRssMaxAgeDays(rssMaxAgeDays) }
+  }
+
   const qaRetentionDiagnosticOutput =
     readOption(
       '--qa-retention-diagnostic-output',
@@ -829,6 +842,11 @@ async function main() {
       },
       extracted,
     )
+
+  if (rssFreshnessPolicy) {
+    const freshness = assessFlashPublicationFreshness(normalized.sourcePublicationDate, rssFreshnessPolicy)
+    if (!freshness.eligible) throw new Error(`FLASH_RSS_FRESHNESS_REJECTED:${freshness.reason}`)
+  }
 
   let supportingPolicySemanticMaterials:
     FlashSupportingPolicySemanticMaterial[] = []
