@@ -1,4 +1,5 @@
 import { institutionalPublicationDate } from './institutionalHtmlDiscovery'
+import { normalizeAnthropicPublicationDate } from './anthropicNewsArticleAdapter'
 import { normalizeResearchPublicationDate, researchArticleAdapterForUrl, type ResearchArticleAdapter } from './researchArticleAdapters'
 import type {
   FlashHtmlArticleExtraction,
@@ -260,7 +261,9 @@ export function normalizeFlashHtmlArticleCandidate(
       article.contentType,
     sourcePublicationDateRaw,
     sourcePublicationDate:
-      sourceAdapter === 'unesco-education'
+      sourceAdapter === 'anthropic-news'
+        ? normalizeAnthropicPublicationDate(sourcePublicationDateRaw)
+        : sourceAdapter === 'unesco-education'
         ? institutionalPublicationDate(sourcePublicationDateRaw)
         : sourceAdapter
         ? normalizeResearchPublicationDate(sourcePublicationDateRaw)

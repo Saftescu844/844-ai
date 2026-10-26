@@ -10,15 +10,23 @@ import type { Surse } from '../src/payload-types'
 // Read-only endpoint probe. No Payload instance, model client, CMS writes or registry activation.
 async function main() {
   if (process.argv.includes('--help')) {
-    console.log('Usage: node --import tsx scripts/flash-first-source-expansion-preview.ts [--probe]')
+    console.log('Usage: node --import tsx scripts/flash-first-source-expansion-preview.ts [--probe] [--source ec-ai|unesco-education|openai-news|anthropic-news]')
     console.log('Default: offline plan. --probe: staging-only bounded GET of EC, UNESCO, OpenAI and Anthropic; no AI or CMS writes.')
     return
   }
-  if (process.argv.slice(2).some(a => a !== '--probe')) throw new Error('Unknown option.')
-  const sources = FLASH_DISCOVERY_CATALOG.filter(s => ['ec-ai', 'unesco-education', 'openai-news', 'anthropic-news'].includes(s.key))
-  if (!process.argv.includes('--probe')) {
+  const allowed = ['ec-ai', 'unesco-education', 'openai-news', 'anthropic-news']
+  let selected: string | undefined
+  let probe = false
+  const args = process.argv.slice(2)
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--probe' && !probe) probe = true
+    else if (args[i] === '--source' && !selected && allowed.includes(args[i + 1] ?? '')) selected = args[++i]
+    else throw new Error('Unknown or duplicate option.')
+  }
+  const sources = FLASH_DISCOVERY_CATALOG.filter(s => allowed.includes(s.key) && (!selected || selected === s.key))
+  if (!probe) {
     console.log(JSON.stringify(sources.map(s => ({ key: s.key, method: s.method, url: s.discoveryUrl,
-      articleAdapterAvailable: ['ec-ai', 'unesco-education', 'openai-news'].includes(s.key), activated: false }))))
+      articleAdapterAvailable: true, activated: false }))))
     return
   }
   if (process.env.RAILWAY_PROJECT_ID !== FLASH_ENGINE_STAGING_RAILWAY_TARGET.projectId ||
@@ -57,8 +65,6 @@ async function main() {
             publicationDate: article.publicationDate, providerCalled: false }))
         }
       } catch { failures += 1; console.log(JSON.stringify({ key: source.key, status: 'parse_failed', providerCalled: false })) }
-    } else if (source.key === 'anthropic-news') {
-      console.log(JSON.stringify({ key: source.key, status: 'retrieved_article_adapter_pending', providerCalled: false }))
     } else {
       try {
         const plan = assessInstitutionalHtmlSource({ id: 1, nume: source.name, url: source.sourceUrl,

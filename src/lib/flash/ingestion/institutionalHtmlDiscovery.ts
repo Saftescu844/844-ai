@@ -3,6 +3,7 @@ import type { Surse } from '@/payload-types'
 import type { FlashRssCandidate, FlashRssIngestionSourcePlan } from './rssCandidateIngestion'
 import type { FlashHtmlArticleExtraction } from './htmlArticleExtraction'
 import { flashPublicationTimestamp } from './flashPublicationFreshness'
+import { parseAnthropicNewsCandidates } from './anthropicNewsArticleAdapter'
 
 type Node = DefaultTreeAdapterMap['node']
 type Element = DefaultTreeAdapterMap['element']
@@ -29,6 +30,7 @@ function safeUrl(value: string, base?: string): URL {
 const listingPaths: Record<string, string> = {
   'unesco.org': '/en/digital-education/artificial-intelligence',
   'digital-strategy.ec.europa.eu': '/en/related-content',
+  'anthropic.com': '/news',
 }
 export function institutionalListingSupported(source: string, listing: string): boolean {
   try {
@@ -67,6 +69,7 @@ export function assessInstitutionalHtmlSource(source: Surse): FlashRssIngestionS
 }
 export function parseInstitutionalHtmlCandidates(plan: FlashRssIngestionSourcePlan, html: string): FlashRssCandidate[] {
   if (!plan.feedUrl || !institutionalListingSupported(plan.registeredSourceUrl, plan.feedUrl)) throw new Error('Unsupported institutional listing.')
+  if (host(new URL(plan.registeredSourceUrl)) === 'anthropic.com') return parseAnthropicNewsCandidates(plan, html)
   const all = elements(parse(html))
   const main = all.filter(n => n.tagName === 'main')
   if (main.length !== 1) throw new Error('Institutional listing requires one main container.')
