@@ -1,6 +1,7 @@
 import { parseInstitutionalHtmlCandidates } from '@/lib/flash/ingestion/institutionalHtmlDiscovery'
 import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { observeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
+import { diagnoseRssHandoffFailure } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
 import { FlashRssControlledFailure, FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
 
 let diagnostics: FlashRssRunDiagnostics | undefined
@@ -421,6 +422,8 @@ function runPrePersistenceHandoff({
         .join(
           '\n',
         )
+
+    diagnostics?.handoffFailure(diagnoseRssHandoffFailure(combinedOutput))
 
     if (/^FLASH_RSS_FRESHNESS_REJECTED:(?:too_old|missing_date|invalid_date|future_date)$/m.test(combinedOutput)) {
       throw new FlashRssCandidateTransientSkipError('article_publication_not_current', 'Article publication date is outside the RSS freshness policy.')

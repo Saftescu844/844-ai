@@ -1,5 +1,6 @@
 import type { FlashPublicationFreshnessReason } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import type { EditorialDiagnosticMetadata } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
+import type { RssHandoffFailureDiagnostic } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
 import { randomUUID } from 'node:crypto'
 import type { Payload } from 'payload'
 import { serializeStructuredRuntimeEvent } from '@/lib/observability/structuredRuntimeEvent'
@@ -56,6 +57,7 @@ export class FlashRssRunDiagnostics {
   private sourceDiscoveryFailureCount = 0
   private lastFailedSourceId: number | null = null
   private finished = false
+  private lastHandoffFailure: RssHandoffFailureDiagnostic | null = null
 
   constructor(
     private readonly emit: (line: string) => void = console.log,
@@ -66,7 +68,9 @@ export class FlashRssRunDiagnostics {
   }
 
   private summary() {
-    return { sourceDiscoveryFailureCount: this.sourceDiscoveryFailureCount, lastFailedSourceId: this.lastFailedSourceId, runKind: 'rss-ingestion', stage: this.stage, sourceId: this.sourceId,
+    return { handoffFailurePhase: this.lastHandoffFailure?.phase ?? null,
+      handoffFailureReason: this.lastHandoffFailure?.reason ?? null,
+      sourceDiscoveryFailureCount: this.sourceDiscoveryFailureCount, lastFailedSourceId: this.lastFailedSourceId, runKind: 'rss-ingestion', stage: this.stage, sourceId: this.sourceId,
       freshnessPolicyVersion: this.freshnessPolicy ? 'rss-publication-freshness-v1' : null,
       freshnessMaxAgeDays: this.freshnessPolicy?.maxAgeDays ?? null,
       freshnessReferenceUtc: this.freshnessPolicy ? new Date(this.freshnessPolicy.now).toISOString() : null,
@@ -153,8 +157,14 @@ export class FlashRssRunDiagnostics {
   }
 
   candidate(attempt: number, sourceId: number) {
+    this.lastHandoffFailure = null
     this.attemptedCount = attempt
     this.sourceId = sourceId
+  }
+
+  handoffFailure(diagnostic: RssHandoffFailureDiagnostic) {
+    this.lastHandoffFailure = diagnostic
+    this.log('noop')
   }
 
   editorialDiagnostic(metadata: EditorialDiagnosticMetadata) {
