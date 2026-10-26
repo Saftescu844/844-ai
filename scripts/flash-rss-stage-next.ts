@@ -51,6 +51,7 @@ import {
 } from '@/lib/flash/ingestion/rssCandidateSkipMemory'
 import {
   isFlashRssArticleRetrievalHttpFailure,
+  isFlashRssArticleUnsupportedLayoutFailure,
   runFlashRssStageNextAttempts,
 } from '@/lib/flash/ingestion/flashRssStageNextAttemptRunner'
 
@@ -291,6 +292,7 @@ type FlashRssCandidateTransientSkipReason =
   | 'editorial_output_too_short'
   | 'editorial_output_too_long'
   | 'article_retrieval_http_error'
+  | 'article_layout_not_supported'
 
 class FlashRssCandidateTransientSkipError
   extends Error {
@@ -424,6 +426,10 @@ function runPrePersistenceHandoff({
         )
 
     diagnostics?.handoffFailure(diagnoseRssHandoffFailure(combinedOutput))
+
+    if (isFlashRssArticleUnsupportedLayoutFailure(combinedOutput)) {
+      throw new FlashRssCandidateTransientSkipError('article_layout_not_supported', 'Article template is not supported by its source adapter.')
+    }
 
     if (/^FLASH_RSS_FRESHNESS_REJECTED:(?:too_old|missing_date|invalid_date|future_date)$/m.test(combinedOutput)) {
       throw new FlashRssCandidateTransientSkipError('article_publication_not_current', 'Article publication date is outside the RSS freshness policy.')

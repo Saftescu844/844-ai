@@ -1,5 +1,7 @@
 # First source expansion — institutional discovery
 
+Follow-up preparation: [OpenAI News adapter and runtime proof plan](openai-news-source-preparation.md). The original rollout evidence below describes PR #280; the follow-up adds standard OpenAI article extraction without activating source ID 7.
+
 26 October 2026. Base: staging PR #279, 810b2f7. No registry changes, AI calls, deployment or publication in this implementation.
 
 The target lot is UNESCO, European Commission, OpenAI and Anthropic. This PR prepares the two HTML sources whose markup was available for inspection. It does not claim all four are operational.
