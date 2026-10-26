@@ -364,6 +364,13 @@ export async function createFlashAiAtomicReviewPair({
       en,
     )
 
+  // Shared subject metadata cannot depend on the editorial language.
+  for (const field of ['pilon', 'flashType', 'informationStatus', 'riskLevel', 'isHealthRelated'] as const) {
+    if (ro.projection[field] !== en.projection[field]) {
+      throw new Error(`FlashAI atomic pair requires identical ${field} for RO and EN.`)
+    }
+  }
+
   // One article pair has one subject in both languages.
   // A disagreement requires editorial review rather than divergent menus.
   if (

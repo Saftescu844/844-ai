@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+import { reuseFlashPairClassification } from '@/lib/flash/ingestion/flashPairClassificationReuse'
 import { diagnoseRuntimeEditorialSelection, serializeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import {
   buildVerifiedFlashEditorialLexicalContent,
@@ -259,6 +261,7 @@ Usage:
     [--confirmed-event-id doi:10.1038/s41587-019-0105-3] \
     [--read-only-pilot] \
     [--require-grounded-event-identity] \
+    [--classification-handoff-input ./tmp/ro.json] \
     [--target-language ro|en] \
     [--allow-short-draft-repair (requires --allow-provider-requests)] \
     [--allow-provider-requests --model gpt-5.6-terra] \
@@ -293,6 +296,9 @@ Behavior:
   - optional --require-grounded-event-identity fails closed before provider calls when no grounded event identity exists
   - with --allow-provider-requests and --model, resolves allowed pilons from the source configuration and requests bounded OpenAI classification first
   - provider classification runs only after source verification passes and no canonical/event duplicate blocker exists
+  - --classification-handoff-input reuses bounded classification from a validated RO handoff for EN only
+  - reuse requires identical source content/fingerprints and current allowed pilons; invalid input fails without reclassification
+  - independent EN source verification, dedup, generation, QA and readiness still apply
   - successful strict REG-001S classification removes classification_required from persistence readiness
   - accepts zero, one, or two explicit --supporting-url values; zero preserves the original REG-001T primary-only path
   - when supporting URLs are supplied, retrieves them through the canonical retriever and requires the REG-001U verified supporting-source pack contract to pass
@@ -610,6 +616,11 @@ async function main() {
       ?.trim() ??
     null
 
+  const classificationHandoffInput = readOption('--classification-handoff-input')?.trim() ?? null
+  if (hasFlag('--classification-handoff-input') && !classificationHandoffInput) {
+    throw new Error('Classification handoff input requires a path.')
+  }
+
   const qaRetentionDiagnosticOutput =
     readOption(
       '--qa-retention-diagnostic-output',
@@ -630,6 +641,10 @@ async function main() {
         '--target-language',
       ),
     )
+
+  if (classificationHandoffInput && (!allowProviderRequests || targetLanguage !== 'en')) {
+    throw new Error('Classification reuse requires provider-enabled EN preparation.')
+  }
 
   const readOnlyPilot =
     hasFlag(
@@ -1088,7 +1103,7 @@ async function main() {
           stage:
             'prePersistenceClassification'
           method:
-            'model'
+            'model' | 'reused'
           runId: string
           provider: string | null
           model: string | null
@@ -1230,8 +1245,25 @@ async function main() {
         model,
       })
 
-    const classificationResult =
-      await runFlashPrePersistenceClassificationSemanticProducer({
+    // Reuse only the validated RO handoff from this same temporary pair run.
+    // Fresh source verification and dedup above still apply independently to EN.
+    const reusedClassification = classificationHandoffInput
+      ? reuseFlashPairClassification({
+          handoff: JSON.parse(await readFile(classificationHandoffInput, 'utf8')),
+          candidate: normalized,
+          sourceFingerprint: fingerprints.sourceFingerprint,
+          eventFingerprint: fingerprints.eventFingerprint,
+          allowedPilons,
+        })
+      : null
+
+    const classificationResult = reusedClassification
+      ? { ok: true as const, classification: reusedClassification, run: {
+          stage: 'prePersistenceClassification' as const, method: 'reused' as const,
+          runId: `flash-pair-classification-reuse:${String(source.id)}`,
+          provider: null, model: null,
+        } }
+      : await runFlashPrePersistenceClassificationSemanticProducer({
         producer:
           classificationProducer,
         input: {
