@@ -259,7 +259,10 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
     '- Preserve every source-supported factual detail, explanation, distinction, and useful context already present in the draft.',
     '- Return an edit only when correction is actually necessary; unchanged paragraphs must be omitted from paragraphEdits.',
     '- For an edited paragraph, make the smallest necessary correction and preserve unaffected wording.',
+    '- Treat each replacement as a surgical copy edit, not a summary: replace only the defective phrase inside the complete original paragraph.',
+    '- Apply the proposed edits mentally to the original draft before returning JSON; unchanged paragraphs retain their original full text.',
     `- The reconstructed editorial must contain at least ${String(minimumRetainedWordCount)} words. The supplied draft contains ${String(originalWordCount)} words.`,
+    `- Across all paragraph replacements together, the maximum net word reduction is ${String(Math.max(0, originalWordCount - minimumRetainedWordCount))} words. This is a whole-draft budget, not a separate allowance per paragraph.`,
     `- The minimum retained-word ratio is ${String(FLASH_QA_MIN_RETAINED_WORD_RATIO)}. Do not intentionally return edits that make the reconstructed editorial shorter than the stated minimumRetainedWordCount.`,
     '- If source fidelity genuinely requires removing enough unsupported material that the retention floor cannot be satisfied, remove only what is unsupported and do not invent, repeat, generalize, or pad. The application will fail closed and a later stage may regenerate the draft.',
     '- Never invent, speculate, generalize, repeat, or pad merely to reach the word-count target.',
@@ -294,6 +297,11 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
           minimumRetainedWordCount,
           minRetainedWordRatio:
             FLASH_QA_MIN_RETAINED_WORD_RATIO,
+          maximumNetWordReduction: Math.max(0, originalWordCount - minimumRetainedWordCount),
+          paragraphWordCounts: editorial.editorialParagraphs.map((paragraph, paragraphIndex) => ({
+            paragraphIndex,
+            originalWordCount: countFlashEditorialWords([paragraph]),
+          })),
         },
         editorialDraft:
           editorial,
@@ -312,12 +320,14 @@ export function buildFlashPrePersistenceEditorialQualityReviewSemanticPrompt(
 function buildFlashPrePersistenceEditorialQualityReviewRetentionRepairPrompt({
   prompt,
   error,
+  editorial,
 }: {
   prompt:
     FlashPrePersistenceEditorialQualityReviewSemanticPrompt
 
   error:
     FlashPrePersistenceEditorialQualityReviewRetentionError
+  editorial: FlashPrePersistenceEditorialGenerationSemanticOutput
 }): FlashPrePersistenceEditorialQualityReviewSemanticPrompt {
   return {
     systemPrompt: [
@@ -329,6 +339,8 @@ function buildFlashPrePersistenceEditorialQualityReviewRetentionRepairPrompt({
       `- The previous reconstructed editorial contained ${String(error.diagnostics.reviewedWordCount)} words; the required minimum is ${String(error.diagnostics.minimumRetainedWordCount)} words.`,
       '- Preserve the original draft wording for every source-supported passage unless a correction is genuinely necessary.',
       '- Reconsider every previous paragraph replacement and restore source-supported wording that was unnecessarily removed.',
+      '- Restart from editorialDraft, not from the compressed previousReview. The paragraph losses below identify where to inspect; they do not prove that removed wording was factually supported.',
+      '- Restore wording only after checking it against the supplied source set. Do not undo a necessary factual correction to meet the word target.',
       '- Do not invent, repeat, generalize, or pad to satisfy the floor.',
       '- If source fidelity genuinely requires remaining below the minimum, return the faithful edits anyway; the application will fail closed.',
     ].join('\n'),
@@ -342,6 +354,19 @@ function buildFlashPrePersistenceEditorialQualityReviewRetentionRepairPrompt({
         {
           retentionFailure:
             error.diagnostics,
+          wordsBelowMinimum: error.diagnostics.minimumRetainedWordCount - error.diagnostics.reviewedWordCount,
+          paragraphWordLosses: error.reviewedEditorial.editorialParagraphs.map((paragraph, paragraphIndex) => {
+            const replacement = error.review.paragraphEdits.find(edit => edit.paragraphIndex === paragraphIndex)
+            const reviewedWordCount = countFlashEditorialWords([paragraph])
+            const originalWordCount = countFlashEditorialWords([editorial.editorialParagraphs[paragraphIndex]!])
+            return {
+              paragraphIndex,
+              edited: replacement !== undefined,
+              originalWordCount,
+              reviewedWordCount,
+              netWordsRemoved: originalWordCount - reviewedWordCount,
+            }
+          }),
           previousReview:
             error.review,
         },
@@ -457,6 +482,7 @@ export function createFlashPrePersistenceEditorialQualityReviewSemanticProducer(
           buildFlashPrePersistenceEditorialQualityReviewRetentionRepairPrompt({
             prompt,
             error,
+            editorial,
           })
 
         return executeFlashPrePersistenceEditorialQualityReview({
