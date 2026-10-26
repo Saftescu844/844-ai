@@ -1,3 +1,4 @@
+import { flashPublicationTimestamp } from './flashPublicationFreshness'
 import Parser from 'rss-parser'
 
 import type {
@@ -48,6 +49,8 @@ export interface FlashRssCandidate {
   title: string
   concreteUrl: string
   publishedAt: string | null
+  /** Distinguishes malformed source dates from absent dates after normalization. */
+  publicationDateInvalid?: true
   summary: string | null
 }
 
@@ -211,16 +214,8 @@ function normalizePublishedAt(
     return null
   }
 
-  const date =
-    new Date(
-      normalized,
-    )
-
-  return Number.isNaN(
-    date.getTime(),
-  )
-    ? null
-    : date.toISOString()
+  const timestamp = flashPublicationTimestamp(normalized)
+  return timestamp === null ? null : new Date(timestamp).toISOString()
 }
 
 export function assessFlashRssIngestionSource(
@@ -670,6 +665,9 @@ export async function parseFlashRssCandidates(
       continue
     }
 
+    const rawPublishedAt = item.pubDate ?? item.isoDate
+    const publishedAt = normalizePublishedAt(rawPublishedAt)
+
     candidates.push({
       sourceId:
         source.sourceId,
@@ -685,11 +683,8 @@ export async function parseFlashRssCandidates(
         source.feedUrl,
       title,
       concreteUrl,
-      publishedAt:
-        normalizePublishedAt(
-          item.isoDate ??
-          item.pubDate,
-        ),
+      publishedAt,
+      ...(rawPublishedAt?.trim() && publishedAt === null ? { publicationDateInvalid: true as const } : {}),
       summary:
         normalizeOptionalText(
           item.contentSnippet ??

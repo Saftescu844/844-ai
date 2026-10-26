@@ -1,3 +1,4 @@
+import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { observeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import { FlashRssControlledFailure, FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
 
@@ -182,6 +183,7 @@ Usage:
     --allow-provider-requests \\
     --allow-staging-rss-stage-next \\
     [--source-id 5] \\
+    [--max-age-days 30] \
     [--max-items 10] \\
     [--candidate-url https://example.com/article]
 
@@ -190,6 +192,8 @@ Behavior:
   - examines at most 50 feed entries per source before known/rejected URL filtering
   - retains at most --max-items eligible candidates per source, within its configured limit
   - skips candidates whose source URL is already used by any FlashAI draft/published record
+  - rejects missing, invalid, future and older-than-30-day dates before AI (reduce with --max-age-days 1..30)
+  - rechecks the extracted article publication date before AI; --candidate-url does not bypass freshness
   - tries at most 3 newest remaining candidates per run
   - allows pending event identity only through the existing safe review-only bridge; otherwise fails closed
   - skips candidates blocked by strong duplicate evidence
@@ -281,6 +285,7 @@ function assertStageNextEnvironment(
 }
 
 type FlashRssCandidateTransientSkipReason =
+  | 'article_publication_not_current'
   | 'editorial_output_too_short'
   | 'editorial_output_too_long'
   | 'article_retrieval_http_error'
@@ -336,6 +341,7 @@ function runPrePersistenceHandoff({
   model,
   outputPath,
   classificationHandoffPath,
+  freshnessPolicy,
 }: {
   sourceId: number
   articleUrl: string
@@ -344,6 +350,7 @@ function runPrePersistenceHandoff({
   model: string
   outputPath: string
   classificationHandoffPath?: string
+  freshnessPolicy: { now: number; maxAgeDays: number }
 }): void {
   const result =
     spawnSync(
@@ -364,6 +371,8 @@ function runPrePersistenceHandoff({
         '--staging-mit-evidence-preflight',
         '--model',
         model,
+        '--rss-freshness-now', new Date(freshnessPolicy.now).toISOString(),
+        '--rss-max-age-days', String(freshnessPolicy.maxAgeDays),
         '--handoff-output',
         outputPath,
         ...(classificationHandoffPath ? ['--classification-handoff-input', classificationHandoffPath] : []),
@@ -411,6 +420,10 @@ function runPrePersistenceHandoff({
         .join(
           '\n',
         )
+
+    if (/^FLASH_RSS_FRESHNESS_REJECTED:(?:too_old|missing_date|invalid_date|future_date)$/m.test(combinedOutput)) {
+      throw new FlashRssCandidateTransientSkipError('article_publication_not_current', 'Article publication date is outside the RSS freshness policy.')
+    }
 
     // The child reports only bounded diagnostic categories and counts.
     // Do not print raw HTML, source text, arbitrary stderr or provider output.
@@ -580,6 +593,10 @@ async function main(): Promise<void> {
       'Flash RSS stage-next requires --model.',
     )
   }
+
+  const maxAgeOption = argument('--max-age-days')
+  if (hasFlag('--max-age-days') && maxAgeOption === null) throw new Error('--max-age-days requires a value.')
+  const freshnessPolicy = { now: Date.now(), maxAgeDays: parseFlashRssMaxAgeDays(maxAgeOption) }
 
   assertStageNextEnvironment()
 
@@ -845,9 +862,11 @@ async function main(): Promise<void> {
         },
       )
 
+  const freshnessResult = filterFlashRssFreshCandidates(eligibleBeforeDailyBudget, freshnessPolicy)
+
   const dailyBudgetResult =
     filterFlashRssCandidatesWithinDailySourceBudgets(
-      eligibleBeforeDailyBudget,
+      freshnessResult.candidates,
       selectedPlans,
       existing.docs,
     )
@@ -902,6 +921,7 @@ async function main(): Promise<void> {
   const candidates = scanLimitResult.candidates
   const filteredScanLimitCandidateCount = scanLimitResult.filteredCount
 
+  diagnostics.freshness(freshnessPolicy, freshnessResult)
   diagnostics.scan({ selectedSourceCount: selectedPlans.length, discoveredCount: discovered.length,
     eligibleCandidateCount: candidates.length, filteredExistingCandidateCount,
     filteredRememberedRejectedCandidateCount, filteredDailyBudgetCandidateCount, filteredScanLimitCandidateCount,
@@ -1000,6 +1020,7 @@ async function main(): Promise<void> {
         model,
         outputPath:
           roPath,
+        freshnessPolicy,
       })
 
       await diagnostics!.checkpoint('generation-en')
@@ -1014,6 +1035,7 @@ async function main(): Promise<void> {
         outputPath:
           enPath,
         classificationHandoffPath: roPath,
+        freshnessPolicy,
       })
 
       const [
