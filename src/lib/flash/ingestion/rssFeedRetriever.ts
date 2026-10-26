@@ -28,6 +28,7 @@ function normalizedHost(
 export async function fetchFlashRssFeedXml({
   feedUrl,
   registeredSourceUrl,
+  documentType = 'rss',
   fetchImpl = fetch,
   maxBytes =
     FLASH_RSS_MAX_FEED_BYTES,
@@ -35,6 +36,7 @@ export async function fetchFlashRssFeedXml({
     FLASH_RSS_REQUEST_TIMEOUT_MS,
 }: {
   feedUrl: string
+  documentType?: 'rss' | 'html'
   registeredSourceUrl: string
   fetchImpl?: FlashRssFetch
   maxBytes?: number
@@ -60,7 +62,7 @@ export async function fetchFlashRssFeedXml({
           redirect:
             'follow',
           headers: {
-            accept:
+            accept: documentType === 'html' ? 'text/html' :
               'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.1',
             'user-agent':
               '844-ai-flash-rss/1.0',

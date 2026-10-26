@@ -11,7 +11,7 @@ export type RssRunOutcome = 'empty' | 'no-eligible-candidate' | 'pair-created'
 export type RssSkipReason = 'event_identity_not_grounded' | 'strong_duplicate' |
   'article_publication_not_current' | 'article_retrieval_http_error' | 'editorial_output_too_short' | 'editorial_output_too_long'
 
-export type RssControlledFailureCode = 'RSS_CHILD_SIGNAL' | 'RSS_CHILD_OUTPUT_LIMIT' | 'RSS_HANDOFF_FAILED'
+export type RssControlledFailureCode = 'RSS_ALL_SOURCES_FAILED' | 'RSS_CHILD_SIGNAL' | 'RSS_CHILD_OUTPUT_LIMIT' | 'RSS_HANDOFF_FAILED'
 export class FlashRssControlledFailure extends Error {
   constructor(readonly code: RssControlledFailureCode) {
     super(code)
@@ -53,6 +53,8 @@ export class FlashRssRunDiagnostics {
   private lastEditorialDiagnostic: EditorialDiagnosticMetadata | null = null
   private freshnessPolicy: { now: number; maxAgeDays: number } | null = null
   private freshnessRejected: Record<FlashPublicationFreshnessReason, number> | null = null
+  private sourceDiscoveryFailureCount = 0
+  private lastFailedSourceId: number | null = null
   private finished = false
 
   constructor(
@@ -64,7 +66,7 @@ export class FlashRssRunDiagnostics {
   }
 
   private summary() {
-    return { runKind: 'rss-ingestion', stage: this.stage, sourceId: this.sourceId,
+    return { sourceDiscoveryFailureCount: this.sourceDiscoveryFailureCount, lastFailedSourceId: this.lastFailedSourceId, runKind: 'rss-ingestion', stage: this.stage, sourceId: this.sourceId,
       freshnessPolicyVersion: this.freshnessPolicy ? 'rss-publication-freshness-v1' : null,
       freshnessMaxAgeDays: this.freshnessPolicy?.maxAgeDays ?? null,
       freshnessReferenceUtc: this.freshnessPolicy ? new Date(this.freshnessPolicy.now).toISOString() : null,
@@ -137,6 +139,14 @@ export class FlashRssRunDiagnostics {
     this.freshnessPolicy = { ...policy }
     this.freshnessRejected = { ...result.rejected }
   }
+
+  sourceDiscoveryFailed(sourceId: number) {
+    this.sourceDiscoveryFailureCount += 1
+    this.lastFailedSourceId = sourceId
+    this.log('noop', 'RSS_SOURCE_DISCOVERY_FAILED')
+  }
+
+  allSourcesFailed(selectedCount: number) { return this.sourceDiscoveryFailureCount === selectedCount }
 
   setRememberedRejectedUrlCount(count: number) {
     this.rememberedRejectedUrlCount = count
