@@ -1,6 +1,7 @@
 export type FlashRssCandidateSkipReason =
   | 'event_identity_not_grounded'
   | 'strong_duplicate'
+  | 'editorial_output_too_short'
 
 export interface FlashRssCandidateSkipMemoryEntry {
   url: string
@@ -10,6 +11,9 @@ export interface FlashRssCandidateSkipMemoryEntry {
 
 export const FLASH_RSS_CANDIDATE_SKIP_MEMORY_TTL_MS =
   7 * 24 * 60 * 60 * 1000
+
+export const FLASH_RSS_SHORT_OUTPUT_COOLDOWN_MS =
+  6 * 60 * 60 * 1000
 
 export const FLASH_RSS_CANDIDATE_SKIP_MEMORY_LIMIT =
   100
@@ -76,7 +80,8 @@ function parsedEntry(
     !url ||
     (
       reason !== 'event_identity_not_grounded' &&
-      reason !== 'strong_duplicate'
+      reason !== 'strong_duplicate' &&
+      reason !== 'editorial_output_too_short'
     ) ||
     !skippedAt ||
     Number.isNaN(
@@ -118,10 +123,12 @@ function activeEntries(
       (
         entry,
       ): entry is FlashRssCandidateSkipMemoryEntry =>
-        entry !== null &&
-        Date.parse(
-          entry.skippedAt,
-        ) >= cutoff,
+        entry !== null && (
+          entry.reason === 'editorial_output_too_short'
+            ? Date.parse(entry.skippedAt) <= nowMs &&
+              nowMs - Date.parse(entry.skippedAt) < FLASH_RSS_SHORT_OUTPUT_COOLDOWN_MS
+            : Date.parse(entry.skippedAt) >= cutoff
+        ),
     )
     .slice(
       0,
