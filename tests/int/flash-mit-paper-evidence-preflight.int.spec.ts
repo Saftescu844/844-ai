@@ -14,7 +14,7 @@ import {
 } from '@/lib/flash/ingestion/explicitGroundedEventIdentity'
 import {
   diagnoseMitPaperEvidence,
-  shouldSkipUngroundedMitBeforeProvider,
+  shouldSkipUngroundedResearchBeforeProvider,
 } from '@/lib/flash/ingestion/mitPaperEvidencePreflight'
 
 const registeredUrl = 'https://news.mit.edu/'
@@ -45,8 +45,8 @@ function extract(htmlText: string, editorialTrust: 'standard' | 'high' = 'standa
   }, article)
   const identity = evaluateExplicitGroundedEventIdentity(candidate)
 
-  const skip = (overrides: Partial<Parameters<typeof shouldSkipUngroundedMitBeforeProvider>[0]> = {}) =>
-    shouldSkipUngroundedMitBeforeProvider({
+  const skip = (overrides: Partial<Parameters<typeof shouldSkipUngroundedResearchBeforeProvider>[0]> = {}) =>
+    shouldSkipUngroundedResearchBeforeProvider({
       candidate,
       hasGroundedEventFingerprint: identity.status === 'grounded',
       stagingWorkerPreflightEnabled: true,
@@ -156,12 +156,12 @@ describe('MIT primary-evidence staging preflight diagnostics', () => {
 
     expect(worker).toContain("'--staging-mit-evidence-preflight'")
     expect(worker).toContain('FLASH_MIT_PRIMARY_EVIDENCE_DIAGNOSTIC')
-    expect(child).toContain('shouldSkipUngroundedMitBeforeProvider')
+    expect(child).toContain('shouldSkipUngroundedResearchBeforeProvider')
     expect(child).toContain('diagnoseMitPaperEvidence')
     expect(child).toContain('providerCalled=false')
     expect(child).toContain('!allowProductionOneShot')
     expect(child).toContain('!readOnlyPilot')
-    expect(child.indexOf('    shouldSkipUngroundedMitBeforeProvider({')).toBeGreaterThan(0)
-    expect(child.indexOf('    shouldSkipUngroundedMitBeforeProvider({')).toBeLessThan(child.indexOf('if (allowProviderRequests)'))
+    expect(child.indexOf('    shouldSkipUngroundedResearchBeforeProvider({')).toBeGreaterThan(0)
+    expect(child.indexOf('    shouldSkipUngroundedResearchBeforeProvider({')).toBeLessThan(child.indexOf('if (allowProviderRequests)'))
   })
 })

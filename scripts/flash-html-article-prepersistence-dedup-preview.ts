@@ -1,3 +1,4 @@
+import { resolveMicrosoftResearchPaperEvidence } from '@/lib/flash/ingestion/microsoftResearchPaperEvidence'
 import { assessFlashPublicationFreshness, flashPublicationTimestamp, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { readFile } from 'node:fs/promises'
 import { reuseFlashPairClassification } from '@/lib/flash/ingestion/flashPairClassificationReuse'
@@ -15,7 +16,7 @@ import {
 } from '@/lib/flash/ingestion/articleCandidateNormalization'
 import {
   diagnoseMitPaperEvidence,
-  shouldSkipUngroundedMitBeforeProvider,
+  shouldSkipUngroundedResearchBeforeProvider,
 } from '@/lib/flash/ingestion/mitPaperEvidencePreflight'
 import {
   evaluateFlashArticlePersistenceReadiness,
@@ -821,6 +822,18 @@ async function main() {
       retrieval.textContent,
     )
 
+  // Source-specific evidence lookup is restricted to the existing staging worker opt-in.
+  if (extracted.sourceAdapter === 'microsoft-research' && stagingMitEvidencePreflight &&
+      !allowProductionOneShot && !readOnlyPilot) {
+    const paper = await resolveMicrosoftResearchPaperEvidence({ sourceUrl: source.url,
+      articleUrl: extracted.finalUrl, html: retrieval.textContent })
+    if (paper.status === 'retrieval_failed' || paper.status === 'unsupported_publication') {
+      throw new Error(`FLASH_MICROSOFT_RESEARCH_PAPER_EVIDENCE_UNAVAILABLE:${paper.status}`)
+    }
+    extracted.primaryEvidenceUrls = paper.primaryEvidenceUrls
+    console.log(`FLASH_MICROSOFT_RESEARCH_PAPER_EVIDENCE status=${paper.status} providerCalled=false`)
+  }
+
   const normalized =
     normalizeFlashHtmlArticleCandidate(
       {
@@ -1044,7 +1057,7 @@ async function main() {
     })
 
   if (
-    shouldSkipUngroundedMitBeforeProvider({
+    shouldSkipUngroundedResearchBeforeProvider({
       candidate:
         normalized,
       hasGroundedEventFingerprint:
@@ -1062,24 +1075,18 @@ async function main() {
         dedup.evidence.eventFingerprintDuplicateFound,
     })
   ) {
-    const diagnostic =
-      diagnoseMitPaperEvidence(
-        retrieval.textContent,
-        normalized.primaryEvidenceUrls ?? [],
-      )
-
-    // Stable, single-line and content-free. No untrusted URLs or article text.
-    console.log(
-      [
-        'FLASH_MIT_PRIMARY_EVIDENCE_DIAGNOSTIC',
-        `status=${diagnostic.status}`,
-        `labelledLinks=${diagnostic.labelledLinkCount}`,
-        `ambiguousParagraphs=${diagnostic.ambiguousPaperParagraphCount}`,
-        `recognizedEvidence=${diagnostic.recognizedEvidenceCount}`,
-        `identityStatus=${eventIdentity.status}`,
+    if (normalized.sourceAdapter === 'mit-news') {
+      const diagnostic = diagnoseMitPaperEvidence(retrieval.textContent, normalized.primaryEvidenceUrls ?? [])
+      // Stable, single-line and content-free. No untrusted URLs or article text.
+      console.log([
+        'FLASH_MIT_PRIMARY_EVIDENCE_DIAGNOSTIC', `status=${diagnostic.status}`,
+        `labelledLinks=${diagnostic.labelledLinkCount}`, `ambiguousParagraphs=${diagnostic.ambiguousPaperParagraphCount}`,
+        `recognizedEvidence=${diagnostic.recognizedEvidenceCount}`, `identityStatus=${eventIdentity.status}`,
         'providerCalled=false',
-      ].join(' '),
-    )
+      ].join(' '))
+    } else {
+      console.log(`FLASH_MICROSOFT_RESEARCH_PRIMARY_EVIDENCE_DIAGNOSTIC identityStatus=${eventIdentity.status} providerCalled=false`)
+    }
 
     throw new Error(
       'FlashAI STAGING write input requires grounded event identity or a safe review-only pending identity.',

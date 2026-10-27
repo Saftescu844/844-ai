@@ -51,6 +51,7 @@ import {
 import {
   isFlashRssArticleRetrievalHttpFailure,
   isFlashRssArticleUnsupportedLayoutFailure,
+  isFlashRssMicrosoftPaperEvidenceUnavailable,
   runFlashRssStageNextAttempts,
 } from '@/lib/flash/ingestion/flashRssStageNextAttemptRunner'
 
@@ -292,6 +293,7 @@ type FlashRssCandidateTransientSkipReason =
   | 'editorial_output_too_long'
   | 'article_retrieval_http_error'
   | 'article_layout_not_supported'
+  | 'article_primary_evidence_unavailable'
 
 class FlashRssCandidateTransientSkipError
   extends Error {
@@ -426,6 +428,10 @@ async function runPrePersistenceHandoff({
         )
 
     diagnostics?.handoffFailure(diagnoseRssHandoffFailure(combinedOutput))
+
+    if (isFlashRssMicrosoftPaperEvidenceUnavailable(combinedOutput)) {
+      throw new FlashRssCandidateTransientSkipError('article_primary_evidence_unavailable', 'Primary publication page could not be verified.')
+    }
 
     if (isFlashRssArticleUnsupportedLayoutFailure(combinedOutput)) {
       throw new FlashRssCandidateTransientSkipError('article_layout_not_supported', 'Article template is not supported by its source adapter.')

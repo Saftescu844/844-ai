@@ -57,3 +57,9 @@ export function isFlashRssArticleUnsupportedLayoutFailure(output: string): boole
     /^FLASH_MICROSOFT_RESEARCH_ARTICLE_LAYOUT_UNSUPPORTED: (?:document|canonical URL|main container|headline|original publication date|article body)$/.test(line) ||
     /^FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: (?:document|main container|headline|original publication date|description|article body)$/.test(line))
 }
+
+/** Retrieval/layout failures of the one-hop paper lookup must never enter identity skip memory. */
+export function isFlashRssMicrosoftPaperEvidenceUnavailable(output: string): boolean {
+  return output.split(/\r?\n/).some(line =>
+    /^FLASH_MICROSOFT_RESEARCH_PAPER_EVIDENCE_UNAVAILABLE:(?:retrieval_failed|unsupported_publication)$/.test(line))
+}

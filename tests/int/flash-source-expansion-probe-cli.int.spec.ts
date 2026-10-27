@@ -2,15 +2,16 @@
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 
-function run(args: string[]) {
+function run(args: string[], script = 'flash-first-source-expansion-preview.ts') {
   const env = { ...process.env }
   delete env.RAILWAY_PROJECT_ID
   delete env.RAILWAY_ENVIRONMENT_ID
-  return spawnSync(process.execPath, ['--import', 'tsx', 'scripts/flash-first-source-expansion-preview.ts', ...args],
+  return spawnSync(process.execPath, ['--import', 'tsx', `scripts/${script}`, ...args],
     { encoding: 'utf8', env, timeout: 15_000 })
 }
 
-describe('Source-specific read-only probe CLI', () => {
+// Each case starts real Node processes; retain the 15s child limit under parallel CI load.
+describe('Source-specific read-only probe CLI', { timeout: 30_000 }, () => {
   it('plans Anthropic only without contacting OpenAI or calling providers', () => {
     const result = run(['--source', 'anthropic-news'])
     expect(result.status).toBe(0)
@@ -22,6 +23,16 @@ describe('Source-specific read-only probe CLI', () => {
     expect(result.status).toBe(0)
     expect(JSON.parse(result.stdout)).toEqual([{ key: 'microsoft-research', method: 'rss',
       url: 'https://www.microsoft.com/en-us/research/feed/', articleAdapterAvailable: true, activated: false }])
+  })
+  it('keeps the fixed paper-evidence probe offline by default and rejects non-staging network execution', () => {
+    const script = 'flash-microsoft-paper-evidence-preview.ts'
+    const plan = run([], script)
+    expect(plan.status).toBe(0)
+    expect(JSON.parse(plan.stdout)).toMatchObject({ maximumRequests: 4, providerCalled: false, activated: false })
+    const probe = run(['--probe'], script)
+    expect(probe.status).toBe(1)
+    expect(probe.stdout).toBe('')
+    expect(probe.stderr).toContain('FLASH_MICROSOFT_PAPER_EVIDENCE_PREVIEW_FAILED')
   })
   it('rejects unknown and duplicate source selections', () => {
     for (const args of [['--source', 'unknown'], ['--source', 'anthropic-news', '--source', 'openai-news']]) {
