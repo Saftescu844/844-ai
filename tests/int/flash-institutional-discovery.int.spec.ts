@@ -8,6 +8,8 @@ import { filterFlashRssFreshCandidates } from '@/lib/flash/ingestion/flashPublic
 import { planFlashRssIngestionSources } from '@/lib/flash/ingestion/rssCandidateIngestion'
 import { FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
 import { fetchFlashRssFeedXml } from '@/lib/flash/ingestion/rssFeedRetriever'
+import { isFlashRssArticleUnsupportedLayoutFailure, runFlashRssStageNextAttempts } from '@/lib/flash/ingestion/flashRssStageNextAttemptRunner'
+import { diagnoseRssHandoffFailure } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
 
 const source = { id: 8, nume: 'UNESCO', url: 'https://www.unesco.org/', discoveryMethod: 'html',
   discoveryUrl: 'https://www.unesco.org/en/digital-education/artificial-intelligence', sourceRole: 'primary',
@@ -75,6 +77,81 @@ describe('Institutional HTML in the existing staging discovery pipeline', () => 
     article.replace('</main>', '<h1>Second title</h1></main>'),
   ])('fails closed on language, dates, changed layouts and ambiguous titles', html => {
     expect(() => extractFlashHtmlArticle(source.url, 'https://www.unesco.org/en/articles/ai-education', html)).toThrow()
+  })
+
+  it.each([
+    [article.replace('lang="en"', 'lang="fr"'), 'document'],
+    [article.replace('<main>', '<section>').replace('</main>', '</section>'), 'main container'],
+    [article.replace('</main>', '<h1>Ambiguous headline</h1></main>'), 'headline'],
+    [article.replace('created-time', 'modified-time'), 'original publication date'],
+    [article.replace('field--name-field-description', 'event-description'), 'description'],
+    [article.replace('field--name-field-paragraphs', 'changed-layout'), 'article body'],
+    [article.replace('<p>Original body with <strong>important evidence</strong>.</p><ul><li>First pillar.</li><li><p>Second pillar.</p></li></ul>', '<div>Body without paragraphs</div>'), 'article body'],
+  ])('reports only a bounded layout marker for unsupported UNESCO structure: %s', (html, field) => {
+    expect(() => extractFlashHtmlArticle(source.url, 'https://www.unesco.org/en/articles/ai-education', html))
+      .toThrow(`FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: ${field}`)
+  })
+
+  it('skips an event page without a supported lead before model or persistence work, then processes the next article', async () => {
+    const event = article.replace('field--name-field-description', 'event-description')
+    const provider = vi.fn()
+    const persist = vi.fn()
+    const seen: string[] = []
+    const result = await runFlashRssStageNextAttempts({
+      candidates: [event, article, article], maxAttempts: 3,
+      processCandidate: async html => {
+        try { extractFlashHtmlArticle(source.url, 'https://www.unesco.org/en/articles/ai-education', html) }
+        catch (error) {
+          if (!(error instanceof Error) || !isFlashRssArticleUnsupportedLayoutFailure(error.message)) throw error
+          seen.push(error.message)
+          expect(diagnoseRssHandoffFailure(error.message)).toEqual({ phase: 'article-extraction', reason: 'article_layout_not_supported' })
+          return 'skip'
+        }
+        provider()
+        persist()
+        return 'complete'
+      },
+    })
+    expect(result).toEqual({ completed: true, attemptedCount: 2 })
+    expect(seen).toEqual(['FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: description'])
+    expect(provider).toHaveBeenCalledOnce()
+    expect(persist).toHaveBeenCalledOnce()
+  })
+
+  it('consumes at most three attempts for unsupported UNESCO candidates without calling the provider', async () => {
+    const provider = vi.fn()
+    const result = await runFlashRssStageNextAttempts({
+      candidates: Array(5).fill(article.replace('field--name-field-description', 'event-description')),
+      maxAttempts: 3,
+      processCandidate: async html => {
+        try { extractFlashHtmlArticle(source.url, 'https://www.unesco.org/en/articles/ai-education', html) }
+        catch (error) {
+          if (error instanceof Error && isFlashRssArticleUnsupportedLayoutFailure(error.message)) return 'skip'
+          throw error
+        }
+        provider()
+        return 'complete'
+      },
+    })
+    expect(result).toEqual({ completed: false, attemptedCount: 3 })
+    expect(provider).not.toHaveBeenCalled()
+  })
+
+  it('does not turn invalid URLs, invalid calendar dates or unknown errors into layout skips', async () => {
+    const visited = vi.fn(async () => {
+      try { extractFlashHtmlArticle(source.url, 'https://www.unesco.org/en/articles/ai-education', article.replace('19 October 2026', '31 February 2026')) }
+      catch (error) {
+        expect(error).toBeInstanceOf(Error)
+        expect(isFlashRssArticleUnsupportedLayoutFailure((error as Error).message)).toBe(false)
+        throw error
+      }
+      return 'complete' as const
+    })
+    await expect(runFlashRssStageNextAttempts({ candidates: [1, 2], maxAttempts: 3, processCandidate: visited }))
+      .rejects.toThrow('Institutional publication date is invalid or missing.')
+    expect(visited).toHaveBeenCalledOnce()
+    expect(isFlashRssArticleUnsupportedLayoutFailure('Unsupported UNESCO article URL.')).toBe(false)
+    expect(isFlashRssArticleUnsupportedLayoutFailure('Unexpected database failure')).toBe(false)
   })
 
   it('does not accept non-article or cross-host URLs', () => {

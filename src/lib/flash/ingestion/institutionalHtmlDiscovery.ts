@@ -100,20 +100,24 @@ export function parseInstitutionalHtmlCandidates(plan: FlashRssIngestionSourcePl
 export function extractUnescoArticle(source: string, finalUrl: string, html: string): FlashHtmlArticleExtraction {
   if (host(new URL(source)) !== 'unesco.org' || !institutionalArticleUrl(source, finalUrl)) throw new Error('Unsupported UNESCO article URL.')
   const all = elements(parse(html))
-  const one = (nodes: Element[], field: string) => {
-    if (nodes.length !== 1 || !clean(nodes[0]!)) throw new Error(`UNESCO article requires one ${field}.`)
+  type LayoutField = 'document' | 'main container' | 'headline' | 'original publication date' | 'description' | 'article body'
+  const unsupported = (field: LayoutField): never => {
+    throw new Error(`FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: ${field}`)
+  }
+  const one = (nodes: Element[], field: LayoutField) => {
+    if (nodes.length !== 1 || !clean(nodes[0]!)) unsupported(field)
     return nodes[0]!
   }
   const lang = all.find(n => n.tagName === 'html')
-  if (!lang || !/^en(?:-[a-z0-9]+)*$/i.test(attr(lang, 'lang') ?? '')) throw new Error('UNESCO article must declare English.')
+  if (!lang || !/^en(?:-[a-z0-9]+)*$/i.test(attr(lang, 'lang') ?? '')) unsupported('document')
   const nodes = elements(one(all.filter(n => n.tagName === 'main'), 'main container'))
-  const title = clean(one(nodes.filter(n => n.tagName === 'h1'), 'title'))
+  const title = clean(one(nodes.filter(n => n.tagName === 'h1'), 'headline'))
   const publicationDate = clean(one(nodes.filter(n => hasClass(n, 'created-time')), 'original publication date'))
   institutionalPublicationDate(publicationDate)
-  const lead = clean(one(nodes.filter(n => hasClass(n, 'field--name-field-description')), 'lead'))
+  const lead = clean(one(nodes.filter(n => hasClass(n, 'field--name-field-description')), 'description'))
   const body = one(nodes.filter(n => hasClass(n, 'field--name-field-paragraphs')), 'article body')
   const bodyParagraphs = elements(body).filter(n => n.tagName === 'p' || n.tagName === 'li' && !elements(n).some(c => c.tagName === 'p')).map(clean).filter(Boolean)
-  if (!bodyParagraphs.length) throw new Error('UNESCO article has no body paragraphs.')
+  if (!bodyParagraphs.length) unsupported('article body')
   return { finalUrl, title, publicationDate, lead, contentType: 'INSTITUTIONAL NEWS', bodyParagraphs,
     bodyText: bodyParagraphs.join('\n\n'), sourceAdapter: 'unesco-education', leadKind: 'article-summary', provenanceParagraphs: [], primaryEvidenceUrls: [] }
 }
