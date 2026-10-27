@@ -31,6 +31,13 @@ export const FLASH_DISCOVERY_CATALOG: FlashDiscoveryCatalogEntry[] = [
     intervalHours: 6, maxCandidatesPerScan: 10, authority: 'own-research',
   },
   {
+    key: 'microsoft-research', name: 'Microsoft Research',
+    sourceUrl: 'https://www.microsoft.com/en-us/research/',
+    discoveryUrl: 'https://www.microsoft.com/en-us/research/feed/',
+    method: 'rss', pillars: ['stiri', 'educatie', 'tools', 'afaceri'],
+    intervalHours: 6, maxCandidatesPerScan: 10, authority: 'own-research',
+  },
+  {
     key: 'mit-news-ai', name: 'MIT News — Artificial Intelligence',
     sourceUrl: 'https://news.mit.edu/',
     discoveryUrl: 'https://news.mit.edu/rss/topic/artificial-intelligence2',

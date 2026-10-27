@@ -1,6 +1,7 @@
 import { assessInstitutionalHtmlSource } from './institutionalHtmlDiscovery'
 import { flashPublicationTimestamp } from './flashPublicationFreshness'
 import Parser from 'rss-parser'
+import { microsoftResearchArticleUrl } from './microsoftResearchArticleAdapter'
 
 import type {
   Payload,
@@ -654,12 +655,17 @@ export async function parseFlashRssCandidates(
         item.title,
       )
 
-    const concreteUrl =
+    let concreteUrl =
       item.link
         ? normalizeHttpUrl(
             item.link,
           )
         : null
+
+    // Filter this mixed feed before eligibility/attempt allocation; podcasts are not articles.
+    if (concreteUrl && new URL(source.registeredSourceUrl).hostname.replace(/^www\./, '') === 'microsoft.com') {
+      try { concreteUrl = microsoftResearchArticleUrl(source.registeredSourceUrl, concreteUrl) } catch { concreteUrl = null }
+    }
 
     if (
       !title ||

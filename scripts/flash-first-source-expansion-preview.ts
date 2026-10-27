@@ -10,11 +10,11 @@ import type { Surse } from '../src/payload-types'
 // Read-only endpoint probe. No Payload instance, model client, CMS writes or registry activation.
 async function main() {
   if (process.argv.includes('--help')) {
-    console.log('Usage: node --import tsx scripts/flash-first-source-expansion-preview.ts [--probe] [--source ec-ai|unesco-education|openai-news|anthropic-news]')
-    console.log('Default: offline plan. --probe: staging-only bounded GET of EC, UNESCO, OpenAI and Anthropic; no AI or CMS writes.')
+    console.log('Usage: node --import tsx scripts/flash-first-source-expansion-preview.ts [--probe] [--source ec-ai|unesco-education|openai-news|anthropic-news|microsoft-research]')
+    console.log('Default: offline plan. --probe: staging-only bounded GET of EC, UNESCO, OpenAI, Anthropic and Microsoft Research; no AI or CMS writes.')
     return
   }
-  const allowed = ['ec-ai', 'unesco-education', 'openai-news', 'anthropic-news']
+  const allowed = ['ec-ai', 'unesco-education', 'openai-news', 'anthropic-news', 'microsoft-research']
   let selected: string | undefined
   let probe = false
   const args = process.argv.slice(2)
@@ -45,9 +45,9 @@ async function main() {
       console.log(JSON.stringify({ key: source.key, status: 'retrieval_failed', providerCalled: false }))
       continue
     }
-    if (source.key === 'openai-news') {
+    if (source.method === 'rss') {
       try {
-        const plan = assessFlashRssIngestionSource({ id: 7, nume: source.name, url: source.sourceUrl,
+        const plan = assessFlashRssIngestionSource({ id: 0, nume: source.name, url: source.sourceUrl,
           feedRSS: source.discoveryUrl, sourceRole: 'primary', editorialTrust: 'standard',
           citationMode: 'paraphrase', allowAutoPublish: false, rssCandidateSkipMemory: [],
           maxCandidatesPerScan: source.maxCandidatesPerScan, maxCandidatesPerDay: 40 })

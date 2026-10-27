@@ -17,6 +17,12 @@ describe('Source-specific read-only probe CLI', () => {
     expect(JSON.parse(result.stdout)).toEqual([{ key: 'anthropic-news', method: 'html',
       url: 'https://www.anthropic.com/news', articleAdapterAvailable: true, activated: false }])
   })
+  it('plans Microsoft Research without network or registry activation', () => {
+    const result = run(['--source', 'microsoft-research'])
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual([{ key: 'microsoft-research', method: 'rss',
+      url: 'https://www.microsoft.com/en-us/research/feed/', articleAdapterAvailable: true, activated: false }])
+  })
   it('rejects unknown and duplicate source selections', () => {
     for (const args of [['--source', 'unknown'], ['--source', 'anthropic-news', '--source', 'openai-news']]) {
       const result = run(args)
@@ -25,9 +31,11 @@ describe('Source-specific read-only probe CLI', () => {
     }
   })
   it('rejects the network probe outside the known staging runtime before requests', () => {
-    const result = run(['--probe', '--source', 'anthropic-news'])
-    expect(result.status).toBe(1)
-    expect(result.stdout).toBe('')
-    expect(result.stderr).toContain('FLASH_FIRST_SOURCE_EXPANSION_PREVIEW_FAILED')
+    for (const source of ['anthropic-news', 'microsoft-research']) {
+      const result = run(['--probe', '--source', source])
+      expect(result.status).toBe(1)
+      expect(result.stdout).toBe('')
+      expect(result.stderr).toContain('FLASH_FIRST_SOURCE_EXPANSION_PREVIEW_FAILED')
+    }
   })
 })
