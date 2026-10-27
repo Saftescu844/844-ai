@@ -1,3 +1,5 @@
+import { isFlashRssArticleUnsupportedLayoutFailure } from './flashRssStageNextAttemptRunner'
+
 /** Map captured child output to constants only. Never forward child text to logs. */
 export function diagnoseRssHandoffFailure(output: string) {
   const reasons = [
@@ -15,6 +17,9 @@ export function diagnoseRssHandoffFailure(output: string) {
     ['editorial-quality-review', 'Pre-persistence editorial quality review failed: '],
   ] as const
   const bounded = output.slice(-16_000)
+  if (isFlashRssArticleUnsupportedLayoutFailure(bounded)) {
+    return { phase: 'article-extraction', reason: 'article_layout_not_supported' } as const
+  }
   if (bounded.split(/\r?\n/).includes('Pre-persistence editorial quality review failed closed: editorial_quality_review_retention_floor_breach.')) {
     return { phase: 'editorial-quality-review', reason: 'invalid_output_quality_review_retention' } as const
   }

@@ -6,6 +6,7 @@ import { FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics
 
 describe('bounded RSS handoff failure diagnostics', () => {
   it.each([
+    ['FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: description', 'article-extraction', 'article_layout_not_supported'],
     ['Pre-persistence classification failed: invalid_input.', 'classification', 'invalid_input'],
     ['Pre-persistence editorial generation failed: provider_refusal.', 'editorial-generation', 'provider_refusal'],
     ['Pre-persistence editorial quality review failed: invalid_output_language. Diagnostics: {"private":"secret"}.', 'editorial-quality-review', 'invalid_output_language'],
@@ -15,6 +16,11 @@ describe('bounded RSS handoff failure diagnostics', () => {
   })
 
   it.each([
+    'FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: private_api_key',
+    'prefix FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: description',
+    'FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: description.secret',
+    'FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: canonical URL',
+    'UNESCO article requires one lead.',
     'secret credentials and generated article text',
     'Pre-persistence editorial generation failed: private_api_key.',
     'prefix Pre-persistence editorial generation failed: provider_refusal.',

@@ -53,5 +53,6 @@ export function isFlashRssArticleRetrievalHttpFailure(
 /** Only explicit, bounded structural failures from known source adapters are skipped. */
 export function isFlashRssArticleUnsupportedLayoutFailure(output: string): boolean {
   return output.split(/\r?\n/).some(line =>
-    /^FLASH_(?:OPENAI|ANTHROPIC)_ARTICLE_LAYOUT_UNSUPPORTED: (?:document|canonical URL|main container|article container|headline|publication region|original publication date|description|article body)$/.test(line))
+    /^FLASH_(?:OPENAI|ANTHROPIC)_ARTICLE_LAYOUT_UNSUPPORTED: (?:document|canonical URL|main container|article container|headline|publication region|original publication date|description|article body)$/.test(line) ||
+    /^FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: (?:document|main container|headline|original publication date|description|article body)$/.test(line))
 }
