@@ -1,6 +1,7 @@
 import type { FlashPublicationFreshnessReason } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import type { EditorialDiagnosticMetadata } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import type { RssHandoffFailureDiagnostic } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
+import { diagnoseRssSourceDiscoveryFailure, type RssSourceDiscoveryPhase, type RssSourceDiscoveryDiagnostic } from '@/lib/flash/ingestion/rssSourceDiscoveryDiagnostic'
 import { randomUUID } from 'node:crypto'
 import type { Payload } from 'payload'
 import { serializeStructuredRuntimeEvent } from '@/lib/observability/structuredRuntimeEvent'
@@ -57,6 +58,7 @@ export class FlashRssRunDiagnostics {
   private freshnessRejected: Record<FlashPublicationFreshnessReason, number> | null = null
   private sourceDiscoveryFailureCount = 0
   private lastFailedSourceId: number | null = null
+  private lastSourceDiscoveryFailure: RssSourceDiscoveryDiagnostic | null = null
   private finished = false
   private lastHandoffFailure: RssHandoffFailureDiagnostic | null = null
   private readonly deploymentId: string | null
@@ -75,6 +77,9 @@ export class FlashRssRunDiagnostics {
     return { deploymentId: this.deploymentId, handoffFailurePhase: this.lastHandoffFailure?.phase ?? null,
       handoffFailureReason: this.lastHandoffFailure?.reason ?? null,
       sourceDiscoveryFailureCount: this.sourceDiscoveryFailureCount, lastFailedSourceId: this.lastFailedSourceId, runKind: 'rss-ingestion', stage: this.stage, sourceId: this.sourceId,
+      lastSourceDiscoveryFailurePhase: this.lastSourceDiscoveryFailure?.phase ?? null,
+      lastSourceDiscoveryFailureReason: this.lastSourceDiscoveryFailure?.reason ?? null,
+      lastSourceDiscoveryHttpStatus: this.lastSourceDiscoveryFailure?.httpStatus ?? null,
       freshnessPolicyVersion: this.freshnessPolicy ? 'rss-publication-freshness-v1' : null,
       freshnessMaxAgeDays: this.freshnessPolicy?.maxAgeDays ?? null,
       freshnessReferenceUtc: this.freshnessPolicy ? new Date(this.freshnessPolicy.now).toISOString() : null,
@@ -148,9 +153,10 @@ export class FlashRssRunDiagnostics {
     this.freshnessRejected = { ...result.rejected }
   }
 
-  sourceDiscoveryFailed(sourceId: number) {
+  sourceDiscoveryFailed(sourceId: number, error?: unknown, phase: RssSourceDiscoveryPhase = 'retrieval') {
     this.sourceDiscoveryFailureCount += 1
     this.lastFailedSourceId = sourceId
+    this.lastSourceDiscoveryFailure = diagnoseRssSourceDiscoveryFailure(error, phase)
     this.log('noop', 'RSS_SOURCE_DISCOVERY_FAILED')
   }
 

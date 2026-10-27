@@ -1,4 +1,5 @@
 import { parseInstitutionalHtmlCandidates } from '@/lib/flash/ingestion/institutionalHtmlDiscovery'
+import type { RssSourceDiscoveryPhase } from '@/lib/flash/ingestion/rssSourceDiscoveryDiagnostic'
 import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { observeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import { diagnoseRssHandoffFailure } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
@@ -761,19 +762,21 @@ async function main(): Promise<void> {
     }
 
     await diagnostics.checkpoint('feed-retrieval', plan.sourceId)
+    let discoveryPhase: RssSourceDiscoveryPhase = 'retrieval'
     try {
       const document = await fetchFlashRssFeedXml({ feedUrl: plan.feedUrl,
         registeredSourceUrl: plan.registeredSourceUrl,
         documentType: plan.discoveryMethod === 'html' ? 'html' : 'rss' })
+      discoveryPhase = 'parsing'
       if (plan.discoveryMethod === 'html') {
         discovered.push(...parseInstitutionalHtmlCandidates(plan, document))
       } else {
         const parsed = await parseFlashRssCandidates(plan, document, { maxItems: 50, scanBeforeEligibility: true })
         discovered.push(...parsed.candidates)
       }
-    } catch {
+    } catch (error) {
       // A source refusal or layout failure must not stop other registered sources.
-      diagnostics.sourceDiscoveryFailed(plan.sourceId)
+      diagnostics.sourceDiscoveryFailed(plan.sourceId, error, discoveryPhase)
     }
   }
 
