@@ -113,12 +113,12 @@ export function diagnoseMitPaperEvidence(
 }
 
 /**
- * The staging handoff cannot bridge a pending identity for MIT at
+ * The staging handoff cannot bridge a pending identity for research sources at
  * editorialTrust=standard. Avoid AI requests that cannot produce an
  * acceptable review draft, but only when the explicit staging worker flag is
  * present. Other preview and production workflows remain unchanged.
  */
-export function shouldSkipUngroundedMitBeforeProvider({
+export function shouldSkipUngroundedResearchBeforeProvider({
   candidate,
   hasGroundedEventFingerprint,
   stagingWorkerPreflightEnabled,
@@ -136,7 +136,7 @@ export function shouldSkipUngroundedMitBeforeProvider({
   return (
     stagingWorkerPreflightEnabled &&
     hasHandoffOutput &&
-    candidate.sourceAdapter === 'mit-news' &&
+    ['mit-news', 'microsoft-research'].includes(candidate.sourceAdapter ?? '') &&
     candidate.sourceRole === 'primary' &&
     candidate.editorialTrust === 'standard' &&
     candidate.allowAutoPublish === false &&

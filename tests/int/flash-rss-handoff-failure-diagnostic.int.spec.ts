@@ -6,6 +6,8 @@ import { FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics
 
 describe('bounded RSS handoff failure diagnostics', () => {
   it.each([
+    ['FLASH_MICROSOFT_RESEARCH_PAPER_EVIDENCE_UNAVAILABLE:retrieval_failed', 'article-extraction', 'article_primary_evidence_unavailable'],
+    ['FLASH_MICROSOFT_RESEARCH_PAPER_EVIDENCE_UNAVAILABLE:unsupported_publication', 'article-extraction', 'article_primary_evidence_unavailable'],
     ['FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: description', 'article-extraction', 'article_layout_not_supported'],
     ['Pre-persistence classification failed: invalid_input.', 'classification', 'invalid_input'],
     ['Pre-persistence editorial generation failed: provider_refusal.', 'editorial-generation', 'provider_refusal'],
