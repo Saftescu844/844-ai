@@ -16,6 +16,30 @@ function fixture() {
 }
 
 describe('RSS diagnostics without provider or database requests', () => {
+  it('retains bounded discovery evidence through a successful pair without leaking the raw error', async () => {
+    const f = fixture()
+    await f.audit.start(f.payload, 'test-model', 'test-sha')
+    await f.audit.checkpoint('feed-retrieval', 4)
+    f.audit.sourceDiscoveryFailed(4, new Error('RSS retrieval failed with HTTP 403.'))
+    expect(f.audit.allSourcesFailed(2)).toBe(false)
+    f.audit.candidate(1, 9)
+    f.audit.result('pair-created', { roId: 132, enId: 133 })
+    await f.audit.finish()
+    expect(f.update.mock.lastCall?.[0].data).toMatchObject({ status: 'completed', evidenceSummary: {
+      lastFailedSourceId: 4, sourceDiscoveryFailureCount: 1,
+      lastSourceDiscoveryFailurePhase: 'retrieval', lastSourceDiscoveryFailureReason: 'http_error', lastSourceDiscoveryHttpStatus: 403,
+      sourceId: 9, outcome: 'pair-created',
+    } })
+    const g = fixture()
+    await g.audit.start(g.payload, 'test-model', 'test-sha')
+    g.audit.sourceDiscoveryFailed(4, new Error('secret-token https://example.invalid/private?key=secret-token'), 'parsing')
+    await g.audit.finish(true, 'RSS_ALL_SOURCES_FAILED')
+    expect(g.update.mock.lastCall?.[0].data).toMatchObject({ status: 'failed', evidenceSummary: {
+      lastSourceDiscoveryFailurePhase: 'parsing', lastSourceDiscoveryFailureReason: 'parse_error', lastSourceDiscoveryHttpStatus: null,
+    } })
+    expect(JSON.stringify({ lines: g.lines, writes: g.update.mock.calls })).not.toContain('secret-token')
+  })
+
   it('stores only a validated deployment UUID as future interruption provenance', async () => {
     for (const [input, expected] of [['11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111'], ['secret=must-not-log', null]] as const) {
       const f = fixture()
