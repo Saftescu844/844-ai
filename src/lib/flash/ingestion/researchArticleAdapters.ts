@@ -1,10 +1,11 @@
 import { extractUnescoArticle, institutionalArticleUrl } from './institutionalHtmlDiscovery'
 import { extractOpenAiNewsArticle, openAiNewsArticleUrl } from './openAiNewsArticleAdapter'
 import { extractAnthropicNewsArticle, anthropicNewsArticleUrl } from './anthropicNewsArticleAdapter'
+import { extractMicrosoftResearchArticle, microsoftResearchArticleUrl } from './microsoftResearchArticleAdapter'
 import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import type { FlashHtmlArticleExtraction } from './htmlArticleExtraction'
 
-export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news' | 'anthropic-news'
+export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news' | 'anthropic-news' | 'microsoft-research'
 type Node = DefaultTreeAdapterMap['node']
 type Element = DefaultTreeAdapterMap['element']
 
@@ -20,6 +21,10 @@ export function researchArticleAdapterForUrl(
   const registered = new URL(registeredSourceUrl)
   const final = new URL(finalUrl)
   const sourceHost = host(registered)
+  if (sourceHost === 'microsoft.com') {
+    microsoftResearchArticleUrl(registeredSourceUrl, finalUrl)
+    return 'microsoft-research'
+  }
   if (sourceHost === 'anthropic.com') {
     anthropicNewsArticleUrl(registeredSourceUrl, finalUrl)
     return 'anthropic-news'
@@ -266,6 +271,7 @@ export function extractResearchArticle(
   if (!adapter) throw new Error('No research article adapter for this source.')
   if (adapter === 'unesco-education') return extractUnescoArticle(registeredSourceUrl, finalUrlValue, html)
   if (adapter === 'openai-news') return extractOpenAiNewsArticle(registeredSourceUrl, finalUrlValue, html)
+  if (adapter === 'microsoft-research') return extractMicrosoftResearchArticle(registeredSourceUrl, finalUrlValue, html)
   if (adapter === 'anthropic-news') return extractAnthropicNewsArticle(registeredSourceUrl, finalUrlValue, html)
   const all = elements(parse(html))
   const language = attr(one(all.filter(node => node.tagName === 'html'), 'HTML document'), 'lang')
