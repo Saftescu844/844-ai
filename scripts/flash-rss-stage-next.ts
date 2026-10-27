@@ -3,12 +3,10 @@ import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/fl
 import { observeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
 import { diagnoseRssHandoffFailure } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
 import { FlashRssControlledFailure, FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
+import { installFlashRssShutdown, runFlashRssChild } from '@/lib/flash/audit/flashRssShutdown'
 
 let diagnostics: FlashRssRunDiagnostics | undefined
-
-import {
-  spawnSync,
-} from 'node:child_process'
+let shutdown: ReturnType<typeof installFlashRssShutdown> | undefined
 import {
   mkdtemp,
   readFile,
@@ -338,7 +336,7 @@ class FlashRssCandidateSkipError
   }
 }
 
-function runPrePersistenceHandoff({
+async function runPrePersistenceHandoff({
   sourceId,
   articleUrl,
   targetLanguage,
@@ -355,9 +353,9 @@ function runPrePersistenceHandoff({
   outputPath: string
   classificationHandoffPath?: string
   freshnessPolicy: { now: number; maxAgeDays: number }
-}): void {
+}): Promise<void> {
   const result =
-    spawnSync(
+    await runFlashRssChild(
       process.execPath,
       [
         '--import',
@@ -386,18 +384,19 @@ function runPrePersistenceHandoff({
           process.cwd(),
         env:
           process.env,
-        encoding:
-          'utf8',
+        signal: shutdown!.signal,
         maxBuffer:
           CHILD_OUTPUT_LIMIT,
       },
     )
 
+  if (result.error?.code === 'ENOBUFS') throw new FlashRssControlledFailure('RSS_CHILD_OUTPUT_LIMIT')
+  if (result.signal) throw new FlashRssControlledFailure('RSS_CHILD_SIGNAL')
   observeEditorialDiagnostic(result.stdout, metadata => diagnostics?.editorialDiagnostic(metadata))
 
   if (
     result.status !==
-    0
+    0 || result.error
   ) {
     const stderr =
       result.stderr
@@ -503,11 +502,7 @@ function runPrePersistenceHandoff({
       )
     }
 
-    throw new FlashRssControlledFailure(
-      result.signal ? 'RSS_CHILD_SIGNAL' :
-        result.error && 'code' in result.error && result.error.code === 'ENOBUFS'
-          ? 'RSS_CHILD_OUTPUT_LIMIT' : 'RSS_HANDOFF_FAILED',
-    )
+    throw new FlashRssControlledFailure('RSS_HANDOFF_FAILED')
   }
 
   console.log(
@@ -569,7 +564,8 @@ async function main(): Promise<void> {
     return
   }
 
-  diagnostics = new FlashRssRunDiagnostics()
+  shutdown = installFlashRssShutdown()
+  diagnostics = new FlashRssRunDiagnostics(console.log, Date.now, process.env.RAILWAY_DEPLOYMENT_ID)
 
   const allowStage =
     hasFlag(
@@ -692,6 +688,7 @@ async function main(): Promise<void> {
     await createPayload()
 
   await diagnostics.start(payload, model, process.env.RAILWAY_GIT_COMMIT_SHA ?? 'flash-rss-diagnostics-v1')
+  shutdown.assertRunning()
   await diagnostics.checkpoint('source-planning')
 
   const plans =
@@ -758,6 +755,7 @@ async function main(): Promise<void> {
     const plan of
       selectedPlans
   ) {
+    shutdown.assertRunning()
     if (!plan.feedUrl) {
       continue
     }
@@ -779,6 +777,7 @@ async function main(): Promise<void> {
     }
   }
 
+  shutdown.assertRunning()
   if (selectedPlans.length > 0 && diagnostics.allSourcesFailed(selectedPlans.length)) {
     throw new FlashRssControlledFailure('RSS_ALL_SOURCES_FAILED')
   }
@@ -940,6 +939,7 @@ async function main(): Promise<void> {
     candidates.length ===
     0
   ) {
+    shutdown.assertRunning()
     diagnostics.result('empty')
     console.log(
       'FLASH_RSS_STAGE_NEXT_EMPTY',
@@ -973,6 +973,7 @@ async function main(): Promise<void> {
         candidate,
         attempt,
       ) => {
+    shutdown!.assertRunning()
     diagnostics!.candidate(attempt, candidate.sourceId)
     const attemptIndex =
       attempt - 1
@@ -1018,7 +1019,7 @@ async function main(): Promise<void> {
 
     try {
       await diagnostics!.checkpoint('generation-ro')
-      runPrePersistenceHandoff({
+      await runPrePersistenceHandoff({
         sourceId:
           candidate.sourceId,
         articleUrl:
@@ -1032,7 +1033,7 @@ async function main(): Promise<void> {
       })
 
       await diagnostics!.checkpoint('generation-en')
-      runPrePersistenceHandoff({
+      await runPrePersistenceHandoff({
         sourceId:
           candidate.sourceId,
         articleUrl:
@@ -1070,6 +1071,7 @@ async function main(): Promise<void> {
         )
 
       await diagnostics!.checkpoint('pair-persistence')
+      shutdown!.assertRunning()
       const result =
         await createFlashAiAtomicReviewPair({
           payload,
@@ -1227,6 +1229,7 @@ async function main(): Promise<void> {
     return
   }
 
+  shutdown.assertRunning()
   diagnostics.result('no-eligible-candidate')
   console.log(
     'FLASH_RSS_STAGE_NEXT_NO_ELIGIBLE_CANDIDATE',
@@ -1259,6 +1262,7 @@ async function main(): Promise<void> {
 main()
   .then(async () => {
     await diagnostics?.finish()
+    shutdown?.dispose()
     process.exit(0)
   })
   .catch(async (error: unknown) => {
@@ -1269,5 +1273,6 @@ main()
       // The diagnostic writer already emitted its bounded fallback error code.
     }
     console.error('FLASH_RSS_STAGE_NEXT_FAILED')
+    shutdown?.dispose()
     process.exit(1)
   })
