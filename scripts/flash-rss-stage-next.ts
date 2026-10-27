@@ -1118,7 +1118,8 @@ async function main(): Promise<void> {
     } catch (error) {
       if (
         error instanceof
-          FlashRssCandidateTransientSkipError
+          FlashRssCandidateTransientSkipError &&
+        error.reason !== 'editorial_output_too_short'
       ) {
         diagnostics!.skipped(error.reason)
         console.log(
@@ -1143,7 +1144,9 @@ async function main(): Promise<void> {
 
       if (
         error instanceof
-          FlashRssCandidateSkipError
+          FlashRssCandidateSkipError ||
+        error instanceof FlashRssCandidateTransientSkipError &&
+          error.reason === 'editorial_output_too_short'
       ) {
         diagnostics!.skipped(error.reason)
         const nextMemory =
@@ -1155,7 +1158,7 @@ async function main(): Promise<void> {
             url:
               candidate.concreteUrl,
             reason:
-              error.reason,
+              error instanceof FlashRssCandidateSkipError ? error.reason : 'editorial_output_too_short',
           })
 
         await payload.update({
