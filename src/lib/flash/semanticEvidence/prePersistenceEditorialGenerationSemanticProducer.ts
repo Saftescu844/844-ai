@@ -254,6 +254,8 @@ export function buildFlashPrePersistenceEditorialGenerationSemanticPrompt(
     '- For claims about the specific primary event, require support from the primary article itself.',
     '- Do not add background facts merely because they are generally known or plausible.',
     '- Preserve each source level of certainty and legal force. Never strengthen could/may/consider into must/has the right to/is required unless the relevant supplied source says so.',
+    '- Anchor relative dates (such as later this month or next week) to the supplied source publication date when the source supports that resolution. Preserve approximate timing as approximate; never invent an exact deadline or imply that an announced or planned feature is already available.',
+    '- Preserve the population, sample period, denominator, and qualifications attached to statistics when supplied. Keep separate studies or analyses distinct; do not present their percentages as measurements from a single sample.',
     '- When explaining why something matters, use only cautious interpretation that follows directly from the supplied facts; do not introduce new factual claims.',
     '- Do not invent or add descriptions of who signatories are, how models are trained, broader policy context, affected groups, or consequences unless one of the supplied sources explicitly supports them.',
     '- Do not invent names, dates, numbers, quotations, sources, citations, uncertainty, conclusions, or regulatory status.',

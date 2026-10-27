@@ -41,6 +41,28 @@ describe('verified FlashAI excerpt (RO/EN)', () => {
     expect(verified.startsWith(excerpt.slice(0, -1))).toBe(true)
   })
 
+  it('keeps the complete 134-character RO lead instead of cutting the following sentence', () => {
+    const first = 'Anthropic anunță consolidarea măsurilor de protecție electorală pentru Claude înaintea alegerilor parțiale din Statele Unite din 2026.'
+    const rest = ' Compania spune că urmărește două obiective care trebuie ținute împreună: să permită utilizarea utilă a asistentului în conversații politice și, în același timp, să prevină folosirea sa pentru înșelarea alegătorilor sau perturbarea procesului electoral.'
+    expect(first.length).toBe(134)
+    expect(buildFlashAiExcerptFromVerifiedParagraphs([first + rest])).toBe(first)
+  })
+
+  it.each([120, 179])('accepts a complete prefix of %i characters without adding an ellipsis', length => {
+    const first = 'A'.repeat(length - 1) + '.'
+    expect(buildFlashAiExcerptFromVerifiedParagraphs([
+      first + ' ' + 'verified detail '.repeat(40),
+    ])).toBe(first)
+  })
+
+  it('does not select an uninformative short sentence or cut a word', () => {
+    const text = 'A'.repeat(118) + '. ' + 'verified detail '.repeat(40)
+    const excerpt = buildFlashAiExcerptFromVerifiedParagraphs([text])
+    expect(excerpt.length).toBeGreaterThanOrEqual(180)
+    expect(excerpt.endsWith('…')).toBe(true)
+    expect(text.startsWith(excerpt.slice(0, -1))).toBe(true)
+  })
+
   it('can combine short verified paragraphs without inventing words', () => {
     const paragraphs = [
       'Prima propoziție confirmată.',
