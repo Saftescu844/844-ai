@@ -13,7 +13,7 @@ export type RssSkipReason = 'event_identity_not_grounded' | 'strong_duplicate' |
   'article_layout_not_supported' |
   'article_publication_not_current' | 'article_retrieval_http_error' | 'editorial_output_too_short' | 'editorial_output_too_long'
 
-export type RssControlledFailureCode = 'RSS_ALL_SOURCES_FAILED' | 'RSS_CHILD_SIGNAL' | 'RSS_CHILD_OUTPUT_LIMIT' | 'RSS_HANDOFF_FAILED'
+export type RssControlledFailureCode = 'RSS_ALL_SOURCES_FAILED' | 'RSS_CHILD_SIGNAL' | 'RSS_CHILD_OUTPUT_LIMIT' | 'RSS_HANDOFF_FAILED' | 'RSS_PROCESS_INTERRUPTED'
 export class FlashRssControlledFailure extends Error {
   constructor(readonly code: RssControlledFailureCode) {
     super(code)
@@ -59,17 +59,20 @@ export class FlashRssRunDiagnostics {
   private lastFailedSourceId: number | null = null
   private finished = false
   private lastHandoffFailure: RssHandoffFailureDiagnostic | null = null
+  private readonly deploymentId: string | null
 
   constructor(
     private readonly emit: (line: string) => void = console.log,
     private readonly now: () => number = Date.now,
+    deploymentId?: string,
   ) {
+    this.deploymentId = deploymentId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deploymentId) ? deploymentId : null
     this.startedMs = now()
     this.log('started')
   }
 
   private summary() {
-    return { handoffFailurePhase: this.lastHandoffFailure?.phase ?? null,
+    return { deploymentId: this.deploymentId, handoffFailurePhase: this.lastHandoffFailure?.phase ?? null,
       handoffFailureReason: this.lastHandoffFailure?.reason ?? null,
       sourceDiscoveryFailureCount: this.sourceDiscoveryFailureCount, lastFailedSourceId: this.lastFailedSourceId, runKind: 'rss-ingestion', stage: this.stage, sourceId: this.sourceId,
       freshnessPolicyVersion: this.freshnessPolicy ? 'rss-publication-freshness-v1' : null,

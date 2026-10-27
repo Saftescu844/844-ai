@@ -16,6 +16,19 @@ function fixture() {
 }
 
 describe('RSS diagnostics without provider or database requests', () => {
+  it('stores only a validated deployment UUID as future interruption provenance', async () => {
+    for (const [input, expected] of [['11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111'], ['secret=must-not-log', null]] as const) {
+      const f = fixture()
+      const audit = new FlashRssRunDiagnostics(line => f.lines.push(line), Date.now, input)
+      await audit.start(f.payload, 'test', 'sha')
+      expect(f.create.mock.lastCall?.[0].data.evidenceSummary.deploymentId).toBe(expected)
+      await audit.checkpoint('generation-en')
+      await audit.finish(true, 'RSS_PROCESS_INTERRUPTED')
+      expect(f.update.mock.lastCall?.[0].data).toMatchObject({ status: 'failed', errorCode: 'RSS_PROCESS_INTERRUPTED' })
+      expect(JSON.stringify({ lines: f.lines, calls: f.create.mock.calls })).not.toContain('secret=must-not-log')
+    }
+  })
+
   it('keeps article IDs mandatory for evaluations but permits an RSS run before an article exists', () => {
     const field = FlashEngineRuns.fields.find(field => 'name' in field && field.name === 'flashIdSnapshot') as {
       validate: (value: number | null, options: { data: { runKind?: string } }) => boolean | string
