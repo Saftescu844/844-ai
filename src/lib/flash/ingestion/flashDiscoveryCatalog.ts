@@ -90,8 +90,8 @@ export const FLASH_DISCOVERY_CATALOG: FlashDiscoveryCatalogEntry[] = [
   },
   {
     key: 'ro-education', name: 'Ministerul Educației și Cercetării',
-    sourceUrl: 'https://www.edu.ro/', discoveryUrl: 'https://www.edu.ro/',
-    method: 'research', pillars: ['educatie'], intervalHours: 6,
+    sourceUrl: 'https://www.edu.ro/', discoveryUrl: 'https://www.edu.ro/rss.xml',
+    method: 'rss', pillars: ['educatie'], intervalHours: 6,
     maxCandidatesPerScan: 10, authority: 'own-announcements',
   },
   {

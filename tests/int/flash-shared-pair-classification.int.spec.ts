@@ -144,6 +144,23 @@ function reuseInput() {
 }
 
 describe('Shared RO/EN classification', () => {
+  it('keeps a Romanian primary source unchanged across RO and EN editorial projections', () => {
+    const input = reuseInput()
+    input.candidate.language = 'ro'
+    input.handoff.candidate.language = 'ro'
+    input.handoff.readiness.sourceGroundedValues.language = 'ro'
+    expect(reuseFlashPairClassification(input)).toEqual(input.handoff.readiness.classification)
+    const ro = buildFlashAiStagingWriteInput(input.handoff)
+    const en = buildFlashAiStagingWriteInput({ candidate: input.candidate,
+      readiness: { ...input.handoff.readiness, targetLanguage: 'en' } })
+    expect(ro.projection.limba).toBe('ro')
+    expect(en.projection.limba).toBe('en')
+    expect(ro.candidate.language).toBe('ro')
+    expect(en.candidate.language).toBe('ro')
+    input.candidate.language = 'en'
+    expect(() => reuseFlashPairClassification(input)).toThrow('identical source')
+  })
+
   it('reuses all bounded metadata from an eligible RO handoff', () => {
     const input = reuseInput()
     input.handoff.readiness.classification!.subcategorie = 'diagnostic'

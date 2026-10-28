@@ -2,6 +2,7 @@ import { assessInstitutionalHtmlSource } from './institutionalHtmlDiscovery'
 import { flashPublicationTimestamp } from './flashPublicationFreshness'
 import Parser from 'rss-parser'
 import { microsoftResearchArticleUrl } from './microsoftResearchArticleAdapter'
+import { romanianEducationArticleUrl, romanianEducationHasAiRelevance } from './romanianEducationArticleAdapter'
 
 import type {
   Payload,
@@ -665,6 +666,14 @@ export async function parseFlashRssCandidates(
     // Filter this mixed feed before eligibility/attempt allocation; podcasts are not articles.
     if (concreteUrl && new URL(source.registeredSourceUrl).hostname.replace(/^www\./, '') === 'microsoft.com') {
       try { concreteUrl = microsoftResearchArticleUrl(source.registeredSourceUrl, concreteUrl) } catch { concreteUrl = null }
+    }
+
+    // The Ministry feed is general education: filter off-topic releases before any AI attempt.
+    if (concreteUrl && new URL(source.registeredSourceUrl).hostname.replace(/^www\./, '') === 'edu.ro') {
+      try { concreteUrl = romanianEducationArticleUrl(source.registeredSourceUrl, concreteUrl) } catch { concreteUrl = null }
+      if (!romanianEducationHasAiRelevance([title, item.contentSnippet ?? item.summary ?? item.content ?? ''].join(' '))) {
+        concreteUrl = null
+      }
     }
 
     if (
