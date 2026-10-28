@@ -1,3 +1,4 @@
+import { STUDENT_SIM_PILOT_FLAG, assertStudentSimPilotTarget, assertStudentSimPilotBounds, planStudentSimPilotSource, readStudentSimPilotSource, assertStudentSimPilotHandoffs, studentSimPilotChildOptions } from '@/lib/flash/ingestion/studentSimStagingPilot'
 import { parseInstitutionalHtmlCandidates } from '@/lib/flash/ingestion/institutionalHtmlDiscovery'
 import type { RssSourceDiscoveryPhase } from '@/lib/flash/ingestion/rssSourceDiscoveryDiagnostic'
 import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
@@ -208,6 +209,8 @@ Behavior:
   - does NOT publish or unpublish
   - does NOT enable allowAutoPublish
   - does NOT create a scheduler or cron job
+  - explicit --allow-staging-studentsim-pilot permits only source #10 / reviewed StudentSim URL
+    on the dedicated one-off service, with --max-items 1 --max-attempts 1; source ingest/AUTO stay off
 
 Safety:
   - execution is restricted to the dedicated Railway STAGING one-shot service or flash-engine-worker
@@ -347,6 +350,7 @@ async function runPrePersistenceHandoff({
   outputPath,
   classificationHandoffPath,
   freshnessPolicy,
+  studentSimPilot = false,
 }: {
   sourceId: number
   articleUrl: string
@@ -355,6 +359,7 @@ async function runPrePersistenceHandoff({
   model: string
   outputPath: string
   classificationHandoffPath?: string
+  studentSimPilot?: boolean
   freshnessPolicy: { now: number; maxAgeDays: number }
 }): Promise<void> {
   const result =
@@ -374,6 +379,7 @@ async function runPrePersistenceHandoff({
         targetLanguage,
         '--allow-provider-requests',
         '--staging-mit-evidence-preflight',
+        ...studentSimPilotChildOptions(studentSimPilot),
         '--model',
         model,
         '--rss-freshness-now', new Date(freshnessPolicy.now).toISOString(),
@@ -690,6 +696,14 @@ async function main(): Promise<void> {
     )
   }
 
+  const studentSimPilot = hasFlag(STUDENT_SIM_PILOT_FLAG)
+  if (studentSimPilot) {
+    assertStudentSimPilotTarget({ environment: process.env, sourceId, articleUrl: requestedCandidateUrl,
+      allowProduction: hasFlag('--allow-production-one-shot'), readOnlyPilot: hasFlag('--read-only-pilot') })
+    assertStudentSimPilotBounds(requestedMaxItems, requestedMaxAttempts, freshnessPolicy.maxAgeDays)
+    console.log('FLASH_RSS_STUDENT_SIM_PILOT sourceId=10 candidateCount=1 sourceRegistryWriteAllowed=false')
+  }
+
   await diagnostics.checkpoint('database')
   const payload =
     await createPayload()
@@ -699,7 +713,7 @@ async function main(): Promise<void> {
   await diagnostics.checkpoint('source-planning')
 
   const plans =
-    await planFlashRssIngestionSources(
+    studentSimPilot ? await planStudentSimPilotSource(payload) : await planFlashRssIngestionSources(
       payload,
       { includeHtml: true },
     )
@@ -949,6 +963,7 @@ async function main(): Promise<void> {
     0
   ) {
     shutdown.assertRunning()
+    if (studentSimPilot) throw new Error('StudentSim pilot candidate is not eligible under the existing RSS filters.')
     diagnostics.result('empty')
     console.log(
       'FLASH_RSS_STAGE_NEXT_EMPTY',
@@ -1039,6 +1054,7 @@ async function main(): Promise<void> {
         outputPath:
           roPath,
         freshnessPolicy,
+        studentSimPilot,
       })
 
       await diagnostics!.checkpoint('generation-en')
@@ -1054,6 +1070,7 @@ async function main(): Promise<void> {
           enPath,
         classificationHandoffPath: roPath,
         freshnessPolicy,
+        studentSimPilot,
       })
 
       const [
@@ -1079,6 +1096,11 @@ async function main(): Promise<void> {
           enHandoff,
         )
 
+      if (studentSimPilot) {
+        assertStudentSimPilotHandoffs(ro, en)
+        await readStudentSimPilotSource(payload)
+      }
+
       await diagnostics!.checkpoint('pair-persistence')
       shutdown!.assertRunning()
       const result =
@@ -1087,7 +1109,7 @@ async function main(): Promise<void> {
           ro,
           en,
           allowPendingEventIdentityReviewPair:
-            true,
+            !studentSimPilot,
         })
 
       diagnostics!.result('pair-created', result)
@@ -1122,6 +1144,8 @@ async function main(): Promise<void> {
 
       return 'complete'
     } catch (error) {
+      // The one-candidate pilot never mutates the RSS source's skip memory.
+      if (studentSimPilot) throw error
       if (
         error instanceof
           FlashRssCandidateTransientSkipError &&
