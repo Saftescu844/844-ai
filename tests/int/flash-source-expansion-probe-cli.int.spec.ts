@@ -24,6 +24,15 @@ describe('Source-specific read-only probe CLI', { timeout: 30_000 }, () => {
     expect(JSON.parse(result.stdout)).toEqual([{ key: 'microsoft-research', method: 'rss',
       url: 'https://www.microsoft.com/en-us/research/feed/', articleAdapterAvailable: true, activated: false }])
   })
+  it('plans the Romanian Ministry only when explicitly selected, without network or activation', () => {
+    const result = run(['--source', 'ro-education'])
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual([{ key: 'ro-education', method: 'rss',
+      url: 'https://www.edu.ro/rss.xml', articleAdapterAvailable: true, activated: false }])
+    const defaults = run([])
+    expect(defaults.status).toBe(0)
+    expect(JSON.parse(defaults.stdout).some((entry: { key: string }) => entry.key === 'ro-education')).toBe(false)
+  })
   it('keeps the fixed paper-evidence probe offline by default and rejects non-staging network execution', () => {
     const script = 'flash-microsoft-paper-evidence-preview.ts'
     const plan = run([], script)
@@ -42,7 +51,7 @@ describe('Source-specific read-only probe CLI', { timeout: 30_000 }, () => {
     }
   })
   it('rejects the network probe outside the known staging runtime before requests', () => {
-    for (const source of ['anthropic-news', 'microsoft-research']) {
+    for (const source of ['anthropic-news', 'microsoft-research', 'ro-education']) {
       const result = run(['--probe', '--source', source])
       expect(result.status).toBe(1)
       expect(result.stdout).toBe('')

@@ -1,5 +1,6 @@
 import { institutionalPublicationDate } from './institutionalHtmlDiscovery'
 import { normalizeAnthropicPublicationDate } from './anthropicNewsArticleAdapter'
+import { normalizeRomanianEducationPublicationDate } from './romanianEducationArticleAdapter'
 import { normalizeResearchPublicationDate, researchArticleAdapterForUrl, type ResearchArticleAdapter } from './researchArticleAdapters'
 import type {
   FlashHtmlArticleExtraction,
@@ -18,7 +19,8 @@ export interface FlashNormalizedArticleCandidate {
   citationMode:
     FlashHtmlListingSource['citationMode']
   allowAutoPublish: boolean
-  language: 'en'
+  /** Language of the primary source, independent of the generated editorial language. */
+  language: 'ro' | 'en'
   finalUrl: string
   canonicalUrl: string
   title: string
@@ -163,7 +165,7 @@ function normalizeArticleUrl(
 ): {
   finalUrl: string
   canonicalUrl: string
-  language: 'en'
+  language: FlashNormalizedArticleCandidate['language']
 } {
   const finalUrl =
     parseHttpUrl(
@@ -199,7 +201,7 @@ function normalizeArticleUrl(
     canonicalUrl:
       canonicalUrl.toString(),
     language:
-      'en',
+      researchArticleAdapterForUrl(registeredSourceUrl, value) === 'ro-education' ? 'ro' : 'en',
   }
 }
 
@@ -261,7 +263,9 @@ export function normalizeFlashHtmlArticleCandidate(
       article.contentType,
     sourcePublicationDateRaw,
     sourcePublicationDate:
-      sourceAdapter === 'anthropic-news'
+      sourceAdapter === 'ro-education'
+        ? normalizeRomanianEducationPublicationDate(sourcePublicationDateRaw)
+        : sourceAdapter === 'anthropic-news'
         ? normalizeAnthropicPublicationDate(sourcePublicationDateRaw)
         : sourceAdapter === 'unesco-education'
         ? institutionalPublicationDate(sourcePublicationDateRaw)
