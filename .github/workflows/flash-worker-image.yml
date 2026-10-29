@@ -1,0 +1,28 @@
+name: Flash worker image
+
+on:
+  pull_request:
+    branches: [main, staging]
+    paths:
+      - Dockerfile.flash-engine-worker
+      - package.json
+      - package-lock.json
+      - .npmrc
+      - .github/workflows/flash-worker-image.yml
+
+permissions:
+  contents: read
+
+jobs:
+  worker-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the actual worker image from the reviewed lockfile
+        run: docker build -f Dockerfile.flash-engine-worker -t flash-worker:ci .
+      - name: Import worker dependencies without network, credentials or job execution
+        run: >-
+          docker run --rm --network none --entrypoint node flash-worker:ci
+          --import tsx --input-type=module
+          -e 'await import("payload"); await import("parse5"); await import("sharp"); console.log("FLASH_WORKER_IMPORT_SMOKE_OK")'
