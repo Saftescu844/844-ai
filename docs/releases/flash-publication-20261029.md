@@ -4,7 +4,7 @@
 
 First production increment: promote the publication excerpt safeguards and the source calendar-date UI/formatting already deployed in staging web `c59bcae3f9f8a57e87456ecf9b07366a7a6b7c41`. Build on current production/main `41a4905a19d60a3378ee3b19dffdf52422bd5f45`, preserving its translator refusal handling, recovery tooling, publisher role checks, dependency lock and security controls.
 
-This is seven implementation files plus four focused test suites. The standard publication hook requires a nonempty excerpt of at most 300 characters; alternate Payload locale publication checks the effective latest draft after RBAC. Draft editing remains available. Source dates use a calendar-day input and UTC display in RO/EN; opening the form does not rewrite stored data.
+This is seven implementation files plus four focused test suites, with the staging-validated TSX cache isolation for concurrent CLI subprocesses in CI. The standard publication hook requires a nonempty excerpt of at most 300 characters; alternate Payload locale publication checks the effective latest draft after RBAC. Draft editing remains available. Source dates use a calendar-day input and UTC display in RO/EN; opening the form does not rewrite stored data.
 
 No new migration, dependency update, source registration, scheduler, model request, content import or publication is included. The migration registry and Payload schema stay at the existing 28 migrations. The source-date field already exists; only its Admin component changes. No transfer of staging article IDs or source IDs into production is permitted.
 
@@ -35,7 +35,7 @@ RO156/EN157 remain published only in staging. Their publication and yesterday’
 
 ## Validation
 
-Run the focused publication/date tests, publisher authorization and atomic-pair regression tests, TypeScript, lint and diff checks. GitHub PR CI must pass on the exact candidate head, including real disposable-DB tests, migration rehearsal, ACL/isolation checks and production build. Existing staging UI/browser evidence covers the same seven implementation files; the merge candidate still needs its own CI. CI is not a production deployment approval.
+Run the focused publication/date tests, publisher authorization and atomic-pair regression tests, TypeScript, lint and diff checks. GitHub PR CI must pass on the exact candidate head, including real disposable-DB tests, migration rehearsal, ACL/isolation checks and production build. Existing staging UI/browser evidence covers the same seven implementation files; the merge candidate still needs its own CI. CI is not a production deployment approval. The first main-based CI attempt passed 1,372 of 1,373 tests but one existing CLI invalid-ID subprocess returned exit 0. Apply TSX_DISABLE_CACHE=1 to the integration-test step, matching staging CI, without weakening any assertion; require a complete new run on the final head.
 
 ## Promotion procedure
 
