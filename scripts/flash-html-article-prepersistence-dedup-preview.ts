@@ -1,3 +1,6 @@
+import { assessFlashPublicationFreshness, flashPublicationTimestamp, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
+import { readFile } from 'node:fs/promises'
+import { reuseFlashPairClassification } from '@/lib/flash/ingestion/flashPairClassificationReuse'
 import {
   buildVerifiedFlashEditorialLexicalContent,
 } from '@/lib/flash/editorialContentLexical'
@@ -254,6 +257,8 @@ Usage:
     [--confirmed-event-id doi:10.1038/s41587-019-0105-3] \
     [--read-only-pilot] \
     [--require-grounded-event-identity] \
+    [--classification-handoff-input ./tmp/ro.json] \
+    [--rss-freshness-now <UTC timestamp> --rss-max-age-days 30] \
     [--target-language ro|en] \
     [--allow-provider-requests --model gpt-5.6-terra] \
     [--qa-retention-diagnostic-output ./tmp/flash-ai-qa-retention-diagnostic.json] \
@@ -598,6 +603,22 @@ async function main() {
       ?.trim() ??
     null
 
+  const classificationHandoffInput = readOption('--classification-handoff-input')?.trim() ?? null
+  if (hasFlag('--classification-handoff-input') && !classificationHandoffInput) {
+    throw new Error('Classification handoff input requires a path.')
+  }
+
+  const rssFreshnessNow = readOption('--rss-freshness-now')
+  const rssMaxAgeDays = readOption('--rss-max-age-days')
+  let rssFreshnessPolicy: { now: number; maxAgeDays: number } | null = null
+  if (hasFlag('--rss-freshness-now') || hasFlag('--rss-max-age-days')) {
+    const reference = flashPublicationTimestamp(rssFreshnessNow)
+    if (!rssFreshnessNow || !rssMaxAgeDays || reference === null) {
+      throw new Error('RSS freshness requires both a valid UTC reference time and max-age-days.')
+    }
+    rssFreshnessPolicy = { now: reference, maxAgeDays: parseFlashRssMaxAgeDays(rssMaxAgeDays) }
+  }
+
   const qaRetentionDiagnosticOutput =
     readOption(
       '--qa-retention-diagnostic-output',
@@ -618,6 +639,10 @@ async function main() {
         '--target-language',
       ),
     )
+
+  if (classificationHandoffInput && (!allowProviderRequests || targetLanguage !== 'en')) {
+    throw new Error('Classification reuse requires provider-enabled EN preparation.')
+  }
 
   const readOnlyPilot =
     hasFlag(
@@ -791,6 +816,11 @@ async function main() {
       },
       extracted,
     )
+
+  if (rssFreshnessPolicy) {
+    const freshness = assessFlashPublicationFreshness(normalized.sourcePublicationDate, rssFreshnessPolicy)
+    if (!freshness.eligible) throw new Error(`FLASH_RSS_FRESHNESS_REJECTED:${freshness.reason}`)
+  }
 
   let supportingPolicySemanticMaterials:
     FlashSupportingPolicySemanticMaterial[] = []
@@ -1009,7 +1039,7 @@ async function main() {
           stage:
             'prePersistenceClassification'
           method:
-            'model'
+            'model' | 'reused'
           runId: string
           provider: string | null
           model: string | null
@@ -1143,6 +1173,8 @@ async function main() {
     const client =
       new OpenAI({
         apiKey,
+        // A production one-shot has a fixed request budget; retries need a new approved run.
+        ...(allowProductionOneShot ? { maxRetries: 0 } : {}),
       })
 
     const classificationProducer =
@@ -1151,8 +1183,25 @@ async function main() {
         model,
       })
 
-    const classificationResult =
-      await runFlashPrePersistenceClassificationSemanticProducer({
+    // Reuse only the validated RO handoff from this same temporary pair run.
+    // Fresh source verification and dedup above still apply independently to EN.
+    const reusedClassification = classificationHandoffInput
+      ? reuseFlashPairClassification({
+          handoff: JSON.parse(await readFile(classificationHandoffInput, 'utf8')),
+          candidate: normalized,
+          sourceFingerprint: fingerprints.sourceFingerprint,
+          eventFingerprint: fingerprints.eventFingerprint,
+          allowedPilons,
+        })
+      : null
+
+    const classificationResult = reusedClassification
+      ? { ok: true as const, classification: reusedClassification, run: {
+          stage: 'prePersistenceClassification' as const, method: 'reused' as const,
+          runId: `flash-pair-classification-reuse:${String(source.id)}`,
+          provider: null, model: null,
+        } }
+      : await runFlashPrePersistenceClassificationSemanticProducer({
         producer:
           classificationProducer,
         input: {

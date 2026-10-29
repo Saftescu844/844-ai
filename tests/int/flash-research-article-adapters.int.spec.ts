@@ -34,6 +34,31 @@ function extract(url: string, html: string) {
   return extractFlashHtmlArticle(new URL(url).origin, url, html)
 }
 
+describe('Explicit Google primary research references', () => {
+  it('recognizes the observed This research label and keeps unrelated citations secondary', () => {
+    const html = google.replace('>Tech report</a>', '>This research</a>')
+      .replace('</main>', '<p><a href="https://arxiv.org/abs/1811.03604">prior work</a></p></main>')
+    expect(extract(googleUrl, html).primaryEvidenceUrls).toEqual(['https://arxiv.org/abs/2609.20738'])
+  })
+
+  it('does not accept primary-label links outside the article main container', () => {
+    const html = google.replace('>Tech report</a>', '>prior work</a>')
+      .replace('<footer>', '<footer><a href="https://arxiv.org/abs/2606.03979">This research</a>')
+    expect(extract(googleUrl, html).primaryEvidenceUrls).toEqual([])
+  })
+
+  it('refuses two distinct primary papers rather than choosing one', () => {
+    const html = google.replace('</main>', '<p><a href="https://arxiv.org/abs/2606.03979">This research</a></p></main>')
+    expect(() => extract(googleUrl, html)).toThrow('multiple primary arXiv')
+  })
+
+  it.each(['http://arxiv.org/abs/2606.03979', 'https://arxiv.org.evil.example/abs/2606.03979'])('keeps unsafe evidence URL rejected: %s', url => {
+    const html = google.replace('https://arxiv.org/abs/2609.20738v2?utm_source=test#paper', url)
+      .replace('>Tech report</a>', '>This research</a>')
+    expect(extract(googleUrl, html).primaryEvidenceUrls).toEqual([])
+  })
+})
+
 describe('Google Research and MIT article adapters', () => {
   it('isolates Google body, decodes entities and keeps acknowledgements separately', () => {
     const article = extract(googleUrl, google)

@@ -121,7 +121,7 @@ function extractPrimaryEvidenceUrls(
 
     const linkText = clean(node)
     const isPrimaryLabel = adapter === 'google-research'
-      ? /^(?:tech report|paper)$/i.test(linkText)
+      ? /^(?:tech report|paper|this research)$/i.test(linkText)
       : /^paper(?:\b|\s*:)/i.test(linkText)
 
     if (!isPrimaryLabel) continue
@@ -185,7 +185,7 @@ export function extractResearchArticle(
     target.push(value)
   }
   if (!bodyParagraphs.length) throw new Error('Research article main body has no paragraphs.')
-  const primaryEvidenceUrls = extractPrimaryEvidenceUrls(all, adapter, finalUrlValue)
+  const primaryEvidenceUrls = extractPrimaryEvidenceUrls(mainNodes, adapter, finalUrlValue)
   const finalUrl = new URL(finalUrlValue)
   finalUrl.hash = ''
   return {
