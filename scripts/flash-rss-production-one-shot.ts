@@ -1,6 +1,5 @@
-import {
-  spawnSync,
-} from 'node:child_process'
+import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
+import { FlashProductionOneShotHandoffError, runFlashProductionOneShotHandoff } from '@/lib/flash/ingestion/flashProductionOneShotHandoff'
 import {
   mkdtemp,
   readFile,
@@ -60,9 +59,6 @@ const DEFAULT_MAX_ATTEMPTS =
 
 const MAX_ALLOWED_ATTEMPTS =
   1
-
-const CHILD_OUTPUT_LIMIT =
-  20 * 1024 * 1024
 
 function argument(
   name: string,
@@ -195,12 +191,16 @@ Usage:
     --expected-production-service-id <railway-service-id> \\
     --source-id 5 \\
     --candidate-url https://example.com/article \\
-    [--max-items 10]
+    [--max-items 10] [--max-age-days 30]
 
 Behavior:
   - reads exactly one explicitly selected active allowIngestion=true RSS source (ID 5 or 6)
   - fetches at most 10 feed items from that source
   - requires one explicit candidate URL and attempts only that candidate
+  - rejects missing, invalid, future or older-than-30-day RSS dates before any AI call
+  - rechecks the extracted article date before each language preparation
+  - reuses RO classification for EN only for identical source content/fingerprints
+  - bounds each handoff process to 180 seconds and never logs raw child output
   - refuses a candidate URL already used by any FlashAI draft/published record
   - fails closed when event identity is not grounded or strong duplicate evidence exists
   - generates and QA-checks RO and EN handoffs BEFORE any persistence
@@ -298,169 +298,6 @@ function assertProductionOneShotEnvironment(
   }
 }
 
-type FlashRssCandidateSkipReason =
-  | 'event_identity_not_grounded'
-  | 'strong_duplicate'
-
-class FlashRssCandidateSkipError
-  extends Error {
-  readonly reason:
-    FlashRssCandidateSkipReason
-
-  constructor(
-    reason:
-      FlashRssCandidateSkipReason,
-    message: string,
-  ) {
-    super(
-      message,
-    )
-
-    this.name =
-      'FlashRssCandidateSkipError'
-
-    this.reason =
-      reason
-  }
-}
-
-function runPrePersistenceHandoff({
-  sourceId,
-  articleUrl,
-  targetLanguage,
-  model,
-  outputPath,
-  expectedServiceId,
-}: {
-  sourceId: number
-  articleUrl: string
-  targetLanguage:
-    'ro' | 'en'
-  model: string
-  outputPath: string
-  expectedServiceId: string
-}): void {
-  const result =
-    spawnSync(
-      process.execPath,
-      [
-        '--import',
-        'tsx',
-        'scripts/flash-html-article-prepersistence-dedup-preview.ts',
-        '--source-id',
-        String(
-          sourceId,
-        ),
-        '--article-url',
-        articleUrl,
-        '--target-language',
-        targetLanguage,
-        '--require-grounded-event-identity',
-        '--allow-production-one-shot',
-        '--expected-production-service-id',
-        expectedServiceId,
-        '--allow-provider-requests',
-        '--model',
-        model,
-        '--handoff-output',
-        outputPath,
-      ],
-      {
-        cwd:
-          process.cwd(),
-        env:
-          process.env,
-        encoding:
-          'utf8',
-        maxBuffer:
-          CHILD_OUTPUT_LIMIT,
-      },
-    )
-
-  if (
-    result.status !==
-    0
-  ) {
-    const stderr =
-      result.stderr
-        ?.trim()
-        .slice(
-          -8_000,
-        )
-
-    const stdout =
-      result.stdout
-        ?.trim()
-        .slice(
-          -8_000,
-        )
-
-    const combinedOutput =
-      [
-        stderr,
-        stdout,
-      ]
-        .filter(
-          Boolean,
-        )
-        .join(
-          '\n',
-        )
-
-    if (
-      combinedOutput.includes(
-        'does not have a grounded event identity required by this flow',
-      ) ||
-      combinedOutput.includes(
-        'requires grounded event identity or a safe review-only pending identity',
-      )
-    ) {
-      throw new FlashRssCandidateSkipError(
-        'event_identity_not_grounded',
-        `Candidate has no grounded event identity: ${articleUrl}`,
-      )
-    }
-
-    if (
-      combinedOutput.includes(
-        'strong duplicate evidence exists',
-      )
-    ) {
-      throw new FlashRssCandidateSkipError(
-        'strong_duplicate',
-        `Candidate is blocked by strong duplicate evidence: ${articleUrl}`,
-      )
-    }
-
-    throw new Error(
-      [
-        `Pre-persistence ${targetLanguage.toUpperCase()} handoff failed.`,
-        stderr
-          ? `stderr: ${stderr}`
-          : '',
-        stdout
-          ? `stdout: ${stdout}`
-          : '',
-      ]
-        .filter(
-          Boolean,
-        )
-        .join(
-          '\n',
-        ),
-    )
-  }
-
-  console.log(
-    'FLASH_RSS_PRODUCTION_ONE_SHOT_HANDOFF_OK',
-    {
-      targetLanguage,
-      sourceId,
-      articleUrl,
-    },
-  )
-}
-
 async function createPayload() {
   const [
     payloadModule,
@@ -542,6 +379,10 @@ async function main(): Promise<void> {
       'Flash RSS production one-shot requires --model.',
     )
   }
+
+  const maxAgeOption = argument('--max-age-days')
+  if (hasFlag('--max-age-days') && maxAgeOption === null) throw new Error('--max-age-days requires a value.')
+  const freshnessPolicy = { now: Date.now(), maxAgeDays: parseFlashRssMaxAgeDays(maxAgeOption) }
 
   const expectedServiceId =
     argument(
@@ -765,8 +606,14 @@ async function main(): Promise<void> {
       ),
     )
 
+  const freshnessResult = filterFlashRssFreshCandidates(discovered, freshnessPolicy)
+  console.log('FLASH_RSS_PRODUCTION_ONE_SHOT_FRESHNESS', JSON.stringify({
+    referenceUtc: new Date(freshnessPolicy.now).toISOString(), maxAgeDays: freshnessPolicy.maxAgeDays,
+    filteredCount: freshnessResult.filteredCount, rejected: freshnessResult.rejected,
+  }))
+
   const candidates =
-    discovered
+    freshnessResult.candidates
       .filter(
         candidate => {
           const canonicalUrl =
@@ -905,7 +752,7 @@ async function main(): Promise<void> {
       )
 
     try {
-      runPrePersistenceHandoff({
+      runFlashProductionOneShotHandoff({
         sourceId:
           candidate.sourceId,
         articleUrl:
@@ -916,9 +763,10 @@ async function main(): Promise<void> {
         outputPath:
           roPath,
         expectedServiceId,
+        freshnessPolicy,
       })
 
-      runPrePersistenceHandoff({
+      runFlashProductionOneShotHandoff({
         sourceId:
           candidate.sourceId,
         articleUrl:
@@ -929,6 +777,8 @@ async function main(): Promise<void> {
         outputPath:
           enPath,
         expectedServiceId,
+        freshnessPolicy,
+        classificationHandoffPath: roPath,
       })
 
       const [
@@ -993,8 +843,7 @@ async function main(): Promise<void> {
       return
     } catch (error) {
       if (
-        error instanceof
-          FlashRssCandidateSkipError
+        error instanceof FlashProductionOneShotHandoffError && error.controlledSkip
       ) {
         console.log(
           'FLASH_RSS_PRODUCTION_ONE_SHOT_SKIPPED',

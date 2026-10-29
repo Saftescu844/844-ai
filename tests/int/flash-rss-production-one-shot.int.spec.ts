@@ -116,9 +116,8 @@ describe(
           'allowPendingEventIdentityReviewPair',
         )
 
-        expect(source).toContain(
-          '--allow-production-one-shot',
-        )
+        const handoffRunner = await readFile(path.resolve('src/lib/flash/ingestion/flashProductionOneShotHandoff.ts'), 'utf8')
+        expect(handoffRunner).toContain('--allow-production-one-shot')
 
         expect(source).toContain(
           'does NOT publish or unpublish',
@@ -242,9 +241,8 @@ describe(
           'FLASH_ENGINE_STAGING_RAILWAY_TARGET',
         )
 
-        expect(source).toContain(
-          '--allow-production-one-shot',
-        )
+        const handoffRunner = await readFile(path.resolve('src/lib/flash/ingestion/flashProductionOneShotHandoff.ts'), 'utf8')
+        expect(handoffRunner).toContain('--allow-production-one-shot')
 
         expect(source).toContain(
           'flash-rss-production-once',
@@ -261,3 +259,12 @@ describe(
     )
   },
 )
+
+// Argument-only cases must fail before any Payload import or connection.
+describe('Production freshness CLI boundary', () => {
+  it.each(['0', '31', 'abc', '1.5'])('rejects an unsafe max-age-days %s before database access', value => {
+    const result = runProductionOneShot(['--allow-production-rss-one-shot', '--allow-provider-requests', '--model', 'test-model', '--max-age-days', value], productionEnv)
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('must be an integer from 1 to 30')
+  })
+})
