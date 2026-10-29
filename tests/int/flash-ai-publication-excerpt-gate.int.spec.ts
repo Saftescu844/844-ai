@@ -37,4 +37,3 @@ describe('Flash AI excerpt publication gate', () => {
     expect(code).toContain('throw new APIError(excerptProblem, 400)')
   })
 })
-
