@@ -10,7 +10,7 @@ An isolated resolution probe with npm11.9.0 and the original manifests, without 
 
 Simply substituting `npm ci` while still omitting the config fails with EUSAGE and missing peer packages. With the original lockfile and repository config together, the dry run succeeds. The isolated resolver ran on host Node24.22.1/npm11.9.0, so it is not an Alpine/Node22 execution proof. The new CI job builds the actual Node22.17.0 Alpine image and imports Payload, parse5 and sharp with networking disabled, overriding the generation command. No database, provider credentials, source fetch, generator, publication or deployment is involved.
 
-The correction copies the config, runs `npm ci --include=dev`, and keeps the npm bundled with the fixed Node image. It neither regenerates the lockfile nor changes dependencies, application code, data, schedules or source controls. Dev dependencies remain installed because the existing worker directly uses tsx; changing packaging is separate work.
+The correction includes the config in the Dockerfile-specific context allowlist, copies it, runs `npm ci --include=dev`, and keeps the npm bundled with the fixed Node image. The first actual image CI caught the missing context exception before deployment; the allowlist and workflow path filter were then corrected. It neither regenerates the lockfile nor changes dependencies, application code, data, schedules or source controls. Dev dependencies remain installed because the existing worker directly uses tsx; changing packaging is separate work.
 
 ## Residual findings and exposure
 
