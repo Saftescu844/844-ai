@@ -12,6 +12,14 @@ import {
   isFlashAiAuthorizedPublicationContext,
 } from '@/lib/flash/ingestion/flashAiAuthorizedPublicationContext'
 
+import {
+  flashPublicationExcerptProblem,
+} from '@/lib/flash/ingestion/flashPublicationExcerptGuard'
+
+import {
+  flashAlternativeLocalePublicationExcerptProblem,
+} from '@/lib/flash/ingestion/flashAlternativeLocalePublicationExcerptGuard'
+
 const enforceFlashPublicationRBAC: CollectionBeforeOperationHook<'flash-ai'> = ({
   args,
   context,
@@ -93,6 +101,55 @@ const enforceFlashPublicationRBAC: CollectionBeforeOperationHook<'flash-ai'> = (
       'Modificările non-admin trebuie salvate ca draft.',
       403,
     )
+  }
+}
+
+/**
+ * Explicitly covers Payload publishAllLocales / publishSpecificLocale calls
+ * whose request can omit _status or an unchanged excerpt.
+ * RBAC runs first. No writes or provider calls are made here.
+ */
+const enforceFlashAlternativePublicationExcerpt: CollectionBeforeOperationHook<'flash-ai'> = async ({
+  args,
+  operation,
+  req,
+}) => {
+  if (
+    operation !== 'create' &&
+    operation !== 'update' &&
+    operation !== 'updateByID'
+  ) {
+    return
+  }
+
+  const data = 'data' in args ? args.data : undefined
+  const proposedExcerpt =
+    data && typeof data === 'object' && 'excerpt' in data
+      ? data.excerpt
+      : undefined
+
+  const excerptProblem =
+    await flashAlternativeLocalePublicationExcerptProblem({
+      operation,
+      publishAllLocales: args.publishAllLocales,
+      publishSpecificLocale: args.publishSpecificLocale,
+      proposedExcerpt,
+      documentId: 'id' in args ? args.id : undefined,
+      readDraftExcerpt: async (id) => {
+        const document = await req.payload.findByID({
+          collection: 'flash-ai',
+          id,
+          draft: true,
+          depth: 0,
+          overrideAccess: true,
+          req,
+        })
+        return document?.excerpt
+      },
+    })
+
+  if (excerptProblem) {
+    throw new APIError(excerptProblem, 400)
   }
 }
 
@@ -350,6 +407,11 @@ export const FlashAI: CollectionConfig = {
         {
           name: 'sourcePublishedAt',
           type: 'date',
+          admin: {
+            components: {
+              Field: '/src/components/admin/SourcePublicationDateField',
+            },
+          },
         },
         {
           name: 'primary',
@@ -552,6 +614,7 @@ export const FlashAI: CollectionConfig = {
   hooks: {
     beforeOperation: [
       enforceFlashPublicationRBAC,
+      enforceFlashAlternativePublicationExcerpt,
       protectFlashCommentDependencies,
     ],
     beforeValidate: [
@@ -599,6 +662,18 @@ export const FlashAI: CollectionConfig = {
     beforeChange: [
       ({ data, originalDoc, req }) => {
         if (!data) return data
+
+        // Only a requested publication is gated. Legacy drafts remain editable.
+        // Fail before any published-state mutation, including authorized jobs.
+        const excerptProblem = flashPublicationExcerptProblem({
+          requestedStatus: data._status,
+          proposedExcerpt: data.excerpt,
+          priorExcerpt: originalDoc?.excerpt,
+        })
+
+        if (excerptProblem) {
+          throw new APIError(excerptProblem, 400)
+        }
 
         if (req.user?.rol !== 'admin') {
           const status =
