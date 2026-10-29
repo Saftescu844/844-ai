@@ -1,39 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
-import { getPayload } from 'payload'
-
-import config from '@payload-config'
-
-import {
-  evaluateFlashRuntimeWithProducedFactualEvidenceAndAuditPersistence,
-} from '@/lib/flash/audit/payloadProducedFactualRuntimeWithAuditPersistence'
-
-import {
-  createAnthropicFlashContradictionSemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicContradictionSemanticProducer'
-
-import {
-  createAnthropicFlashExtraordinaryClaimSemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicExtraordinaryClaimSemanticProducer'
-
-import {
-  createAnthropicFlashFactualClaimExtractionSemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicFactualClaimExtractionSemanticProducer'
-
-import {
-  createAnthropicFlashFactualVerificationSemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicFactualVerificationSemanticProducer'
-
-import {
-  createAnthropicFlashMedicalInterpretationSemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicMedicalInterpretationSemanticProducer'
-
-import {
-  createAnthropicFlashRegulatoryStatusSemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicRegulatoryStatusSemanticProducer'
-
-import {
-  createAnthropicFlashSafetySemanticProducer,
-} from '@/lib/flash/semanticEvidence/anthropicSafetySemanticProducer'
+export {}
 
 const ENGINE_VERSION =
   'flash-runtime-persist-cli-v1'
@@ -216,6 +181,33 @@ async function main() {
       'ANTHROPIC_API_KEY is not configured.',
     )
   }
+
+  // Help and rejected arguments must not initialize the application import graph.
+  const [
+    { default: Anthropic },
+    { getPayload },
+    { default: config },
+    { evaluateFlashRuntimeWithProducedFactualEvidenceAndAuditPersistence },
+    { createAnthropicFlashContradictionSemanticProducer },
+    { createAnthropicFlashExtraordinaryClaimSemanticProducer },
+    { createAnthropicFlashFactualClaimExtractionSemanticProducer },
+    { createAnthropicFlashFactualVerificationSemanticProducer },
+    { createAnthropicFlashMedicalInterpretationSemanticProducer },
+    { createAnthropicFlashRegulatoryStatusSemanticProducer },
+    { createAnthropicFlashSafetySemanticProducer },
+  ] = await Promise.all([
+    import('@anthropic-ai/sdk'),
+    import('payload'),
+    import('@payload-config'),
+    import('@/lib/flash/audit/payloadProducedFactualRuntimeWithAuditPersistence'),
+    import('@/lib/flash/semanticEvidence/anthropicContradictionSemanticProducer'),
+    import('@/lib/flash/semanticEvidence/anthropicExtraordinaryClaimSemanticProducer'),
+    import('@/lib/flash/semanticEvidence/anthropicFactualClaimExtractionSemanticProducer'),
+    import('@/lib/flash/semanticEvidence/anthropicFactualVerificationSemanticProducer'),
+    import('@/lib/flash/semanticEvidence/anthropicMedicalInterpretationSemanticProducer'),
+    import('@/lib/flash/semanticEvidence/anthropicRegulatoryStatusSemanticProducer'),
+    import('@/lib/flash/semanticEvidence/anthropicSafetySemanticProducer'),
+  ])
 
   /**
    * Clientul este creat numai după toate guard-urile.
