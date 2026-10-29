@@ -11,6 +11,7 @@ on:
       - .npmrc
       - scripts/flash-rss-production*.ts
       - src/lib/flash/ingestion/flashProductionSchedule*.ts
+      - src/lib/flash/ingestion/flashProductionOneShotOutcome.ts
       - .github/workflows/flash-worker-image.yml
 
 permissions:
@@ -33,3 +34,8 @@ jobs:
         run: >-
           docker run --rm --network none --entrypoint node flash-worker:ci
           --import tsx scripts/flash-rss-production-scheduled.ts --help
+      - name: Verify the bounded outcome protocol inside the actual image
+        run: >-
+          docker run --rm --network none --entrypoint node flash-worker:ci
+          --import tsx --input-type=module
+          -e 'import assert from "node:assert/strict"; const p = await import("./src/lib/flash/ingestion/flashProductionOneShotOutcome.ts"); for (const result of [{outcome:"pair_created"},{outcome:"skipped",reason:"event_identity_not_grounded"}]) assert.deepEqual(p.parseProductionOneShotOutcome(p.formatProductionOneShotOutcome(result)),result); assert.deepEqual(p.parseProductionOneShotOutcome(""),{outcome:"failed",reason:"terminal_outcome_missing"}); console.log("FLASH_WORKER_OUTCOME_PROTOCOL_OK")'

@@ -1,5 +1,7 @@
 import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { FlashProductionOneShotHandoffError, runFlashProductionOneShotHandoff } from '@/lib/flash/ingestion/flashProductionOneShotHandoff'
+import { formatProductionOneShotOutcome, isProductionOneShotSkipReason, type ProductionOneShotSkipReason } from '@/lib/flash/ingestion/flashProductionOneShotOutcome'
+import { writeSync } from 'node:fs'
 import {
   mkdtemp,
   readFile,
@@ -679,6 +681,7 @@ async function main(): Promise<void> {
     candidates.length ===
     0
   ) {
+    writeSync(1, formatProductionOneShotOutcome({ outcome: 'skipped', reason: 'no_candidate' }))
     console.log(
       'FLASH_RSS_PRODUCTION_ONE_SHOT_EMPTY',
     )
@@ -702,6 +705,8 @@ async function main(): Promise<void> {
       0,
       maxAttempts,
     )
+
+  let lastSkipReason: ProductionOneShotSkipReason | undefined
 
   for (
     const [
@@ -811,6 +816,9 @@ async function main(): Promise<void> {
           en,
         })
 
+      // Synchronous terminal output survives immediate process.exit with piped stdout.
+      writeSync(1, formatProductionOneShotOutcome({ outcome: 'pair_created' }))
+
       console.log(
         'FLASH_RSS_PRODUCTION_ONE_SHOT_OK',
       )
@@ -845,6 +853,8 @@ async function main(): Promise<void> {
       if (
         error instanceof FlashProductionOneShotHandoffError && error.controlledSkip
       ) {
+        if (!isProductionOneShotSkipReason(error.reason)) throw new Error('Unrecognized production skip category.')
+        lastSkipReason = error.reason
         console.log(
           'FLASH_RSS_PRODUCTION_ONE_SHOT_SKIPPED',
         )
@@ -879,6 +889,8 @@ async function main(): Promise<void> {
     }
   }
 
+  if (!lastSkipReason) throw new Error('Production one-shot returned without a terminal outcome.')
+  writeSync(1, formatProductionOneShotOutcome({ outcome: 'skipped', reason: lastSkipReason }))
   console.log(
     'FLASH_RSS_PRODUCTION_ONE_SHOT_NO_ELIGIBLE_CANDIDATE',
   )
