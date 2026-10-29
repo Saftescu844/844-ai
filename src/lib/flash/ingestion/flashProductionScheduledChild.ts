@@ -1,12 +1,13 @@
 import { spawn } from 'node:child_process'
+import { parseProductionOneShotOutcome, type ProductionOneShotOutcome } from './flashProductionOneShotOutcome'
 
 export const PRODUCTION_SCHEDULE_CHILD_TIMEOUT_MS = 480_000
 const OUTPUT_LIMIT = 20 * 1024 * 1024
 
 /** Execute the already-guarded one-shot, retaining only its bounded summary. */
-export function runProductionScheduledChild(sourceId: number, articleUrl: string): Promise<{
-  outcome: 'pair_created' | 'skipped' | 'failed'
-  reason?: 'timeout' | 'output_limit' | 'process_failed'
+export function runProductionScheduledChild(sourceId: number, articleUrl: string): Promise<ProductionOneShotOutcome | {
+  outcome: 'failed'
+  reason: 'timeout' | 'output_limit' | 'process_failed' | 'terminal_outcome_missing' | 'terminal_outcome_invalid'
 }> {
   return new Promise(resolve => {
     let stdout = ''
@@ -40,7 +41,7 @@ export function runProductionScheduledChild(sourceId: number, articleUrl: string
     child.on('close', code => {
       clearTimeout(timer)
       if (failure || code !== 0) resolve({ outcome: 'failed', reason: failure ?? 'process_failed' })
-      else resolve({ outcome: /^FLASH_RSS_PRODUCTION_ONE_SHOT_OK\r?$/m.test(stdout) ? 'pair_created' : 'skipped' })
+      else resolve(parseProductionOneShotOutcome(stdout))
     })
   })
 }
