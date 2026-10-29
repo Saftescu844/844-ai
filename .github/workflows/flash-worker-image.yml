@@ -9,6 +9,8 @@ on:
       - package.json
       - package-lock.json
       - .npmrc
+      - scripts/flash-rss-production*.ts
+      - src/lib/flash/ingestion/flashProductionSchedule*.ts
       - .github/workflows/flash-worker-image.yml
 
 permissions:
@@ -27,3 +29,7 @@ jobs:
           docker run --rm --network none --entrypoint node flash-worker:ci
           --import tsx --input-type=module
           -e 'await import("payload"); await import("parse5"); await import("sharp"); console.log("FLASH_WORKER_IMPORT_SMOKE_OK")'
+      - name: Load the scheduled entry point without runtime credentials or job execution
+        run: >-
+          docker run --rm --network none --entrypoint node flash-worker:ci
+          --import tsx scripts/flash-rss-production-scheduled.ts --help
