@@ -7,6 +7,7 @@ import CommentsSection from '@/components/CommentsSection'
 import NewsletterForm from '@/components/NewsletterForm'
 import { getCachedSiteSettings, getFlashAiBySlug } from '@/lib/payload'
 import { jsxConvertersCuImagini } from '@/lib/richtext-converters'
+import { formatSourcePublicationDate } from '@/lib/flash/sourcePublicationDate'
 
 function flashTypeLabel(value: string, lang: string): string {
   const labels: Record<string, { ro: string; en: string }> = {
@@ -291,7 +292,7 @@ export default async function PaginaFlash(props: {
             {sourceName || source.url} →
           </a>
 
-          {source.sourcePublishedAt && (
+          {formatSourcePublicationDate(source.sourcePublishedAt, lang) && (
             <p
               style={{
                 margin: '8px 0 0',
@@ -300,14 +301,7 @@ export default async function PaginaFlash(props: {
               }}
             >
               {lang === 'ro' ? 'Publicată de sursă' : 'Source publication date'}:{' '}
-              {new Intl.DateTimeFormat(
-                lang === 'ro' ? 'ro-RO' : 'en-GB',
-                {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                },
-              ).format(new Date(source.sourcePublishedAt))}
+              {formatSourcePublicationDate(source.sourcePublishedAt, lang)}
             </p>
           )}
         </div>
