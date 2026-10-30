@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { extractFlashHtmlArticle } from '../../src/lib/flash/ingestion/htmlArticleExtraction'
 import { normalizeFlashHtmlArticleCandidate } from '../../src/lib/flash/ingestion/articleCandidateNormalization'
 import type { FlashHtmlListingSource } from '../../src/lib/flash/ingestion/htmlListingCandidateIngestion'
+import { evaluateExplicitGroundedEventIdentity } from '../../src/lib/flash/ingestion/explicitGroundedEventIdentity'
 
 const googleUrl = 'https://research.google/blog/learning-interactives/'
 const mitUrl = 'https://news.mit.edu/2026/instructmesh-1001'
@@ -52,10 +53,30 @@ describe('Explicit Google primary research references', () => {
     expect(() => extract(googleUrl, html)).toThrow('multiple primary arXiv')
   })
 
-  it.each(['http://arxiv.org/abs/2606.03979', 'https://arxiv.org.evil.example/abs/2606.03979'])('keeps unsafe evidence URL rejected: %s', url => {
+  it.each(['https://arxiv.org.evil.example/abs/2606.03979', 'http://user:pass@arxiv.org/abs/2606.03979', 'http://arxiv.org:444/abs/2606.03979', 'https://arxiv.org:80/abs/2606.03979', 'ftp://arxiv.org/abs/2606.03979', 'http://localhost/abs/2606.03979', 'http://arxiv.org/pdf/2606.03979', 'http://arxiv.org/abs/not-an-id'])('keeps unsafe or unsupported evidence URL rejected: %s', url => {
     const html = google.replace('https://arxiv.org/abs/2609.20738v2?utm_source=test#paper', url)
       .replace('>Tech report</a>', '>This research</a>')
     expect(extract(googleUrl, html).primaryEvidenceUrls).toEqual([])
+  })
+
+  it('canonicalizes an explicitly labelled HTTP arXiv reference to HTTPS, without fetching it', () => {
+    const html = google.replace('https://arxiv.org/abs/2609.20738v2?utm_source=test#paper', 'http://arxiv.org/abs/2609.20738v2?utm_source=test#paper')
+    expect(extract(googleUrl, html).primaryEvidenceUrls).toEqual(['https://arxiv.org/abs/2609.20738'])
+  })
+
+  it('recovers the MIT X-Hinges HTTP-link shape and deduplicates its repeated primary reference', () => {
+    const html = mit.replace('https://arxiv.org/abs/2608.28534', 'http://arxiv.org/abs/2609.11077')
+      .replace('</article>', '<p><a href="https://arxiv.org/abs/2609.11077v1">Paper: X-Hinges</a></p></article>')
+    const article = extract(mitUrl, html)
+    expect(article.primaryEvidenceUrls).toEqual(['https://arxiv.org/abs/2609.11077'])
+    expect(evaluateExplicitGroundedEventIdentity(normalizeFlashHtmlArticleCandidate(source(mitUrl), article))).toMatchObject({ status: 'grounded', identity: { authority: 'arxiv', stableId: '2609.11077' } })
+  })
+
+  it('does not promote a secondary HTTP reference and still rejects distinct primary papers', () => {
+    const secondary = google.replace('https://arxiv.org/abs/2609.20738v2?utm_source=test#paper', 'http://arxiv.org/abs/2609.20738').replace('>Tech report</a>', '>prior work</a>')
+    expect(extract(googleUrl, secondary).primaryEvidenceUrls).toEqual([])
+    const ambiguous = mit.replace('https://arxiv.org/abs/2608.28534', 'http://arxiv.org/abs/2608.28534').replace('</article>', '<a href="https://arxiv.org/abs/2609.11077">Paper: Another study</a></article>')
+    expect(() => extract(mitUrl, ambiguous)).toThrow('multiple primary arXiv')
   })
 })
 

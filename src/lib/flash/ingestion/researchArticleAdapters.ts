@@ -90,7 +90,7 @@ function normalizeArxivEvidenceUrl(
   }
 
   if (
-    url.protocol !== 'https:' ||
+    !['https:', 'http:'].includes(url.protocol) ||
     url.username ||
     url.password ||
     url.port ||
@@ -102,6 +102,8 @@ function normalizeArxivEvidenceUrl(
   const match = /^\/abs\/(\d{4}\.\d{4,5})(?:v\d+)?\/?$/.exec(url.pathname)
   if (!match?.[1]) return null
 
+  // Canonicalize a labelled arXiv reference, never fetch its insecure spelling.
+  url.protocol = 'https:'
   url.pathname = `/abs/${match[1]}`
   url.search = ''
   url.hash = ''
