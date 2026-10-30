@@ -60,6 +60,26 @@ export function reserveProductionScheduleAttempt(memory: unknown, url: string, n
 export interface ProductionScheduleSource { id: number; allowIngestion?: boolean | null; allowAutoPublish?: boolean | null; rssCandidateSkipMemory?: unknown }
 export interface ProductionScheduleCandidate { sourceId: number; concreteUrl: string; publishedAt: string | null }
 
+/** Shared read-only planning for preflight and the fresh locked reservation. */
+export function planProductionScheduleCandidates<T extends ProductionScheduleCandidate>({
+  candidates, sources, usedUrls, now,
+}: {
+  candidates: T[]; sources: ProductionScheduleSource[]; usedUrls: Set<string>; now: number
+}): { candidates: T[]; attemptsIn24h: number } {
+  if (sources.length !== 2 || !PRODUCTION_RSS_SOURCE_IDS.every(id => sources.some(source => source.id === id))) {
+    throw new Error('Production schedule requires both registered source records.')
+  }
+  const attemptsIn24h = productionScheduleAttemptCount(sources.map(source => source.rssCandidateSkipMemory), now)
+  if (attemptsIn24h >= PRODUCTION_RSS_ATTEMPTS_PER_24H) return { candidates: [], attemptsIn24h }
+  const eligible = sources.filter(source => source.allowIngestion === true && source.allowAutoPublish === false)
+  const seen = new Set(sources.flatMap(source => productionScheduleMemory(source.rssCandidateSkipMemory, now)).map(entry => entry.url))
+  const ordered = candidates.filter(item => {
+    const url = canonicalFlashRssCandidateUrl(item.concreteUrl)
+    return url && eligible.some(source => source.id === item.sourceId) && !usedUrls.has(url) && !seen.has(url)
+  }).sort((a, b) => Date.parse(b.publishedAt ?? '') - Date.parse(a.publishedAt ?? '') || a.sourceId - b.sourceId || a.concreteUrl.localeCompare(b.concreteUrl))
+  return { candidates: ordered, attemptsIn24h }
+}
+
 /** Called under a database transaction advisory lock by the production adapter. */
 export async function selectAndReserveProductionCandidate<T extends ProductionScheduleCandidate>({
   candidates, sources, usedUrls, now, dryRun, saveMemory,
@@ -67,20 +87,13 @@ export async function selectAndReserveProductionCandidate<T extends ProductionSc
   candidates: T[]; sources: ProductionScheduleSource[]; usedUrls: Set<string>; now: number; dryRun: boolean
   saveMemory: (id: number, memory: Entry[]) => Promise<void>
 }): Promise<{ outcome: 'empty' | 'budget_reached' | 'selected'; candidate?: T; attemptsIn24h: number }> {
-  if (sources.length !== 2 || !PRODUCTION_RSS_SOURCE_IDS.every(id => sources.some(source => source.id === id))) {
-    throw new Error('Production schedule requires both registered source records.')
-  }
-  const attemptsIn24h = productionScheduleAttemptCount(sources.map(source => source.rssCandidateSkipMemory), now)
+  const planned = planProductionScheduleCandidates({ candidates, sources, usedUrls, now })
+  const { attemptsIn24h } = planned
   if (attemptsIn24h >= PRODUCTION_RSS_ATTEMPTS_PER_24H) return { outcome: 'budget_reached', attemptsIn24h }
-  const eligible = sources.filter(source => source.allowIngestion === true && source.allowAutoPublish === false)
-  const seen = new Set(sources.flatMap(source => productionScheduleMemory(source.rssCandidateSkipMemory, now)).map(entry => entry.url))
-  const candidate = candidates.filter(item => {
-    const url = canonicalFlashRssCandidateUrl(item.concreteUrl)
-    return url && eligible.some(source => source.id === item.sourceId) && !usedUrls.has(url) && !seen.has(url)
-  }).sort((a, b) => Date.parse(b.publishedAt ?? '') - Date.parse(a.publishedAt ?? '') || a.sourceId - b.sourceId || a.concreteUrl.localeCompare(b.concreteUrl))[0]
+  const candidate = planned.candidates[0]
   if (!candidate) return { outcome: 'empty', attemptsIn24h }
   if (!dryRun) {
-    const source = eligible.find(item => item.id === candidate.sourceId)!
+    const source = sources.find(item => item.id === candidate.sourceId)!
     await saveMemory(source.id, reserveProductionScheduleAttempt(source.rssCandidateSkipMemory, candidate.concreteUrl, now))
   }
   return { outcome: 'selected', candidate, attemptsIn24h: attemptsIn24h + (dryRun ? 0 : 1) }
