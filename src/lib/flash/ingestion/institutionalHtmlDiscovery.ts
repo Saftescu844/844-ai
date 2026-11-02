@@ -114,7 +114,15 @@ export function extractUnescoArticle(source: string, finalUrl: string, html: str
   const title = clean(one(nodes.filter(n => n.tagName === 'h1'), 'headline'))
   const publicationDate = clean(one(nodes.filter(n => hasClass(n, 'created-time')), 'original publication date'))
   institutionalPublicationDate(publicationDate)
-  const lead = clean(one(nodes.filter(n => hasClass(n, 'field--name-field-description')), 'description'))
+  // SDG tooltips reuse the description field. A modern article's lead belongs
+  // to its own header; never fall back to a tooltip when that header is broken.
+  let leadNodes = nodes
+  const articles = nodes.filter(n => n.tagName === 'article' && hasClass(n, 'node--type-article'))
+  if (articles.length || nodes.some(n => hasClass(n, 'header-node-content'))) {
+    const article = one(articles, 'description')
+    leadNodes = elements(one(elements(article).filter(n => hasClass(n, 'header-node-content')), 'description'))
+  }
+  const lead = clean(one(leadNodes.filter(n => hasClass(n, 'field--name-field-description')), 'description'))
   const body = one(nodes.filter(n => hasClass(n, 'field--name-field-paragraphs')), 'article body')
   const bodyParagraphs = elements(body).filter(n => n.tagName === 'p' || n.tagName === 'li' && !elements(n).some(c => c.tagName === 'p')).map(clean).filter(Boolean)
   if (!bodyParagraphs.length) unsupported('article body')
