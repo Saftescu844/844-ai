@@ -57,17 +57,35 @@ export function parseAnthropicNewsCandidates(plan: FlashRssIngestionSourcePlan, 
     throw new Error('Anthropic listing must declare English.')
   }
   const nodes = elements(one(all.filter(n => n.tagName === 'main'), 'main container'))
-  const rows = nodes.filter(n => component(n, 'TableView', 'summary'))
+  const listings = nodes.filter(n => attr(n, 'data-listing-rows') === 'true')
+  const modern = listings.length > 0
+  const rows = modern
+    ? elements(one(listings, 'listing container')).filter(n => n.tagName === 'li' && Boolean(attr(n, 'data-listing-row')))
+    : nodes.filter(n => component(n, 'TableView', 'summary'))
   if (!rows.length) throw new Error('Anthropic listing has no supported summary rows.')
   const seen = new Set<string>(), candidates: FlashRssCandidate[] = []
   for (const row of rows.slice(0, 50)) {
-    const parts = elements(row)
-    const titles = parts.filter(n => n.tagName === 'a' && component(n, 'TableView', 'title-link'))
+    let parts = elements(row)
+    let prefix: string | null = null
+    if (modern) {
+      // The peek is the summary, not the duplicate collapsed detail view.
+      const summaries = parts.filter(n => attr(n, 'data-peek') === 'true')
+      if (summaries.length !== 1) continue
+      parts = elements(summaries[0]!)
+      const prefixes = (attr(summaries[0]!, 'class') ?? '').split(/\s+/)
+        .flatMap(token => /^([A-Za-z0-9_-]+)_summary$/.exec(token)?.[1] ?? [])
+      if (prefixes.length !== 1) continue
+      prefix = prefixes[0]!
+    }
+    const part = (n: Element, name: string) => modern
+      ? (attr(n, 'class') ?? '').split(/\s+/).includes(`${prefix}_${name}`)
+      : component(n, 'TableView', name)
+    const titles = parts.filter(n => n.tagName === 'a' && part(n, 'title-link'))
     if (titles.length !== 1 || !clean(titles[0]!)) continue
     let url: string
     try { url = anthropicNewsArticleUrl(plan.registeredSourceUrl, attr(titles[0]!, 'href') ?? '') } catch { continue }
     if (seen.has(url)) continue
-    const dates = parts.filter(n => component(n, 'TableView', 'date'))
+    const dates = parts.filter(n => part(n, 'date'))
     let publishedAt: string | null = null, invalid = dates.length > 1
     if (dates.length === 1 && clean(dates[0]!)) {
       try { publishedAt = `${normalizeAnthropicPublicationDate(clean(dates[0]!))}T00:00:00.000Z` } catch { invalid = true }
@@ -92,11 +110,13 @@ export function extractAnthropicNewsArticle(source: string, value: string, html:
     throw new Error('Anthropic canonical URL does not match the retrieved article.')
   }
   const main = one(all.filter(n => n.tagName === 'main'), 'main container')
-  const article = one(elements(main).filter(n => n.tagName === 'article' && component(n, 'ArticlePage', 'Article')), 'article container')
+  // Bind the article to the explicit editorial body marker, not a compiled CSS name.
+  const article = one(elements(main).filter(n => n.tagName === 'article' &&
+    elements(n).some(c => attr(c, 'data-article-body') === 'true')), 'article container')
   const nodes = elements(article)
-  const title = clean(one(nodes.filter(n => n.tagName === 'h1' && component(n, 'ArticleHero', 'Title')), 'headline'))
-  const published = nodes.filter(n => component(n, 'ArticleHero', 'Metadata') &&
-    elements(n).some(c => c.tagName === 'p' && clean(c) === 'Published'))
+  const title = clean(one(nodes.filter(n => n.tagName === 'h1'), 'headline'))
+  const published = nodes.filter(n => n.tagName === 'li' &&
+    n.childNodes.some(c => 'tagName' in c && c.tagName === 'p' && clean(c) === 'Published'))
   const time = one(elements(one(published, 'publication region')).filter(n => n.tagName === 'time'), 'original publication date')
   const publicationDate = clean(time), iso = normalizeAnthropicPublicationDate(publicationDate)
   if (attr(time, 'datetime') && attr(time, 'datetime') !== iso) throw new Error('Anthropic publication date attributes conflict with the visible original date.')
