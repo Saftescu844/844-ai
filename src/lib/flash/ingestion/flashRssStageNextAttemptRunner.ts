@@ -55,6 +55,7 @@ export function isFlashRssArticleUnsupportedLayoutFailure(output: string): boole
   return output.split(/\r?\n/).some(line =>
     /^FLASH_(?:OPENAI|ANTHROPIC)_ARTICLE_LAYOUT_UNSUPPORTED: (?:document|canonical URL|main container|article container|headline|publication region|original publication date|description|article body)$/.test(line) ||
     /^FLASH_MICROSOFT_RESEARCH_ARTICLE_LAYOUT_UNSUPPORTED: (?:document|canonical URL|main container|headline|original publication date|article body)$/.test(line) ||
+    /^FLASH_RO_EDUCATION_ARTICLE_LAYOUT_UNSUPPORTED: (?:document|canonical URL|main container|article container|headline|original publication date|article body)$/.test(line) ||
     /^FLASH_UNESCO_ARTICLE_LAYOUT_UNSUPPORTED: (?:document|main container|headline|original publication date|description|article body)$/.test(line))
 }
 

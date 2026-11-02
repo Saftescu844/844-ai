@@ -2,10 +2,11 @@ import { extractUnescoArticle, institutionalArticleUrl } from './institutionalHt
 import { extractOpenAiNewsArticle, openAiNewsArticleUrl } from './openAiNewsArticleAdapter'
 import { extractAnthropicNewsArticle, anthropicNewsArticleUrl } from './anthropicNewsArticleAdapter'
 import { extractMicrosoftResearchArticle, microsoftResearchArticleUrl } from './microsoftResearchArticleAdapter'
+import { extractRomanianEducationArticle, romanianEducationArticleUrl } from './romanianEducationArticleAdapter'
 import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import type { FlashHtmlArticleExtraction } from './htmlArticleExtraction'
 
-export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news' | 'anthropic-news' | 'microsoft-research'
+export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news' | 'anthropic-news' | 'microsoft-research' | 'ro-education'
 type Node = DefaultTreeAdapterMap['node']
 type Element = DefaultTreeAdapterMap['element']
 
@@ -21,6 +22,10 @@ export function researchArticleAdapterForUrl(
   const registered = new URL(registeredSourceUrl)
   const final = new URL(finalUrl)
   const sourceHost = host(registered)
+  if (sourceHost === 'edu.ro') {
+    romanianEducationArticleUrl(registeredSourceUrl, finalUrl)
+    return 'ro-education'
+  }
   if (sourceHost === 'microsoft.com') {
     microsoftResearchArticleUrl(registeredSourceUrl, finalUrl)
     return 'microsoft-research'
@@ -269,6 +274,7 @@ export function extractResearchArticle(
 ): FlashHtmlArticleExtraction {
   const adapter = researchArticleAdapterForUrl(registeredSourceUrl, finalUrlValue)
   if (!adapter) throw new Error('No research article adapter for this source.')
+  if (adapter === 'ro-education') return extractRomanianEducationArticle(registeredSourceUrl, finalUrlValue, html)
   if (adapter === 'unesco-education') return extractUnescoArticle(registeredSourceUrl, finalUrlValue, html)
   if (adapter === 'openai-news') return extractOpenAiNewsArticle(registeredSourceUrl, finalUrlValue, html)
   if (adapter === 'microsoft-research') return extractMicrosoftResearchArticle(registeredSourceUrl, finalUrlValue, html)
