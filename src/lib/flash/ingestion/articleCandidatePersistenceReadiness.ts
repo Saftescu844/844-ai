@@ -52,7 +52,7 @@ export type FlashPersistenceDeferredDecision =
 export interface FlashPersistenceSourceGroundedValues {
   sourceId: number
   sourceName: string
-  language: 'en'
+  language: FlashNormalizedArticleCandidate['language']
   sourceTitle: string
   canonicalUrl: string
   sourcePublishedAt: string

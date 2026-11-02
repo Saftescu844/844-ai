@@ -10,11 +10,12 @@ import type { Surse } from '../src/payload-types'
 // Read-only endpoint probe. No Payload instance, model client, CMS writes or registry activation.
 async function main() {
   if (process.argv.includes('--help')) {
-    console.log('Usage: node --import tsx scripts/flash-first-source-expansion-preview.ts [--probe] [--source ec-ai|unesco-education|openai-news|anthropic-news|microsoft-research]')
-    console.log('Default: offline plan. --probe: staging-only bounded GET of EC, UNESCO, OpenAI, Anthropic and Microsoft Research; no AI or CMS writes.')
+    console.log('Usage: node --import tsx scripts/flash-first-source-expansion-preview.ts [--probe] [--source ec-ai|unesco-education|openai-news|anthropic-news|microsoft-research|ro-education]')
+    console.log('Default: offline plan. --probe: staging-only bounded GET; ro-education requires an explicit selector. No AI or CMS writes.')
     return
   }
-  const allowed = ['ec-ai', 'unesco-education', 'openai-news', 'anthropic-news', 'microsoft-research']
+  const defaults = ['ec-ai', 'unesco-education', 'openai-news', 'anthropic-news', 'microsoft-research']
+  const allowed = [...defaults, 'ro-education']
   let selected: string | undefined
   let probe = false
   const args = process.argv.slice(2)
@@ -23,7 +24,7 @@ async function main() {
     else if (args[i] === '--source' && !selected && allowed.includes(args[i + 1] ?? '')) selected = args[++i]
     else throw new Error('Unknown or duplicate option.')
   }
-  const sources = FLASH_DISCOVERY_CATALOG.filter(s => allowed.includes(s.key) && (!selected || selected === s.key))
+  const sources = FLASH_DISCOVERY_CATALOG.filter(s => selected ? selected === s.key : defaults.includes(s.key))
   if (!probe) {
     console.log(JSON.stringify(sources.map(s => ({ key: s.key, method: s.method, url: s.discoveryUrl,
       articleAdapterAvailable: true, activated: false }))))

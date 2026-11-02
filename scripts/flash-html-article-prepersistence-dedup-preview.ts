@@ -1,3 +1,4 @@
+import { STUDENT_SIM_PILOT_FLAG, assertStudentSimPilotTarget, assertStudentSimPilotSource, assertStudentSimPilotEvidence } from '@/lib/flash/ingestion/studentSimStagingPilot'
 import { resolveMicrosoftResearchPaperEvidence } from '@/lib/flash/ingestion/microsoftResearchPaperEvidence'
 import { assessFlashPublicationFreshness, flashPublicationTimestamp, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { readFile } from 'node:fs/promises'
@@ -274,6 +275,7 @@ Usage:
 
 Behavior:
   - reads one active source; allowIngestion=true is required by default
+  - --allow-staging-studentsim-pilot is an exact one-off source #10 / StudentSim opt-in; scheduled ingest stays off
   - explicit --read-only-pilot may use an active source with allowIngestion=false without changing that source configuration
   - retrieves one same-host /en/news/... article
   - runs canonical technical source verification on the registered/concrete/final URLs and retrieval result
@@ -699,6 +701,16 @@ async function main() {
     )
   }
 
+  const studentSimPilot = hasFlag(STUDENT_SIM_PILOT_FLAG)
+  if (studentSimPilot) {
+    assertStudentSimPilotTarget({ environment: process.env, sourceId, articleUrl,
+      allowProduction: allowProductionOneShot, readOnlyPilot })
+    if (!allowProviderRequests || !handoffOutput || !stagingMitEvidencePreflight || !requireGroundedEventIdentity ||
+        !rssFreshnessPolicy || rssFreshnessPolicy.maxAgeDays !== 30) {
+      throw new Error('StudentSim pilot requires provider opt-in, handoff output and grounded-evidence preflight.')
+    }
+  }
+
   const payload =
     await createPayload()
 
@@ -739,10 +751,12 @@ async function main() {
     )
   }
 
+  if (studentSimPilot) assertStudentSimPilotSource(source)
+
   if (
     source.allowIngestion !==
       true &&
-    !readOnlyPilot
+    !readOnlyPilot && !studentSimPilot
   ) {
     throw new Error(
       'Source allowIngestion is disabled. Use --read-only-pilot only for an explicit read-only staging pilot.',
@@ -830,6 +844,7 @@ async function main() {
     if (paper.status === 'retrieval_failed' || paper.status === 'unsupported_publication') {
       throw new Error(`FLASH_MICROSOFT_RESEARCH_PAPER_EVIDENCE_UNAVAILABLE:${paper.status}`)
     }
+    if (studentSimPilot) assertStudentSimPilotEvidence(paper.primaryEvidenceUrls)
     extracted.primaryEvidenceUrls = paper.primaryEvidenceUrls
     console.log(`FLASH_MICROSOFT_RESEARCH_PAPER_EVIDENCE status=${paper.status} providerCalled=false`)
   }
