@@ -1,5 +1,25 @@
 import { isFlashRssArticleUnsupportedLayoutFailure, isFlashRssMicrosoftPaperEvidenceUnavailable } from './flashRssStageNextAttemptRunner'
 
+/** Process facts only: never serialize the child Error, signal text or captured output. */
+export function summarizeRssHandoffExit(result: {
+  status: number | null
+  signal: string | null
+  error?: { code?: string }
+  stdout: string
+  stderr: string
+}) {
+  return {
+    exitCode: Number.isInteger(result.status) && result.status !== null && result.status >= 0 && result.status <= 255
+      ? result.status : null,
+    signalled: Boolean(result.signal),
+    processError: result.error ? result.error.code === 'ENOBUFS' ? 'output_limit' : 'execution_error' : null,
+    stdoutBytes: Buffer.byteLength(result.stdout, 'utf8'),
+    stderrBytes: Buffer.byteLength(result.stderr, 'utf8'),
+    applicationFailureMarker: result.stderr.split(/\r?\n/).includes('FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_FAILED'),
+    unsettledAwaitWarning: /^Warning: (?:Detected )?[Uu]nsettled top-level await(?: at .*)?$/m.test(result.stderr),
+  }
+}
+
 /** Map captured child output to constants only. Never forward child text to logs. */
 export function diagnoseRssHandoffFailure(output: string) {
   const reasons = [
