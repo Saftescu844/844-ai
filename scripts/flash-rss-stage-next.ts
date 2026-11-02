@@ -2,7 +2,7 @@ import { parseInstitutionalHtmlCandidates } from '@/lib/flash/ingestion/institut
 import type { RssSourceDiscoveryPhase } from '@/lib/flash/ingestion/rssSourceDiscoveryDiagnostic'
 import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { observeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
-import { diagnoseRssHandoffFailure } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
+import { diagnoseRssHandoffFailure, summarizeRssHandoffExit } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
 import { FlashRssControlledFailure, FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
 import { installFlashRssShutdown, runFlashRssChild } from '@/lib/flash/audit/flashRssShutdown'
 
@@ -393,6 +393,11 @@ async function runPrePersistenceHandoff({
       },
     )
 
+  if (result.status !== 0 || result.error || result.signal) {
+    console.log('FLASH_RSS_STAGE_NEXT_CHILD_EXIT', {
+      sourceId, targetLanguage, ...summarizeRssHandoffExit(result),
+    })
+  }
   if (result.error?.code === 'ENOBUFS') throw new FlashRssControlledFailure('RSS_CHILD_OUTPUT_LIMIT')
   if (result.signal) throw new FlashRssControlledFailure('RSS_CHILD_SIGNAL')
   observeEditorialDiagnostic(result.stdout, metadata => diagnostics?.editorialDiagnostic(metadata))

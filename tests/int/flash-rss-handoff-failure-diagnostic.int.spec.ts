@@ -1,10 +1,44 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import type { Payload } from 'payload'
-import { diagnoseRssHandoffFailure } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
+import { diagnoseRssHandoffFailure, summarizeRssHandoffExit } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
 import { FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
 
 describe('bounded RSS handoff failure diagnostics', () => {
+  it('distinguishes an exit without an application failure marker without claiming its cause', () => {
+    expect(summarizeRssHandoffExit({ status: 13, signal: null, stdout: '', stderr: '' })).toEqual({
+      exitCode: 13, signalled: false, processError: null, stdoutBytes: 0, stderrBytes: 0,
+      applicationFailureMarker: false, unsettledAwaitWarning: false,
+    })
+  })
+
+  it('records bounded facts for an application error without leaking its text or error object', () => {
+    const result = summarizeRssHandoffExit({ status: 1, signal: null,
+      stdout: 'private provider output',
+      stderr: 'FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_FAILED\nprivate credential',
+      error: Object.assign(new Error('private failure'), { code: 'private_code' }),
+    })
+    expect(result).toMatchObject({ exitCode: 1, applicationFailureMarker: true, processError: 'execution_error' })
+    expect(JSON.stringify(result)).not.toContain('private')
+  })
+
+  it('recognizes a Node warning independently of the exit code and requires an exact marker line', () => {
+    const result = summarizeRssHandoffExit({ status: 13, signal: null, stdout: '',
+      stderr: 'Warning: Detected unsettled top-level await at file:///private/path.ts:2\nprefix FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_FAILED\n',
+    })
+    expect(result).toMatchObject({ exitCode: 13, unsettledAwaitWarning: true, applicationFailureMarker: false })
+    expect(JSON.stringify(result)).not.toContain('/private/')
+  })
+
+  it('records signal and output-limit precedence facts with UTF-8 byte counts', () => {
+    expect(summarizeRssHandoffExit({ status: null, signal: 'SIGTERM', error: { code: 'ENOBUFS' }, stdout: 'ă', stderr: '' }))
+      .toMatchObject({ exitCode: null, signalled: true, processError: 'output_limit', stdoutBytes: 2, stderrBytes: 0 })
+  })
+
+  it.each([-1, 256, 1.5, NaN])('rejects an invalid exit code %s', status => {
+    expect(summarizeRssHandoffExit({ status, signal: null, stdout: '', stderr: '' }).exitCode).toBeNull()
+  })
+
   it.each([
     ['FLASH_MICROSOFT_RESEARCH_PAPER_EVIDENCE_UNAVAILABLE:retrieval_failed', 'article-extraction', 'article_primary_evidence_unavailable'],
     ['FLASH_MICROSOFT_RESEARCH_PAPER_EVIDENCE_UNAVAILABLE:unsupported_publication', 'article-extraction', 'article_primary_evidence_unavailable'],
