@@ -50,6 +50,11 @@ export function isFlashRssArticleRetrievalHttpFailure(
   )
 }
 
+/** A source-identity rejection is not permission to follow the new host. */
+export function isFlashRssArticleRedirectIdentityMismatch(output: string): boolean {
+  return output.split(/\r?\n/).includes('HTML article retrieval failed: redirect_identity_mismatch.')
+}
+
 /** Only explicit, bounded structural failures from known source adapters are skipped. */
 export function isFlashRssArticleUnsupportedLayoutFailure(output: string): boolean {
   return output.split(/\r?\n/).some(line =>

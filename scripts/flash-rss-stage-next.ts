@@ -50,6 +50,7 @@ import {
 } from '@/lib/flash/ingestion/rssCandidateSkipMemory'
 import {
   isFlashRssArticleRetrievalHttpFailure,
+  isFlashRssArticleRedirectIdentityMismatch,
   isFlashRssArticleUnsupportedLayoutFailure,
   isFlashRssMicrosoftPaperEvidenceUnavailable,
   runFlashRssStageNextAttempts,
@@ -433,6 +434,10 @@ async function runPrePersistenceHandoff({
         )
 
     diagnostics?.handoffFailure(diagnoseRssHandoffFailure(combinedOutput))
+
+    if (isFlashRssArticleRedirectIdentityMismatch(combinedOutput)) {
+      throw new FlashRssCandidateSkipError('article_redirect_identity_mismatch', 'Article redirect leaves its registered source.')
+    }
 
     if (isFlashRssMicrosoftPaperEvidenceUnavailable(combinedOutput)) {
       throw new FlashRssCandidateTransientSkipError('article_primary_evidence_unavailable', 'Primary publication page could not be verified.')

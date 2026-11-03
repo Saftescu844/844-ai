@@ -2,6 +2,7 @@ export type FlashRssCandidateSkipReason =
   | 'event_identity_not_grounded'
   | 'strong_duplicate'
   | 'editorial_output_too_short'
+  | 'article_redirect_identity_mismatch'
 
 export interface FlashRssCandidateSkipMemoryEntry {
   url: string
@@ -14,6 +15,9 @@ export const FLASH_RSS_CANDIDATE_SKIP_MEMORY_TTL_MS =
 
 export const FLASH_RSS_SHORT_OUTPUT_COOLDOWN_MS =
   6 * 60 * 60 * 1000
+
+// Redirect destinations can change; retry this URL after one day, not every hour.
+export const FLASH_RSS_REDIRECT_COOLDOWN_MS = 24 * 60 * 60 * 1000
 
 export const FLASH_RSS_CANDIDATE_SKIP_MEMORY_LIMIT =
   100
@@ -81,7 +85,8 @@ function parsedEntry(
     (
       reason !== 'event_identity_not_grounded' &&
       reason !== 'strong_duplicate' &&
-      reason !== 'editorial_output_too_short'
+      reason !== 'editorial_output_too_short' &&
+      reason !== 'article_redirect_identity_mismatch'
     ) ||
     !skippedAt ||
     Number.isNaN(
@@ -124,9 +129,10 @@ function activeEntries(
         entry,
       ): entry is FlashRssCandidateSkipMemoryEntry =>
         entry !== null && (
-          entry.reason === 'editorial_output_too_short'
+          entry.reason === 'editorial_output_too_short' || entry.reason === 'article_redirect_identity_mismatch'
             ? Date.parse(entry.skippedAt) <= nowMs &&
-              nowMs - Date.parse(entry.skippedAt) < FLASH_RSS_SHORT_OUTPUT_COOLDOWN_MS
+              nowMs - Date.parse(entry.skippedAt) < (entry.reason === 'article_redirect_identity_mismatch'
+                ? FLASH_RSS_REDIRECT_COOLDOWN_MS : FLASH_RSS_SHORT_OUTPUT_COOLDOWN_MS)
             : Date.parse(entry.skippedAt) >= cutoff
         ),
     )
