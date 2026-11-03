@@ -1,4 +1,4 @@
-import { isFlashRssArticleUnsupportedLayoutFailure, isFlashRssMicrosoftPaperEvidenceUnavailable } from './flashRssStageNextAttemptRunner'
+import { isFlashRssArticleRedirectIdentityMismatch, isFlashRssArticleUnsupportedLayoutFailure, isFlashRssMicrosoftPaperEvidenceUnavailable } from './flashRssStageNextAttemptRunner'
 
 /** Process facts only: never serialize the child Error, signal text or captured output. */
 export function summarizeRssHandoffExit(result: {
@@ -37,6 +37,9 @@ export function diagnoseRssHandoffFailure(output: string) {
     ['editorial-quality-review', 'Pre-persistence editorial quality review failed: '],
   ] as const
   const bounded = output.slice(-16_000)
+  if (isFlashRssArticleRedirectIdentityMismatch(bounded)) {
+    return { phase: 'article-retrieval', reason: 'redirect_identity_mismatch' } as const
+  }
   if (isFlashRssMicrosoftPaperEvidenceUnavailable(bounded)) {
     return { phase: 'article-extraction', reason: 'article_primary_evidence_unavailable' } as const
   }
