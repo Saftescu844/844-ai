@@ -68,8 +68,8 @@ export async function generateMetadata(props: {
       ...(alt?._status === 'published' && alt.slug
         ? {
             languages: {
-              [lang === 'ro' ? 'en' : 'ro']:
-                `/${alt.limba}/flash/${alt.slug}`,
+              [lang]: url,
+              [alt.limba]: `/${alt.limba}/flash/${alt.slug}`,
             },
           }
         : {}),
