@@ -17,7 +17,7 @@ export function flashPublicationTimestamp(value: string | null | undefined): num
   const text = value?.trim()
   if (!text) return null
   const iso = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(Z|[+-]\d{2}:\d{2}))?$/.exec(text)
-  const rss = /^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s*)?(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?\s+(GMT|UTC|Z|[+-]\d{4})$/i.exec(text)
+  const rss = /^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s*)?(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?\s+(GMT|UTC|Z|EST|EDT|[+-]\d{4})$/i.exec(text)
   if (!iso && !rss) return null
   const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
   const year = Number(iso ? iso[1] : rss![3])
@@ -32,7 +32,10 @@ export function flashPublicationTimestamp(value: string | null | undefined): num
       day > new Date(Date.UTC(year, month, 0)).getUTCDate() ||
       hour > 23 || minute > 59 || second > 59 ||
       (offset && (Number(offset[1]) > 23 || Number(offset[2]) > 59))) return null
-  const timestamp = Date.parse(text)
+  const normalizedDate = rss
+    ? text.replace(/\b(?:EST|EDT)$/i, timezone => timezone.toUpperCase() === 'EST' ? '-0500' : '-0400')
+    : text
+  const timestamp = Date.parse(normalizedDate)
   return Number.isFinite(timestamp) ? timestamp : null
 }
 
