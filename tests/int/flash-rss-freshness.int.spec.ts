@@ -47,6 +47,13 @@ describe('Automatic RSS publication freshness', () => {
     }
   })
 
+  it.each([
+    ['Tue, 03 Nov 2026 00:00:00 EST', '2026-11-03T05:00:00Z'],
+    ['Fri, 30 Oct 2026 00:00:00 EDT', '2026-10-30T04:00:00Z'],
+  ])('normalizes MedWatch publication date %s', (date, utc) => {
+    expect(flashPublicationTimestamp(date)).toBe(Date.parse(utc))
+  })
+
   it('allows only a shorter configured window, never zero, an unbounded archive or malformed input', () => {
     expect(parseFlashRssMaxAgeDays()).toBe(30)
     expect(parseFlashRssMaxAgeDays('7')).toBe(7)
