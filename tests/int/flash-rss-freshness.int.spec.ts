@@ -123,3 +123,23 @@ describe('Automatic RSS publication freshness', () => {
     expect(runner).toContain('article_publication_not_current')
   })
 })
+
+it('limits FDA MedWatch intake to patient-device alerts on supported official pages', async () => {
+  const registeredSourceUrl = 'https://www.fda.gov'
+  const path = '/medical-devices/medical-device-recalls-and-early-alerts/insulin-pump-recall'
+  const pubDate = 'Tue, 03 Nov 2026 00:00:00 EST'
+  const result = await parseFlashRssCandidates({
+    ...plan, registeredSourceUrl, feedUrl: registeredSourceUrl + '/medwatch/rss.xml',
+  }, '<rss/>', { parseFeed: async () => ({ items: [
+    { title: 'Insulin pump recall', link: 'http://www.fda.gov' + path + '?ref=rss#details', pubDate },
+    { title: 'Hospital insulin pump correction', link: registeredSourceUrl + path, pubDate },
+    { title: 'Catheter controller recall', link: registeredSourceUrl + path, pubDate },
+    { title: 'Insulin pump recall', link: 'https://fda.gov.example.org' + path, pubDate },
+    { title: 'Insulin pump recall', link: registeredSourceUrl + '/about-fda/insulin-pump', pubDate },
+    { title: 'Insulin pump recall', link: 'http://user@www.fda.gov' + path, pubDate },
+  ] }) })
+  expect(result.skippedItems).toBe(5)
+  expect(result.candidates).toMatchObject([{
+    concreteUrl: registeredSourceUrl + path, publishedAt: '2026-11-03T05:00:00.000Z',
+  }])
+})
