@@ -6,7 +6,7 @@ import { extractRomanianEducationArticle, romanianEducationArticleUrl } from './
 import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import type { FlashHtmlArticleExtraction } from './htmlArticleExtraction'
 
-export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news' | 'anthropic-news' | 'microsoft-research' | 'ro-education'
+export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news' | 'anthropic-news' | 'microsoft-research' | 'ro-education' | 'fda-safety'
 type Node = DefaultTreeAdapterMap['node']
 type Element = DefaultTreeAdapterMap['element']
 
@@ -25,6 +25,14 @@ export function researchArticleAdapterForUrl(
   if (sourceHost === 'edu.ro') {
     romanianEducationArticleUrl(registeredSourceUrl, finalUrl)
     return 'ro-education'
+  }
+  if (sourceHost === 'fda.gov') {
+    if ([registered, final].some(url => url.protocol !== 'https:' || url.username || url.password || url.port) ||
+        host(final) !== sourceHost ||
+        !/^\/medical-devices\/safety-communications\/[a-z0-9-]+\/?$/.test(final.pathname)) {
+      throw new Error('Unsupported FDA safety communication URL.')
+    }
+    return 'fda-safety'
   }
   if (sourceHost === 'microsoft.com') {
     microsoftResearchArticleUrl(registeredSourceUrl, finalUrl)
@@ -266,6 +274,32 @@ function extractPrimaryEvidenceUrls(
   return [...urls]
 }
 
+function extractFdaSafetyCommunication(all: Element[], finalUrlValue: string): FlashHtmlArticleExtraction {
+  const finalUrl = new URL(finalUrlValue)
+  finalUrl.hash = ''
+  finalUrl.search = ''
+  const canonical = attr(one(all.filter(node => node.tagName === 'link' &&
+    attr(node, 'rel') === 'canonical'), 'FDA canonical URL'), 'href')
+  if (canonical !== finalUrl.href) throw new Error('FDA canonical URL does not match the retrieved article.')
+
+  const title = required(clean(one(all.filter(node => node.tagName === 'h1' &&
+    hasClass(node, 'content-title')), 'FDA title')), 'FDA title')
+  const body = one(all.filter(node => attr(node, 'role') === 'main'), 'FDA article body')
+  const blocks = elements(body).filter(node => ['p', 'li', 'h2', 'h3'].includes(node.tagName)).map(clean).filter(Boolean)
+  const issued = blocks.findIndex(value => /^Date Issued:/i.test(value))
+  if (issued < 0) throw new Error('FDA article is missing its issue date.')
+  const publicationDate = blocks[issued]!.replace(/^Date Issued:\s*/i, '')
+  normalizeResearchPublicationDate(publicationDate)
+  const lead = required(blocks[issued + 1], 'FDA lead')
+  // FDA may put a correction notice before the original issue date.
+  const bodyParagraphs = blocks.filter((_, index) => index !== issued)
+  return {
+    finalUrl: finalUrl.href, title, publicationDate, lead, bodyParagraphs,
+    bodyText: bodyParagraphs.join('\n\n'), contentType: 'FDA SAFETY COMMUNICATION',
+    sourceAdapter: 'fda-safety', leadKind: 'article-summary',
+  }
+}
+
 /** Parses inert HTML only: no script execution, resource loading, database, or AI. */
 export function extractResearchArticle(
   registeredSourceUrl: string,
@@ -280,6 +314,7 @@ export function extractResearchArticle(
   if (adapter === 'microsoft-research') return extractMicrosoftResearchArticle(registeredSourceUrl, finalUrlValue, html)
   if (adapter === 'anthropic-news') return extractAnthropicNewsArticle(registeredSourceUrl, finalUrlValue, html)
   const all = elements(parse(html))
+  if (adapter === 'fda-safety') return extractFdaSafetyCommunication(all, finalUrlValue)
   const language = attr(one(all.filter(node => node.tagName === 'html'), 'HTML document'), 'lang')
   if (!language || !/^en(?:-[a-z0-9]+)*$/i.test(language)) {
     throw new Error('Research article must declare an English document language.')
