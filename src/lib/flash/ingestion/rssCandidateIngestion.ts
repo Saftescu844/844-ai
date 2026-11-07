@@ -1,4 +1,5 @@
 import { assessInstitutionalHtmlSource } from './institutionalHtmlDiscovery'
+import { researchArticleAdapterForUrl } from './researchArticleAdapters'
 import { flashPublicationTimestamp } from './flashPublicationFreshness'
 import Parser from 'rss-parser'
 import { microsoftResearchArticleUrl } from './microsoftResearchArticleAdapter'
@@ -673,6 +674,26 @@ export async function parseFlashRssCandidates(
       try { concreteUrl = romanianEducationArticleUrl(source.registeredSourceUrl, concreteUrl) } catch { concreteUrl = null }
       if (!romanianEducationHasAiRelevance([title, item.contentSnippet ?? item.summary ?? item.content ?? ''].join(' '))) {
         concreteUrl = null
+      }
+    }
+
+    // MedWatch mixes clinical equipment, food recalls and patient-facing devices.
+    if (concreteUrl && new URL(source.registeredSourceUrl).hostname.replace(/^www\./, '') === 'fda.gov') {
+      const url = new URL(concreteUrl)
+      const patientDevice = /\b(?:home[- ]use|at[- ]home|self[- ]monitoring|insulin pumps?|omnipod|continuous glucose monitor(?:ing|s)?|freestyle libre|hearing aids?)\b/i
+      if (!['fda.gov', 'www.fda.gov'].includes(url.hostname) || url.username || url.password || url.port ||
+          !title || !patientDevice.test(title) || /\b(?:hospital|inpatient|professional use only)\b/i.test(title)) {
+        concreteUrl = null
+      } else {
+        url.protocol = 'https:'
+        url.search = ''
+        url.hash = ''
+        try {
+          researchArticleAdapterForUrl(source.registeredSourceUrl, url.href)
+          concreteUrl = url.href
+        } catch {
+          concreteUrl = null
+        }
       }
     }
 
