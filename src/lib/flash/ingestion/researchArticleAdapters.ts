@@ -5,7 +5,7 @@ import { extractMicrosoftResearchArticle, microsoftResearchArticleUrl } from './
 import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import type { FlashHtmlArticleExtraction } from './htmlArticleExtraction'
 
-export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news' | 'anthropic-news' | 'microsoft-research'
+export type ResearchArticleAdapter = 'google-research' | 'mit-news' | 'unesco-education' | 'openai-news' | 'anthropic-news' | 'microsoft-research' | 'fda-safety' | 'fda-recall'
 type Node = DefaultTreeAdapterMap['node']
 type Element = DefaultTreeAdapterMap['element']
 
@@ -21,6 +21,14 @@ export function researchArticleAdapterForUrl(
   const registered = new URL(registeredSourceUrl)
   const final = new URL(finalUrl)
   const sourceHost = host(registered)
+  if (sourceHost === 'fda.gov') {
+    if ([registered, final].some(url => url.protocol !== 'https:' || url.username || url.password || url.port) ||
+        host(final) !== sourceHost ||
+        !/^\/medical-devices\/(?:safety-communications|medical-device-recalls-and-early-alerts)\/[a-z0-9-]+\/?$/.test(final.pathname)) {
+      throw new Error('Unsupported FDA safety communication URL.')
+    }
+    return final.pathname.startsWith('/medical-devices/safety-communications/') ? 'fda-safety' : 'fda-recall'
+  }
   if (sourceHost === 'microsoft.com') {
     microsoftResearchArticleUrl(registeredSourceUrl, finalUrl)
     return 'microsoft-research'
@@ -261,6 +269,73 @@ function extractPrimaryEvidenceUrls(
   return [...urls]
 }
 
+function extractFdaArticle(all: Element[], finalUrlValue: string, adapter: 'fda-safety' | 'fda-recall'): FlashHtmlArticleExtraction {
+  const finalUrl = new URL(finalUrlValue)
+  finalUrl.hash = ''
+  finalUrl.search = ''
+  const canonical = attr(one(all.filter(node => node.tagName === 'link' &&
+    attr(node, 'rel') === 'canonical'), 'FDA canonical URL'), 'href')
+  if (canonical !== finalUrl.href) throw new Error('FDA canonical URL does not match the retrieved article.')
+
+  const title = required(clean(one(all.filter(node => node.tagName === 'h1' &&
+    hasClass(node, 'content-title')), 'FDA title')), 'FDA title')
+  const body = one(all.filter(node => attr(node, 'role') === 'main'), 'FDA article body')
+  if (adapter === 'fda-recall') return extractFdaRecall(all, body, finalUrl, title)
+  const blocks = elements(body).filter(node => ['p', 'li', 'h2', 'h3'].includes(node.tagName)).map(clean).filter(Boolean)
+  const issued = blocks.findIndex(value => /^Date Issued:/i.test(value))
+  if (issued < 0) throw new Error('FDA article is missing its issue date.')
+  const publicationDate = blocks[issued]!.replace(/^Date Issued:\s*/i, '')
+  normalizeResearchPublicationDate(publicationDate)
+  const lead = required(blocks[issued + 1], 'FDA lead')
+  // FDA may put a correction notice before the original issue date.
+  const bodyParagraphs = blocks.filter((_, index) => index !== issued)
+  return {
+    finalUrl: finalUrl.href, title, publicationDate, lead, bodyParagraphs,
+    bodyText: bodyParagraphs.join('\n\n'), contentType: 'FDA SAFETY COMMUNICATION',
+    sourceAdapter: 'fda-safety', leadKind: 'article-summary',
+  }
+}
+
+function extractFdaRecall(all: Element[], body: Element, url: URL, title: string): FlashHtmlArticleExtraction {
+  const nodes = elements(body)
+  const sections = ['Affected Product', 'What to Do', 'Reason for Recall'].map(heading => {
+    const start = nodes.indexOf(one(nodes.filter(node => node.tagName === 'h2' && clean(node) === heading), heading))
+    const end = nodes.findIndex((node, index) => index > start && node.tagName === 'h2')
+    const content = nodes.slice(start + 1, end < 0 ? undefined : end)
+    const blocks = content.filter(node => ['p', 'li', 'h3'].includes(node.tagName)).map(clean).filter(Boolean)
+    if (!blocks.length) throw new Error(`FDA recall has an empty ${heading} section.`)
+    return { content, paragraphs: [heading, ...blocks] }
+  })
+
+  const lotLinks = sections[0]!.content.filter(node => node.tagName === 'a' &&
+    /^full list of affected products?$/i.test(clean(node)))
+  const href = required(attr(one(lotLinks, 'FDA affected product list link'), 'href'), 'FDA affected product list URL')
+  const lotsUrl = new URL(href, url)
+  if (lotsUrl.origin !== url.origin || lotsUrl.username || lotsUrl.password ||
+      !/^\/media\/\d+\/download\/?$/.test(lotsUrl.pathname)) {
+    throw new Error('FDA affected product list must be an official FDA download.')
+  }
+
+  const dateNode = one(all.filter(node => node.tagName === 'meta' &&
+    attr(node, 'property') === 'article:published_time'), 'FDA publication metadata')
+  const date = /^(?:[A-Za-z]{3}, )?(\d{2})\/(\d{2})\/(\d{4})(?: - \d{2}:\d{2})?$/.exec(attr(dateNode, 'content') ?? '')
+  if (!date) throw new Error('FDA recall publication date has an unsupported format.')
+  const iso = `${date[3]}-${date[1]}-${date[2]}`
+  const timestamp = new Date(`${iso}T00:00:00Z`)
+  if (!Number.isFinite(timestamp.getTime()) || timestamp.toISOString().slice(0, 10) !== iso) {
+    throw new Error('FDA recall publication date is invalid.')
+  }
+  const publicationDate = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric',
+  }).format(timestamp)
+  const bodyParagraphs = sections.flatMap(section => section.paragraphs)
+  return {
+    finalUrl: url.href, title, publicationDate, lead: bodyParagraphs[1]!,
+    bodyParagraphs, bodyText: bodyParagraphs.join('\n\n'), contentType: 'FDA DEVICE RECALL',
+    sourceAdapter: 'fda-recall', leadKind: 'article-summary', primaryEvidenceUrls: [lotsUrl.href],
+  }
+}
+
 /** Parses inert HTML only: no script execution, resource loading, database, or AI. */
 export function extractResearchArticle(
   registeredSourceUrl: string,
@@ -274,6 +349,7 @@ export function extractResearchArticle(
   if (adapter === 'microsoft-research') return extractMicrosoftResearchArticle(registeredSourceUrl, finalUrlValue, html)
   if (adapter === 'anthropic-news') return extractAnthropicNewsArticle(registeredSourceUrl, finalUrlValue, html)
   const all = elements(parse(html))
+  if (adapter === 'fda-safety' || adapter === 'fda-recall') return extractFdaArticle(all, finalUrlValue, adapter)
   const language = attr(one(all.filter(node => node.tagName === 'html'), 'HTML document'), 'lang')
   if (!language || !/^en(?:-[a-z0-9]+)*$/i.test(language)) {
     throw new Error('Research article must declare an English document language.')

@@ -309,3 +309,65 @@ describe('Google Research and MIT article adapters', () => {
     expect(article.finalUrl).toBe(googleUrl)
   })
 })
+
+describe('FDA safety communication extraction', () => {
+  const source = 'https://www.fda.gov'
+  const url = source + '/medical-devices/safety-communications/example-alert'
+  const html = `<html lang="en"><head><link rel="canonical" href="${url}"></head><body>
+    <h1 class="content-title">Example device alert</h1><aside><p>Navigation</p></aside>
+    <div role="main"><p>Update: revised device notice.</p><p>Date Issued: April 28, 2026</p>
+    <p>Original alert summary.</p><h2>Recommendations for Patients</h2>
+    <ul><li>Check the model number.</li></ul></div></body></html>`
+
+  it('keeps corrections and patient instructions while extracting the original issue date', () => {
+    expect(extractFlashHtmlArticle(source, url, html)).toMatchObject({
+      finalUrl: url,
+      publicationDate: 'April 28, 2026',
+      lead: 'Original alert summary.',
+      sourceAdapter: 'fda-safety',
+      bodyParagraphs: ['Update: revised device notice.', 'Original alert summary.',
+        'Recommendations for Patients', 'Check the model number.'],
+    })
+  })
+
+  it('rejects mismatched canonicals, unsupported paths and missing issue dates', () => {
+    expect(() => extractFlashHtmlArticle(source, url, html.replace(url, 'https://example.com/')))
+      .toThrow(/canonical/)
+    expect(() => extractFlashHtmlArticle(source, source + '/about-fda/example-alert', html))
+      .toThrow(/Unsupported FDA/)
+    expect(() => extractFlashHtmlArticle(source, url, html.replace('Date Issued:', 'Updated:')))
+      .toThrow(/issue date/)
+  })
+})
+
+describe('FDA device recall extraction', () => {
+  const source = 'https://www.fda.gov'
+  const url = source + '/medical-devices/medical-device-recalls-and-early-alerts/example-recall'
+  const attachment = '/media/123/download?attachment'
+  const html = `<html><head><link rel="canonical" href="${url}">
+    <meta property="article:published_time" content="Thu, 07/02/2026 - 13:19">
+    </head><body><h1 class="content-title">Example recall</h1><div role="main">
+    <h2>Affected Product</h2><p>Example device.</p><ul><li><a href="${attachment}">Full List of Affected Product</a></li></ul>
+    <h2>What to Do</h2><ul><li>Check the lot number.</li></ul>
+    <h2>Reason for Recall</h2><p>Example fault.</p>
+    <h2>Device Use</h2><p>Out of scope.</p></div></body></html>`
+
+  it('keeps the three sections and the official attachment through normalization', () => {
+    const article = extractFlashHtmlArticle(source, url, html)
+    expect(article.bodyParagraphs).toEqual([
+      'Affected Product', 'Example device.', 'Full List of Affected Product',
+      'What to Do', 'Check the lot number.', 'Reason for Recall', 'Example fault.',
+    ])
+    expect(normalizeFlashHtmlArticleCandidate({ registeredSourceUrl: source } as FlashHtmlListingSource, article))
+      .toMatchObject({ sourcePublicationDate: '2026-07-02', primaryEvidenceUrls: [source + attachment] })
+  })
+
+  it('rejects missing sections, invalid dates and off-site attachments', () => {
+    expect(() => extractFlashHtmlArticle(source, url, html.replace('What to Do', 'Device instructions')))
+      .toThrow(/What to Do/)
+    expect(() => extractFlashHtmlArticle(source, url, html.replace('07/02/2026', '02/30/2026')))
+      .toThrow(/publication date is invalid/)
+    expect(() => extractFlashHtmlArticle(source, url, html.replace(attachment, 'https://example.org' + attachment)))
+      .toThrow(/official FDA download/)
+  })
+})
