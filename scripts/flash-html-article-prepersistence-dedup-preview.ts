@@ -1262,6 +1262,31 @@ async function main() {
     const client =
       new OpenAI({
         apiKey,
+        fetch: async (request, init) => {
+          const response = await fetch(request, init)
+          if (response.ok) return response
+
+          // Keep provider diagnostics bounded and leave the original response for the SDK.
+          const payload: { error?: { code?: unknown; type?: unknown } } | null =
+            await response.clone().json().catch(() => null)
+          const knownTypes = [
+            'invalid_request_error', 'authentication_error', 'permission_error',
+            'rate_limit_error', 'server_error',
+          ]
+          const knownCodes = [
+            'invalid_api_key', 'model_not_found', 'insufficient_quota',
+            'rate_limit_exceeded', 'invalid_json_schema', 'unsupported_parameter',
+            'invalid_value', 'context_length_exceeded', 'server_error',
+          ]
+          const type = payload?.error?.type
+          const code = payload?.error?.code
+          console.error('FLASH_OPENAI_HTTP_FAILURE', JSON.stringify({
+            status: response.status,
+            type: typeof type === 'string' && knownTypes.includes(type) ? type : 'other',
+            code: typeof code === 'string' && knownCodes.includes(code) ? code : 'other',
+          }))
+          return response
+        },
       })
 
     const classificationProducer =
