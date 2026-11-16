@@ -1,5 +1,27 @@
 import { isFlashRssArticleRedirectIdentityMismatch, isFlashRssArticleUnsupportedLayoutFailure, isFlashRssMicrosoftPaperEvidenceUnavailable } from './flashRssStageNextAttemptRunner'
 
+const childFailureStages = [
+  'arguments', 'source-lookup', 'article-retrieval', 'article-extraction',
+  'deduplication', 'classification', 'editorial-generation',
+  'editorial-quality-review', 'handoff-write',
+] as const
+
+export type RssHandoffChildFailureStage = typeof childFailureStages[number]
+
+const childStageMarker = 'FLASH_RSS_HANDOFF_CHILD_FAILURE_STAGE:'
+
+export function formatRssHandoffChildFailureStage(stage: RssHandoffChildFailureStage) {
+  return childStageMarker + stage
+}
+
+export function readRssHandoffChildFailureStage(stderr: string) {
+  const lines = stderr.slice(-8_000).trimEnd().split(/\r?\n/)
+  if (!lines.includes('FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_FAILED')) return null
+
+  const marker = lines.at(-1)
+  return childFailureStages.find(stage => marker === formatRssHandoffChildFailureStage(stage)) ?? null
+}
+
 /** Process facts only: never serialize the child Error, signal text or captured output. */
 export function summarizeRssHandoffExit(result: {
   status: number | null
