@@ -2,7 +2,7 @@ import { parseInstitutionalHtmlCandidates } from '@/lib/flash/ingestion/institut
 import type { RssSourceDiscoveryPhase } from '@/lib/flash/ingestion/rssSourceDiscoveryDiagnostic'
 import { filterFlashRssFreshCandidates, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { observeEditorialDiagnostic } from '@/lib/flash/ingestion/editorialSelectionDiagnostic'
-import { diagnoseRssHandoffFailure, summarizeRssHandoffExit } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
+import { diagnoseRssHandoffFailure, readRssHandoffChildFailureStage, summarizeRssHandoffExit } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
 import { FlashRssControlledFailure, FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
 import { installFlashRssShutdown, runFlashRssChild } from '@/lib/flash/audit/flashRssShutdown'
 
@@ -420,6 +420,15 @@ async function runPrePersistenceHandoff({
         .slice(
           -8_000,
         )
+
+    const childFailureStage = readRssHandoffChildFailureStage(stderr ?? '')
+    if (childFailureStage) {
+      console.log('FLASH_RSS_STAGE_NEXT_CHILD_FAILURE_STAGE', {
+        sourceId,
+        targetLanguage,
+        stage: childFailureStage,
+      })
+    }
 
     const combinedOutput =
       [
