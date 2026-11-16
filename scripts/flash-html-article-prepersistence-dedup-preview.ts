@@ -1,4 +1,5 @@
 import { STUDENT_SIM_PILOT_FLAG, assertStudentSimPilotTarget, assertStudentSimPilotSource, assertStudentSimPilotEvidence } from '@/lib/flash/ingestion/studentSimStagingPilot'
+import { formatRssHandoffChildFailureStage, type RssHandoffChildFailureStage } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
 import { resolveMicrosoftResearchPaperEvidence } from '@/lib/flash/ingestion/microsoftResearchPaperEvidence'
 import { assessFlashPublicationFreshness, flashPublicationTimestamp, parseFlashRssMaxAgeDays } from '@/lib/flash/ingestion/flashPublicationFreshness'
 import { readFile } from 'node:fs/promises'
@@ -530,6 +531,8 @@ async function createPayload() {
     })
 }
 
+let childFailureStage: RssHandoffChildFailureStage = 'arguments'
+
 async function main() {
   if (
     hasFlag(
@@ -711,6 +714,7 @@ async function main() {
     }
   }
 
+  childFailureStage = 'source-lookup'
   const payload =
     await createPayload()
 
@@ -784,6 +788,7 @@ async function main() {
     })
   }
 
+  childFailureStage = 'article-retrieval'
   const retrieval =
     await retrieveFlashSource({
       id:
@@ -827,6 +832,7 @@ async function main() {
     )
   }
 
+  childFailureStage = 'article-extraction'
   const extracted =
     extractFlashHtmlArticle(
       source.url,
@@ -1044,6 +1050,7 @@ async function main() {
     )
   }
 
+  childFailureStage = 'deduplication'
   const dedup =
     await evaluateFlashArticlePrePersistenceDedupReadOnly(
       payload,
@@ -1180,6 +1187,7 @@ async function main() {
     > | null =
       null
 
+  childFailureStage = 'classification'
   if (allowProviderRequests) {
     if (!model) {
       throw new Error(
@@ -1345,6 +1353,7 @@ async function main() {
           classificationResult.classification,
       })
 
+    childFailureStage = 'editorial-generation'
     const editorialProducer =
       createOpenAiFlashPrePersistenceEditorialGenerationSemanticProducer({
         client,
@@ -1400,6 +1409,7 @@ async function main() {
         model,
       })
 
+    childFailureStage = 'editorial-quality-review'
     const editorialQualityReviewResult =
       await runFlashPrePersistenceEditorialQualityReviewSemanticProducer({
         producer:
@@ -1574,6 +1584,7 @@ async function main() {
   }
 
   if (handoffOutput) {
+    childFailureStage = 'handoff-write'
     await writeFlashAiStagingHandoffArtifactOnce({
       outputPath:
         handoffOutput,
@@ -1729,6 +1740,8 @@ main()
           ? error.message
           : error,
       )
+
+      console.error(formatRssHandoffChildFailureStage(childFailureStage))
 
       process.exit(
         1,

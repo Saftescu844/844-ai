@@ -1,10 +1,35 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import type { Payload } from 'payload'
-import { diagnoseRssHandoffFailure, summarizeRssHandoffExit } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
+import { diagnoseRssHandoffFailure, formatRssHandoffChildFailureStage, readRssHandoffChildFailureStage, summarizeRssHandoffExit } from '@/lib/flash/ingestion/rssHandoffFailureDiagnostic'
 import { FlashRssRunDiagnostics } from '@/lib/flash/audit/flashRssRunDiagnostics'
 
 describe('bounded RSS handoff failure diagnostics', () => {
+  it('returns only the fixed stage when a child error includes sensitive text', () => {
+    const stderr = [
+      'FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_FAILED',
+      'private provider error',
+      formatRssHandoffChildFailureStage('classification'),
+      '',
+    ].join('\n')
+    expect(readRssHandoffChildFailureStage(stderr)).toBe('classification')
+    expect(diagnoseRssHandoffFailure(stderr)).toEqual({ phase: 'unknown', reason: 'unclassified' })
+  })
+
+  it.each([
+    'FLASH_RSS_HANDOFF_CHILD_FAILURE_STAGE:private-value',
+    'FLASH_RSS_HANDOFF_CHILD_FAILURE_STAGE:classification:private-value',
+    'FLASH_RSS_HANDOFF_CHILD_FAILURE_STAGE:classification\nprivate-value',
+  ])('ignores a malformed stage record', record => {
+    expect(readRssHandoffChildFailureStage(
+      'FLASH_HTML_ARTICLE_PREPERSISTENCE_DEDUP_PREVIEW_FAILED\n' + record,
+    )).toBeNull()
+  })
+
+  it('requires the application failure marker', () => {
+    expect(readRssHandoffChildFailureStage(formatRssHandoffChildFailureStage('classification'))).toBeNull()
+  })
+
   it('distinguishes an exit without an application failure marker without claiming its cause', () => {
     expect(summarizeRssHandoffExit({ status: 13, signal: null, stdout: '', stderr: '' })).toEqual({
       exitCode: 13, signalled: false, processError: null, stdoutBytes: 0, stderrBytes: 0,
