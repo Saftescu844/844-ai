@@ -1,4 +1,5 @@
 import ExternalVideo from '@/components/ExternalVideo'
+import '@/styles/article-content.css'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 
 import ArticleAttribution from '@/components/ArticleAttribution'
@@ -162,6 +163,7 @@ export default function ArticleView({
         }}
       >
         <RichText
+          className="article-content"
           data={articol.continut as any}
           converters={jsxConvertersCuImagini}
         />

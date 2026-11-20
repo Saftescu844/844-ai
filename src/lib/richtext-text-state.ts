@@ -67,6 +67,13 @@ export const richTextTextState = {
     },
   },
 
+  highlight: {
+    implicit: { label: 'Fără evidențiere', css: { 'background-color': 'transparent' } },
+    yellow: { label: 'Galben', css: { 'background-color': '#FFF0A6' } },
+    blue: { label: 'Albastru deschis', css: { 'background-color': '#DCEBFA' } },
+    green: { label: 'Verde deschis', css: { 'background-color': '#DBF0DF' } },
+  },
+
   color: {
     implicit: {
       label: 'Implicită',
