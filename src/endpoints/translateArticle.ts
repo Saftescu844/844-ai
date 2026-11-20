@@ -37,7 +37,7 @@ export async function prepareEnglishDraft(req: PayloadRequest, id: number, trans
     if (!session) throw new APIError('Tranzacția nu este disponibilă.', 503)
     await session.db.execute(sql`SELECT id FROM articole WHERE id = ${id} FOR UPDATE NOWAIT`)
     const fresh = await read()
-    if (fresh.updatedAt !== source.updatedAt || fresh.versiuneAlternativa) {
+    if (fresh.updatedAt !== source.updatedAt || articleTranslationHash(fresh) !== articleTranslationHash(source) || fresh.versiuneAlternativa) {
       throw new APIError('Articolul RO a fost modificat între timp. Reîncarcă pagina înainte de traducere.', 409)
     }
     const freshReverse = await payload.find({
@@ -52,7 +52,9 @@ export async function prepareEnglishDraft(req: PayloadRequest, id: number, trans
         pilon: relationID(source.pilon), tip: source.tip,
         excerpt: translated.excerpt, continut: translated.continut,
         metaTitle: translated.metaTitle, metaDescription: translated.metaDescription,
-        galerie: translated.galerie, tags: translated.tags, videoTitlu: translated.videoTitlu, videoUrl: source.videoUrl,
+        galerie: translated.galerie?.map(image => ({ imagine: relationID(image.imagine), caption: image.caption, credit: image.credit })),
+        tags: translated.tags?.map(tag => ({ tag: tag.tag })),
+        videoTitlu: translated.videoTitlu, videoUrl: source.videoUrl,
         subcategorie: source.subcategorie, subcategorieEducatie: source.subcategorieEducatie,
         sursaNume: source.sursaNume, sursaLink: source.sursaLink,
         producator: source.producator, linkProducator: source.linkProducator,

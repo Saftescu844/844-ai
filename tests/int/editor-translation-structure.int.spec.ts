@@ -33,6 +33,14 @@ describe('Formatted article translation', () => {
     expect(translated.root.children[6].fields.randuri[0].celule[0]).toEqual({ id: 'c', text: 'EN Valoare' })
   })
 
+  it('translates gallery captions, tags and video titles without changing media credits', () => {
+    const metadata = { galerie: [{ imagine: 4, caption: 'Grafic', credit: 'Autor' }], tags: [{ tag: 'Sănătate' }], videoTitlu: 'Demonstrație' }
+    const prepared = prepareLexicalTranslation({ root: { children: [] } }, metadata)
+    prepared.apply({ 0: { text: 'Chart' }, 1: { text: 'Health' }, 2: { text: 'Demo' } })
+    expect(prepared.metadata).toEqual({ galerie: [{ imagine: 4, caption: 'Chart', credit: 'Autor' }], tags: [{ tag: 'Health' }], videoTitlu: 'Demo' })
+    expect(metadata.videoTitlu).toBe('Demonstrație')
+  })
+
   it('refuses an incomplete translation and unsupported custom blocks', () => {
     const prepared = prepareLexicalTranslation({ root: { children: [paragraph([text('Unu'), text('Doi')])] } })
     expect(() => prepared.apply({ 0: { text: 'One' } })).toThrow('Incomplete')
