@@ -174,7 +174,7 @@ export interface Articole {
   versiuneAlternativa?: (number | null) | Articole;
   continutHashTradus?: string | null;
   /**
-   * ⚠️ Conținutul a fost modificat după ultima traducere. Retradu manual dacă e nevoie.
+   * ⚠️ Articolul RO s-a modificat după ultima traducere. Folosește „Pregătește actualizarea EN” pentru a revizui o traducere nouă.
    */
   necesitaRetraducere?: boolean | null;
   /**

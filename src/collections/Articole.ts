@@ -10,6 +10,7 @@ import {
 import { VideoBlock, CalloutBlock, TableBlock } from '@/lib/richtext-blocks'
 import { richTextTextState } from '@/lib/richtext-text-state'
 import { translateArticleHandler } from '@/endpoints/translateArticle'
+import { previewEnglishRetranslationHandler, applyEnglishRetranslationHandler } from '@/endpoints/retranslateArticle'
 import { articleTranslationHash } from '@/lib/article-translation-hash'
 
 const enforceArticlePublicationRBAC: CollectionBeforeOperationHook<'articole'> = ({
@@ -128,7 +129,11 @@ const protectArticleCommentDependencies: CollectionBeforeOperationHook<'articole
 export const Articole: CollectionConfig = {
   slug: 'articole',
   labels: { singular: 'Articol', plural: 'Articole' },
-  endpoints: [{ path: '/:id/prepare-english', method: 'post', handler: translateArticleHandler }],
+  endpoints: [
+    { path: '/:id/prepare-english', method: 'post', handler: translateArticleHandler },
+    { path: '/:id/retranslate-english-preview', method: 'post', handler: previewEnglishRetranslationHandler },
+    { path: '/:id/retranslate-english-apply', method: 'post', handler: applyEnglishRetranslationHandler },
+  ],
   admin: {
     useAsTitle: 'titlu',
     defaultColumns: ['titlu', 'pilon', 'tip', 'limba', 'editorialStatus', '_status', 'publishedAt'],
@@ -225,7 +230,7 @@ export const Articole: CollectionConfig = {
       admin: {
         readOnly: true,
         description:
-          '⚠️ Conținutul a fost modificat după ultima traducere. Retradu manual dacă e nevoie.',
+          '⚠️ Articolul RO s-a modificat după ultima traducere. Folosește „Pregătește actualizarea EN” pentru a revizui o traducere nouă.',
         condition: (data) => !!data?.necesitaRetraducere,
       },
     },
