@@ -2,8 +2,10 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const state = vi.hoisted(() => ({ modified: false, processing: false, fields: {} as Record<string, { value: unknown }> }))
+const state = vi.hoisted(() => ({ modified: false, processing: false, fields: {} as Record<string, { value: unknown }>, setDisabled: vi.fn(), setProcessing: vi.fn(), reload: vi.fn() }))
+vi.mock('../../src/lib/article-editor-navigation', () => ({ reloadSavedArticle: state.reload }))
 vi.mock('@payloadcms/ui', () => ({
+  useForm: () => ({ setDisabled: state.setDisabled, setProcessing: state.setProcessing }),
   useConfig: () => ({ config: { routes: { api: '/api', admin: '/admin' } } }),
   useDocumentInfo: () => ({ id: 16 }),
   useFormModified: () => state.modified,
@@ -38,6 +40,7 @@ describe('Retranslation review controls', () => {
     else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal')
   })
   beforeEach(() => {
+    state.setDisabled.mockClear(); state.setProcessing.mockClear(); state.reload.mockClear()
     state.modified = false
     state.processing = false
     state.fields = { limba: { value: 'ro' }, versiuneAlternativa: { value: 17 }, necesitaRetraducere: { value: true }, titlu: { value: 'RO article' } }
@@ -75,6 +78,19 @@ describe('Retranslation review controls', () => {
       method: 'POST', body: JSON.stringify({ token: review.token, proposal }),
     }))
     expect(container.textContent).toContain('Traducerea a fost aplicată')
+    expect(state.reload).toHaveBeenCalledOnce()
+    expect(state.setDisabled).toHaveBeenLastCalledWith(true)
+  })
+
+  it('refreshes the saved RO after first EN creation so a later save cannot erase the backlink', async () => {
+    state.fields.versiuneAlternativa.value = null
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ englishId: 17, created: true }) } as Response)
+    await render()
+    await click('Pregătește versiunea EN')
+    expect(state.setDisabled).toHaveBeenCalledWith(true)
+    expect(state.setProcessing).toHaveBeenCalledWith(true)
+    expect(state.reload).toHaveBeenCalledOnce()
+    expect(state.setDisabled).not.toHaveBeenCalledWith(false)
   })
 
   it('disables updating while the RO form contains unsaved edits', async () => {
@@ -92,5 +108,7 @@ describe('Retranslation review controls', () => {
     await click('Aplică traducerea în draftul EN')
     expect(container.querySelector('[role="alert"]')?.textContent).toBe('EN s-a schimbat. Corecturile au fost păstrate.')
     expect(container.querySelector('dialog')?.open).toBe(true)
+    expect(state.reload).not.toHaveBeenCalled()
+    expect(state.setDisabled).toHaveBeenLastCalledWith(false)
   })
 })

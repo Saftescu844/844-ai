@@ -8,7 +8,8 @@
 4. Folosește „Extinde editorul” pentru spațiu suplimentar. Revii cu același buton sau Escape.
 5. „Previzualizează conținutul” afișează textul și imaginile curente, inclusiv modificările nesalvate, la lățime desktop sau mobil. Previzualizarea paginii complete rămâne cea nativă, după salvare.
 6. Completează rezumatul și salvează. „Pregătește versiunea EN” este activ doar pentru un document RO salvat, fără modificări nesalvate.
-7. Verifică draftul EN rezultat. Este în starea „În revizuire” și este asociat reciproc cu RO. Publicarea folosește fluxul editorial existent.
+7. După crearea sau aplicarea traducerii, formularul RO se reîncarcă automat pentru a prelua asocierea și revizia salvate pe server. În timpul salvării, formularul este blocat temporar pentru a păstra modificările utilizatorului.
+8. Verifică draftul EN rezultat. Este în starea „În revizuire” și este asociat reciproc cu RO. Publicarea folosește fluxul editorial existent.
 
 ## Comportament și limite
 
