@@ -1,0 +1,74 @@
+.article-editor-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-block: 12px;
+
+  button {
+    font: inherit;
+    padding: 8px 14px;
+    border: 1px solid var(--theme-elevation-300);
+    border-radius: 5px;
+    background: var(--theme-elevation-0);
+    color: var(--theme-text);
+    cursor: pointer;
+  }
+}
+
+.rich-text-lexical.article-editor-expanded {
+  position: fixed;
+  inset: 16px;
+  z-index: 20;
+  background: var(--theme-elevation-0);
+  padding: 20px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--theme-elevation-300);
+}
+
+.article-editor-preview {
+  width: min(960px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  color: #222;
+  background: white;
+
+  &::backdrop { background: rgb(0 0 0 / 50%); }
+  .article-preview-mobile .article-inline-image {
+    float: none !important;
+    width: 100% !important;
+    margin: 20px auto !important;
+  }
+}
+
+.article-retranslation-review {
+  width: min(1440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 24px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  color: #222;
+  background: white;
+
+  &::backdrop { background: rgb(0 0 0 / 50%); }
+  &__columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    section { min-width: 0; }
+  }
+  &__actions {
+    position: sticky;
+    bottom: -24px;
+    background: white;
+    padding-block: 16px;
+    border-top: 1px solid #ddd;
+    button { padding: 10px 16px; margin: 4px; cursor: pointer; }
+  }
+  @media (max-width: 800px) {
+    &__columns { grid-template-columns: minmax(0, 1fr); }
+  }
+}

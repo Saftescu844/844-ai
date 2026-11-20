@@ -1,39 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { prepareLexicalTranslation } from './src/lib/lexical-translation'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-// extrage textul din nodurile Lexical (pentru traducere)
-function lexicalToBlocks(continut: any): { tip: string; tag?: string; text: string; raw?: any }[] {
-  const blocks: { tip: string; tag?: string; text: string; raw?: any }[] = []
-  if (!continut?.root?.children) return blocks
-  for (const node of continut.root.children) {
-    if (node.type === 'upload') {
-      // păstrăm nodul upload (imagine) neatins, fără traducere
-      blocks.push({ tip: 'upload', text: '', raw: node })
-      continue
-    }
-    const text = (node.children || []).map((c: any) => c.text || '').join('')
-    if (!text.trim()) continue
-    blocks.push({ tip: node.type, tag: node.tag, text })
-  }
-  return blocks
-}
-
-// reconstruiește Lexical din blocuri traduse
-function blocksToLexical(blocks: { tip: string; tag?: string; text: string; raw?: any }[]) {
-  const root: any = { type: 'root', format: '', indent: 0, version: 1, children: [] }
-  for (const b of blocks) {
-    if (b.tip === 'upload' && b.raw) {
-      root.children.push(b.raw)
-    } else if (b.tip === 'heading') {
-      root.children.push({ type: 'heading', tag: b.tag || 'h3', format: '', indent: 0, version: 1, children: [{ type: 'text', text: b.text, format: 0, version: 1 }] })
-    } else {
-      root.children.push({ type: 'paragraph', format: '', indent: 0, version: 1, children: [{ type: 'text', text: b.text, format: 0, version: 1 }] })
-    }
-  }
-  if (root.children.length === 0) root.children.push({ type: 'paragraph', format: '', indent: 0, version: 1, children: [{ type: 'text', text: '', format: 0, version: 1 }] })
-  return { root }
-}
 
 export interface TraducereRezultat {
   titlu: string
@@ -41,6 +9,9 @@ export interface TraducereRezultat {
   continut: any
   metaTitle: string
   metaDescription: string
+  galerie?: { imagine: any; caption?: string | null; credit?: string | null }[] | null
+  videoTitlu?: string | null
+  tags?: { tag?: string | null }[] | null
 }
 
 /**
@@ -59,23 +30,14 @@ export async function traduceArticol(articolRo: {
   titlu: string
   excerpt: string
   continut: any
+  galerie?: { imagine: any; caption?: string | null; credit?: string | null }[] | null
+  videoTitlu?: string | null
+  tags?: { tag?: string | null }[] | null
 }, retryCount = 0): Promise<TraducereRezultat | null> {
   try {
-    const blocsToti = lexicalToBlocks(articolRo.continut)
-    // separăm blocurile de TEXT (trimise la Claude) de nodurile upload (păstrate neschimbate)
-    // uploadDupa[i] = lista de noduri upload care trebuie inserate DUPĂ blocul de text cu indexul i (înainte de traducere)
-    const blocuriText: { tip: string; tag?: string; text: string }[] = []
-    const uploadDupa: Record<number, any[]> = {}
-    for (const b of blocsToti) {
-      if (b.tip === 'upload') {
-        const idx = blocuriText.length - 1 // se leagă de ultimul bloc de text procesat până acum
-        ;(uploadDupa[idx] = uploadDupa[idx] || []).push(b.raw)
-      } else {
-        blocuriText.push(b)
-      }
-    }
-    // numerotăm DOAR blocurile de text ca să le trimitem la Claude
-    const continutNumerotat = blocuriText.map((b, i) => '[' + i + '|' + (b.tip === 'heading' ? 'H' : 'P') + '] ' + b.text).join('\n\n')
+    const prepared = prepareLexicalTranslation(articolRo.continut, { galerie: articolRo.galerie, videoTitlu: articolRo.videoTitlu, tags: articolRo.tags })
+    const blocuriText = prepared.units
+    const continutNumerotat = blocuriText.map((b, i) => '[' + i + '|' + (b.tip === 'heading' ? 'H' : 'P') + '] ' + b.text.replace(/\r?\n/g, ' ')).join('\n\n')
 
     const prompt =
       'You are a professional translator and editor for an international AI news platform. ' +
@@ -87,7 +49,9 @@ export async function traduceArticol(articolRo: {
       '- Keep the SAME meaning and facts. Do not add or remove information.\n' +
       '- Keep proper nouns, company names, product names unchanged (OpenAI, Anthropic, etc.).\n' +
       '- Preserve attributions ("potrivit Reuters" → "according to Reuters").\n' +
-      '- Keep the EXACT block structure. Each block is marked [N|H] (heading) or [N|P] (paragraph).\n\n' +
+      '- Each numbered segment is a text fragment, possibly inside a formatted sentence or table cell. Use surrounding segments for context.\n' +
+      '- Keep EXACTLY one output line for each [N|H] or [N|P] segment. Do not merge segments or output unnumbered text.\n' +
+      '- Preserve leading and trailing spaces in each translated fragment to keep inline words separated.\n\n' +
       'Respond using EXACTLY these markers (no JSON):\n' +
       '###TITLU###\n(translated title)\n###EXCERPT###\n(translated short summary)\n###CONTINUT###\n' +
       '(translated blocks, each on its own line, keeping the [N|H] or [N|P] marker exactly)\n' +
@@ -188,18 +152,17 @@ export async function traduceArticol(articolRo: {
       return retryCount === 0 ? traduceArticol(articolRo, 1) : null
     }
 
-    // Reassemble only after strict block validation above has passed.
-    const blocuriFinale: { tip: string; tag?: string; text: string; raw?: any }[] = []
-    if (uploadDupa[-1]) for (const raw of uploadDupa[-1]) blocuriFinale.push({ tip: 'upload', text: '', raw })
-    for (let i = 0; i < blocuriText.length; i++) {
-      if (textTradusPeIndex[i]) blocuriFinale.push(textTradusPeIndex[i])
-      if (uploadDupa[i]) for (const raw of uploadDupa[i]) blocuriFinale.push({ tip: 'upload', text: '', raw })
+    // Keep the original separators around inline fragments (bold, links, etc.).
+    for (const [i, original] of blocuriText.entries()) {
+      textTradusPeIndex[i].text = (original.text.match(/^\s*/)?.[0] || '')
+        + textTradusPeIndex[i].text + (original.text.match(/\s*$/)?.[0] || '')
     }
 
     return {
       titlu,
       excerpt,
-      continut: blocksToLexical(blocuriFinale),
+      continut: prepared.apply(textTradusPeIndex),
+      ...prepared.metadata,
       metaTitle: metaTitle || titlu,
       metaDescription: metaDescription || excerpt,
     }
