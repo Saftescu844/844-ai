@@ -4,10 +4,13 @@ import {
   UploadFeature,
   BlocksFeature,
   FixedToolbarFeature,
+  EXPERIMENTAL_TableFeature,
   TextStateFeature,
 } from '@payloadcms/richtext-lexical'
 import { VideoBlock, CalloutBlock, TableBlock } from '@/lib/richtext-blocks'
 import { richTextTextState } from '@/lib/richtext-text-state'
+import { translateArticleHandler } from '@/endpoints/translateArticle'
+import { articleTranslationHash } from '@/lib/article-translation-hash'
 
 const enforceArticlePublicationRBAC: CollectionBeforeOperationHook<'articole'> = ({
   args,
@@ -125,6 +128,7 @@ const protectArticleCommentDependencies: CollectionBeforeOperationHook<'articole
 export const Articole: CollectionConfig = {
   slug: 'articole',
   labels: { singular: 'Articol', plural: 'Articole' },
+  endpoints: [{ path: '/:id/prepare-english', method: 'post', handler: translateArticleHandler }],
   admin: {
     useAsTitle: 'titlu',
     defaultColumns: ['titlu', 'pilon', 'tip', 'limba', 'editorialStatus', '_status', 'publishedAt'],
@@ -283,16 +287,34 @@ export const Articole: CollectionConfig = {
       name: 'continut',
       type: 'richText',
       required: true,
+      admin: {
+        components: {
+          beforeInput: ['@/components/admin/ArticleEditorControls#ArticleEditorControls'],
+          afterInput: ['@/components/admin/PrepareEnglishButton#PrepareEnglishButton'],
+        },
+        description: 'Tabele editabile din + → Table. Graficele se pot încărca drept imagini. Previzualizarea arată conținutul curent înainte de salvare.',
+      },
       editor: lexicalEditor({
         features: ({ defaultFeatures }) => [
           ...defaultFeatures,
           FixedToolbarFeature(),
+          EXPERIMENTAL_TableFeature(),
           TextStateFeature({ state: richTextTextState }),
           UploadFeature({
             collections: {
               media: {
                 fields: [
                   { name: 'caption', type: 'text', label: 'Descriere (caption)' },
+                  { name: 'alt', type: 'text', label: 'Text alternativ pentru această imagine' },
+                  { name: 'credit', type: 'text', label: 'Credit / sursa imaginii' },
+                  {
+                    name: 'size', type: 'select', label: 'Lățime', defaultValue: 'full',
+                    options: [
+                      { label: 'Completă', value: 'full' },
+                      { label: 'Medie (75%)', value: 'medium' },
+                      { label: 'Mică (50%)', value: 'small' },
+                    ],
+                  },
                   {
                     name: 'align',
                     type: 'select',
@@ -569,6 +591,11 @@ export const Articole: CollectionConfig = {
       },
       ({ data, originalDoc }) => {
         // detectează dacă textul RO s-a schimbat față de ultima traducere
+        const previousHash = data.continutHashTradus ?? originalDoc?.continutHashTradus
+        if (previousHash?.startsWith('sha256:')) {
+          data.necesitaRetraducere = previousHash !== articleTranslationHash({ ...originalDoc, ...data })
+          return data
+        }
         if (!data.continut) return data
         const textPlat = (node: any): string => {
           if (!node) return ''
