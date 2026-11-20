@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { useConfig, useDocumentInfo, useFormFields, useFormModified, useFormProcessing } from '@payloadcms/ui'
+import { useConfig, useDocumentInfo, useForm, useFormFields, useFormModified, useFormProcessing } from '@payloadcms/ui'
+import { reloadSavedArticle } from '@/lib/article-editor-navigation'
 import { populateEditorPreview } from '@/lib/article-editor-preview'
 import { EnglishRetranslationReview, type RetranslationReview } from './EnglishRetranslationReview'
 
@@ -13,6 +14,7 @@ export function PrepareEnglishButton() {
 function EnglishArticleActions() {
   const { id } = useDocumentInfo()
   const { config } = useConfig()
+  const { setDisabled, setProcessing } = useForm()
   const modified = useFormModified()
   const processing = useFormProcessing()
   const language = useFormFields(([fields]) => fields.limba?.value)
@@ -37,6 +39,9 @@ function EnglishArticleActions() {
     if (inFlight.current || !id || modified || processing) return
     inFlight.current = true
     setBusy(true)
+    setDisabled(true)
+    setProcessing(true)
+    let refreshing = false
     setError('')
     try {
       const response = await fetch(`${config.routes.api}/articole/${id}/prepare-english`, {
@@ -45,11 +50,17 @@ function EnglishArticleActions() {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Traducerea nu a reușit.')
       setEnglishId(result.englishId)
+      reloadSavedArticle()
+      refreshing = true
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Verifică legătura și reîncarcă articolul.')
     } finally {
-      inFlight.current = false
-      setBusy(false)
+      if (!refreshing) {
+        inFlight.current = false
+        setBusy(false)
+        setDisabled(false)
+        setProcessing(false)
+      }
     }
   }
   const prepareUpdate = async () => {
@@ -79,6 +90,9 @@ function EnglishArticleActions() {
     if (inFlight.current || !review || modified || processing) return
     inFlight.current = true
     setBusy(true)
+    setDisabled(true)
+    setProcessing(true)
+    let refreshing = false
     setError('')
     try {
       const response = await fetch(`${config.routes.api}/articole/${id}/retranslate-english-apply`, {
@@ -90,11 +104,17 @@ function EnglishArticleActions() {
       setEnglishId(result.englishId)
       setAppliedRevision(fingerprint)
       setReview(null)
+      reloadSavedArticle()
+      refreshing = true
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Reîncarcă articolele pentru a verifica rezultatul salvării.')
     } finally {
-      inFlight.current = false
-      setBusy(false)
+      if (!refreshing) {
+        inFlight.current = false
+        setBusy(false)
+        setDisabled(false)
+        setProcessing(false)
+      }
     }
   }
   const target = partner || englishId
