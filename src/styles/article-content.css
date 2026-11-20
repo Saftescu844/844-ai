@@ -1,0 +1,42 @@
+.article-content {
+  display: flow-root;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.article-content .lexical-table-container {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 24px 0;
+}
+
+.article-content .lexical-table {
+  width: 100%;
+  font-size: 0.95em;
+  text-align: start;
+}
+
+.article-content .lexical-table th {
+  background: #eef4fb;
+  color: #1a4a7a;
+}
+
+.article-content td, .article-content th {
+  min-width: 90px;
+  vertical-align: top;
+}
+
+.article-content blockquote {
+  margin: 24px 0;
+  padding: 8px 20px;
+  border-inline-start: 4px solid #185fa5;
+  background: #eef4fb;
+}
+
+@media (max-width: 600px) {
+  .article-content .article-inline-image {
+    float: none !important;
+    width: 100% !important;
+    margin: 20px auto !important;
+  }
+}
