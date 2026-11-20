@@ -35,6 +35,18 @@ describe('Prepare English draft', () => {
     expect(t.translate.mock.invocationCallOrder[0]).toBeLessThan(t.payload.db.beginTransaction.mock.invocationCallOrder[0])
   })
 
+  it('creates new gallery/tag rows instead of reusing RO array IDs', async () => {
+    const t = setup()
+    t.translate.mockResolvedValue({ titlu: 'Article', excerpt: 'Summary', continut: t.source.continut,
+      metaTitle: 'Article', metaDescription: 'Summary',
+      galerie: [{ id: 'ro-gallery-row', imagine: 12, caption: 'Translated caption', credit: 'Author' }],
+      tags: [{ id: 'ro-tag-row', tag: 'Health' }],
+    } as any)
+    await prepareEnglishDraft(t.req, 10, t.translate)
+    expect(t.payload.create.mock.calls[0][0].data.galerie).toEqual([{ imagine: 12, caption: 'Translated caption', credit: 'Author' }])
+    expect(t.payload.create.mock.calls[0][0].data.tags).toEqual([{ tag: 'Health' }])
+  })
+
   it('does not regenerate or overwrite an existing edition', async () => {
     const t = setup()
     t.payload.findByID.mockResolvedValue({ ...t.source, versiuneAlternativa: 11 })
