@@ -19,20 +19,21 @@ function ImagineCuAliniere({ node }: { node: SerializedUploadNode }) {
   const fields: any = node.fields || {}
   const align = fields.align || 'center'
   const caption = fields.caption || ''
-
-  if (align === 'left' || align === 'right') {
-    return (
-      <figure style={{ float: align as any, margin: align === 'left' ? '4px 20px 12px 0' : '4px 0 12px 20px', maxWidth: 320 }}>
-        <img src={doc.url} alt={caption || doc.alt || ''} style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 10 }} />
-        {caption && <figcaption style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{caption}</figcaption>}
-      </figure>
-    )
-  }
+  const credit = fields.credit || doc.credit || ''
+  const width = fields.size === 'small' ? '50%' : fields.size === 'medium' ? '75%' : '100%'
+  const floating = align === 'left' || align === 'right'
 
   return (
-    <figure style={{ display: 'table', margin: '24px auto', maxWidth: 650 }}>
-      <img src={doc.url} alt={caption || doc.alt || ''} style={{ display: 'block', maxWidth: 650, width: 'auto', height: 'auto', borderRadius: 10 }} />
-      {caption && <figcaption style={{ fontSize: 13, color: '#888', marginTop: 6, textAlign: 'center' }}>{caption}</figcaption>}
+    <figure className="article-inline-image" style={{
+      width, maxWidth: floating ? 320 : 650,
+      float: floating ? align : undefined,
+      margin: align === 'left' ? '4px 20px 12px 0' : align === 'right' ? '4px 0 12px 20px' : '24px auto',
+    }}>
+      <img src={doc.url} alt={fields.alt || doc.alt || caption || ''} style={{ display: 'block', width: '100%', maxWidth: '100%', height: 'auto', borderRadius: 10 }} />
+      {(caption || credit) && <figcaption style={{ fontSize: 13, color: '#666', marginTop: 6, textAlign: 'center' }}>
+        {caption && <span>{caption}</span>}
+        {credit && <span style={{ display: 'block' }}>Credit: {credit}</span>}
+      </figcaption>}
     </figure>
   )
 }
@@ -130,6 +131,17 @@ export const jsxConvertersCuImagini: JSXConvertersFunction<DefaultNodeTypes> = (
     return Object.keys(styles).length > 0
       ? <span style={styles as any}>{rendered}</span>
       : rendered
+  },
+  table: ({ node, nodesToJSX }: any) => {
+    const widths = Array.isArray(node.colWidths)
+      ? node.colWidths.map((width: unknown) => typeof width === 'number' && Number.isFinite(width) && width > 0 ? Math.min(1200, Math.max(40, width)) : undefined)
+      : []
+    return <div className="lexical-table-container" role="region" aria-label="Table" tabIndex={0}>
+      <table className="lexical-table" style={{ borderCollapse: 'collapse' }}>
+        {widths.length > 0 && <colgroup>{widths.map((width: number | undefined, i: number) => <col key={i} style={{ width }} />)}</colgroup>}
+        <tbody>{nodesToJSX({ nodes: node.children })}</tbody>
+      </table>
+    </div>
   },
   upload: ({ node }: any) => <ImagineCuAliniere node={node} />,
   blocks: {
